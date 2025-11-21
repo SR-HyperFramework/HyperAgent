@@ -1,3 +1,8 @@
+# Custom
+resource/
+die_result.json
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

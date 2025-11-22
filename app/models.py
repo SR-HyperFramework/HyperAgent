@@ -7,10 +7,19 @@ class AnalysisRequest(BaseModel):
     pass
 
 class DIEResult(BaseModel):
-    raw_output: str
-    parsed_output: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
+    parsed: Optional[Dict[str, Any]] = None
+
+# class DIEResult(BaseModel):
+#     raw_output: str
+#     parsed_output: Optional[Dict[str, Any]] = None
+#     file_class: Optional[str] = None
+#     packer: Optional[str] = None
+#     compiler: Optional[str] = None
+#     language: Optional[str] = None
+#     error: Optional[str] = None
 
 class AnalysisResponse(BaseModel):
     filename: str
     die_result: DIEResult
+
+

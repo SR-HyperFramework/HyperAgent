@@ -20,15 +20,24 @@ async def scan_file(file: UploadFile = File(...)):
     try:
         # Run DIE analysis
         die_output = run_die(tmp_path)
-        
+
         return AnalysisResponse(
             filename=file.filename,
             die_result=DIEResult(
-                raw_output=die_output.get("raw", ""),
-                parsed_output=die_output.get("parsed", {}),
-                error=die_output.get("error")
+                parsed=die_output.get("parsed", {}),
             )
         )
+
+        # return AnalysisResponse(
+        #     filename=file.filename,
+        #     die_result=DIEResult(
+        #         file_class=die_output.get("file_class"),
+        #         packer=die_output.get("packer"),
+        #         compiler=die_output.get("compiler"),
+        #         language=die_output.get("language"),
+        #         error=die_output.get("error")
+        #     )
+        # )
     finally:
         # Clean up temp file
         if os.path.exists(tmp_path):

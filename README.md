@@ -34,22 +34,6 @@ uvicorn app.main:app --port 8000 --reload
 ## Development Roadmap & Status
 
 ### Phase 1: Create skeleton + FastAPI + basic schemas [COMPLETED]
-- [x] Set up project structure
-- [x] Install dependencies (FastAPI, Uvicorn, etc.)
-- [x] Create main application entry point
-- [x] Define basic Pydantic schemas
-- [x] Create basic endpoint to receive sample
-
-### Phase 2: DIE wrapper (CLI call + parser) [COMPLETED]
-- [x] Implement DIE wrapper function
-- [x] Parse DIE output (Text/JSON)
-- [x] Integrate DIE wrapper into analysis endpoint
-
-### Phase 3: Strategy selector (YAML-based rule engine) [TODO]
-- [ ] Define strategy rules (YAML)
-- [ ] Implement strategy selector logic based on DIE output
-- [ ] Select appropriate tools (Ghidra, Rizin, ILSpy)
-
 ### Phase 4: MCP adapters (ghidra, rizin, ilspy) [TODO]
 - [ ] Implement Ghidra adapter
 - [ ] Implement Rizin adapter

@@ -25,6 +25,7 @@ async def scan_file(file: UploadFile = File(...)):
             filename=file.filename,
             die_result=DIEResult(
                 parsed=die_output.get("parsed", {}),
+                entropy=die_output.get("entropy")
             )
         )
 

@@ -1,6 +1,7 @@
 import subprocess
 import shutil
 import json
+from typing import Optional
 
 def run_die(file_path: str) -> dict:
     """
@@ -19,33 +20,45 @@ def run_die(file_path: str) -> dict:
 
     # die_path = "../../resource/diec/diec.exe"
     try:
-        # Run diec with json output if possible, or just raw
-        # Assuming 'diec -j <file>' gives JSON. 
-        # If not, we might need to parse text.
-        # For now, let's try to get raw output.
-        result = subprocess.run(
+        # 1. Run for detailed info
+        result_info = subprocess.run(
             [die_path, "-b", "-p", "-u", file_path], 
             capture_output=True, 
             text=True, 
             check=False
         )
         
-        raw_output = result.stdout
-        parsed = {}
+        # 2. Run for entropy
+        result_entropy = subprocess.run(
+            [die_path, "-p", "-e", file_path], 
+            capture_output=True, 
+            text=True, 
+            check=False
+        )
         
-        if result.returncode == 0:
-            # Parse text output
-            parsed_data = parse_die_text_output(raw_output)
-            parsed = parsed_data
+        raw_output = result_info.stdout
+        parsed = {}
+        entropy = None
+        
+        if result_info.returncode == 0:
+            # Parse text output from info run
+            parsed = parse_die_text_output(raw_output)
+            
+            # Parse entropy from entropy run
+            if result_entropy.returncode == 0:
+                entropy = extract_entropy(result_entropy.stdout)
+                # Append entropy output to raw for debugging/completeness if needed
+                # raw_output += "\n--- Entropy Run ---\n" + result_entropy.stdout
         else:
             return {
-                "raw": result.stderr,
-                "error": f"DIE exited with code {result.returncode}"
+                "raw": result_info.stderr,
+                "error": f"DIE exited with code {result_info.returncode}"
             }
 
         return {
             "raw": raw_output,
-            "parsed": parsed
+            "parsed": parsed,
+            "entropy": entropy
         }
 
     except Exception as e:
@@ -53,6 +66,26 @@ def run_die(file_path: str) -> dict:
             "raw": "",
             "error": str(e)
         }
+
+def extract_entropy(text: str) -> Optional[float]:
+    """
+    Extracts the total entropy value from DIE output, which often appears
+    in a line starting with "Total".
+    """
+    for line in text.splitlines():
+        line_stripped = line.strip()
+        if line_stripped.startswith("Total "):
+            try:
+                # Example: "Total 7.60693: packed"
+                # Extract the part between "Total " and ":"
+                parts = line_stripped.split(" ")
+                # The entropy value should be the second part (index 1)
+                if len(parts) > 1:
+                    value_str = parts[1].split(":")[0].strip()
+                    return float(value_str)
+            except (ValueError, IndexError):
+                pass
+    return None
 
 def parse_die_text_output(text: str) -> dict:
     """
@@ -64,7 +97,8 @@ def parse_die_text_output(text: str) -> dict:
         "compiler": None,
         "language": None,
         "library": None,
-        "tool": None
+        "tool": None,
+        "malware": None
     }
     
     lines = text.splitlines()
@@ -109,5 +143,7 @@ def parse_die_text_output(text: str) -> dict:
                 result["library"] = value
             elif "tool" in key:
                 result["tool"] = value
+            elif "malware" in key:
+                result["malware"] = value
                 
     return result

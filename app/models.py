@@ -8,6 +8,7 @@ class AnalysisRequest(BaseModel):
 
 class DIEResult(BaseModel):
     parsed: Optional[Dict[str, Any]] = None
+    entropy: Optional[float] = None
 
 # class DIEResult(BaseModel):
 #     raw_output: str

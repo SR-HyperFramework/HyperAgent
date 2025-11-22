@@ -14,6 +14,23 @@
 ## Pipeline
 Ingestor → DIE → Strategy → MCP → Logger → JSON builder
 
+## Installation for development
+
+### Run the microservice
+```bash
+# Create virtual environment if u want :v
+python -m venv venv
+venv\Scripts\activate (optional)
+
+pip install -r requirements.txt
+
+# Run the app
+uvicorn app.main:app --port 8000 --reload
+```
+
+### Run the tests
+> Test functions with test_*.py files. Before running the tests, make sure to run the microservice.
+
 ## Development Roadmap & Status
 
 ### Phase 1: Create skeleton + FastAPI + basic schemas [COMPLETED]

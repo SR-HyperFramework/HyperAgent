@@ -1,0 +1,16 @@
+# HyperAgent Configuration
+
+# API Keys
+# google_api_key: "YOUR_GEMINI_API_KEY"
+
+# Tool Paths
+# Use absolute paths or ensure tools are in system PATH
+tools:
+  diec: "diec.exe"  # Path to Detect It Easy CLI
+  # ida_headless: "C:\\Program Files\\IDA Pro\\idat64.exe" # Path to IDA Pro
+  capa: "capa.exe"
+  floss: "floss.exe"
+
+# MCP Settings
+mcp:
+  ida_server_command: ["uv", "run", "idalib-mcp"]

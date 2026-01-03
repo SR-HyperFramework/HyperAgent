@@ -1,59 +1,60 @@
-# HyperAgent
+# HyperAgent MCP Orchestrator
 
-**Goal**: Build a static-analysis microservice for Hyperscope.
+HyperAgent is an automated malware analysis orchestrator that routes files to appropriate analysis agents (Native, .NET, Script) and uses MCP (Model Context Protocol) to control tools like IDA Pro. It aggregates findings using Google Gemini to provide a comprehensive analysis report.
 
 ## Features
-1. Receive sample → inspect with DIE
-2. Classify language/arch/packer
-3. Select disassembler automatically
-4. MCP controls tools (Ghidra, Rizin, ILSpy)
-5. Produce normalized JSON output
-6. Provide API for Hyperscope
-7. Full structured logging
+- **Smart Routing**: Uses `diec` (Detect It Easy) to identify file types and route them to specific agents.
+- **MCP Integration**: Controls IDA Pro via `idat` and `idalib-mcp` for deep static analysis.
+- **Static Analysis**: Automates CAPA (Capabilities) and FLOSS (Strings) execution.
+- **AI Reporting**: Generates human-readable reports using Gemini 1.5 Pro.
 
-## Pipeline
-Ingestor → DIE → Strategy → MCP → Logger → JSON builder
+## Setup
 
-## Installation for development
+1. **Install Dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-### Run the microservice
+2. **Configuration**:
+   - Edit `config.yaml` to set your paths for `diec`, `capa`, `floss`, and `ida`.
+   - Set your `GEMINI_API_KEY` in `.env` or `config.yaml`.
+
+3. **Requirements**:
+   - Python 3.10+
+   - Installed tools: DIE, IDA Pro, CAPA, FLOSS.
+   - `uv` package manager (optional, for running mcp server if configured).
+
+## Usage
+
 ```bash
-# Create virtual environment if u want :v
-python -m venv venv
-venv\Scripts\activate (optional)
-
-pip install -r requirements.txt
-
-# Run the app
-uvicorn app.main:app --port 8000 --reload
+python main.py path/to/malware.exe
 ```
 
-### Run the tests
-> Test functions with test_*.py files. Before running the tests, make sure to run the microservice.
+## FastAPI (Input/Output)
 
-## Development Roadmap & Status
+Run the API server:
 
-### Phase 1: Create skeleton + FastAPI + basic schemas [COMPLETED]
-### Phase 4: MCP adapters (ghidra, rizin, ilspy) [TODO]
-- [ ] Implement Ghidra adapter
-- [ ] Implement Rizin adapter
-- [ ] Implement ILSpy adapter
-- [ ] Standardize tool outputs
+```bash
+pip install -r requirements.txt
+uvicorn api:app --host 0.0.0.0 --port 8000
+```
 
-### Phase 5: Static pipeline orchestrator [TODO]
-- [ ] Orchestrate the flow: Ingest → DIE → Strategy → Tool → Output
-- [ ] Error handling and fallback mechanisms
+Analyze by file path (JSON input → JSON output):
 
-### Phase 6: API integration [TODO]
-- [ ] Finalize API endpoints for Hyperscope
-- [ ] Ensure proper response format
+```bash
+curl -X POST http://127.0.0.1:8000/analyze/path \
+   -H "Content-Type: application/json" \
+   -d "{\"file_path\": \"C:/path/to/sample.exe\"}"
+```
 
-### Phase 7: Optional [TODO]
-- [ ] Caching mechanism
-- [ ] Unpackers integration
-- [ ] Extended heuristics
+Analyze by upload (multipart input → JSON output):
 
-## Deliverables
-- JSON output format
-- Log event format
-- Example analysis job
+```bash
+curl -X POST http://127.0.0.1:8000/analyze/upload \
+   -F "file=@C:/path/to/sample.exe"
+```
+
+## Structure
+- `core/`: Core logic (DIE handling, MCP client, Context Logger).
+- `agents/`: Specific analysis agents (Native, DotNet, etc).
+- `output/`: Generated reports.

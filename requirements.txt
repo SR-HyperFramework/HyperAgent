@@ -1,3 +1,6 @@
+mcp
+pyyaml
+python-dotenv
 fastapi
-uvicorn
+uvicorn[standard]
 python-multipart

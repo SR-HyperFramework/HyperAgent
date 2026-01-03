@@ -1,4 +1,4 @@
-# HyperAgent MCP Orchestrator
+# HyperAgent IDA MCP Orchestrator
 
 HyperAgent is an automated malware analysis orchestrator that routes files to appropriate analysis agents (Native, .NET, Script) and uses MCP (Model Context Protocol) to control tools like IDA Pro.
 
@@ -10,6 +10,8 @@ HyperAgent is an automated malware analysis orchestrator that routes files to ap
 
 1. **Install Dependencies**: 
    - Install IDA MCP plugin from [idalib-mcp](https://github.com/mrexodia/ida-pro-mcp)
+
+   - Install [Goose](https://github.com/block/goose) and configure provider
 
    - Navigate to `<IDA_PATH>\idalib\python` and run `pip install .` to install `idalib`
    
@@ -24,8 +26,31 @@ HyperAgent is an automated malware analysis orchestrator that routes files to ap
    pip install -r requirements.txt
    ```
 
+
 2. **Configuration**:
-   - Edit `config.yaml` to set your paths for `diec` or skip this step if `diec` is in your system PATH.
+   - Edit `config.yaml` of `Goose MCPClient` to set your paths for `diec` or skip this step if `diec` is in your system PATH.
+
+   Example
+   ```yaml
+   GOOSE_PROVIDER: github_copilot
+   GOOSE_MODEL: gpt-4.1
+   extensions:
+   ida:
+      enabled: true
+      type: sse
+      name: ida
+      description: demo
+      uri: http://localhost:8745/sse
+      args:
+      - mcp-cli
+      - --host
+      - 127.0.0.1
+      - --port
+      - '8745'
+      timeout: 1800
+      bundled: null
+      available_tools: []
+   ```
 
 3. **Requirements**:
    - Python 3.10+

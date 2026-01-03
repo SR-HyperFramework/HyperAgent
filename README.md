@@ -1,20 +1,31 @@
 # HyperAgent MCP Orchestrator
 
-HyperAgent is an automated malware analysis orchestrator that routes files to appropriate analysis agents (Native, .NET, Script) and uses MCP (Model Context Protocol) to control tools like IDA Pro. It aggregates findings using Google Gemini to provide a comprehensive analysis report.
+HyperAgent is an automated malware analysis orchestrator that routes files to appropriate analysis agents (Native, .NET, Script) and uses MCP (Model Context Protocol) to control tools like IDA Pro.
 
 ## Features
 - **Smart Routing**: Uses `diec` (Detect It Easy) to identify file types and route them to specific agents.
-- **MCP Integration**: Controls IDA Pro via `idat` and `idalib-mcp` for deep static analysis.
+- **MCP Integration**: Controls IDA Pro via `ida` and `idalib-mcp` for deep static analysis.
 
 ## Setup
 
-1. **Install Dependencies**:
+1. **Install Dependencies**: 
+   - Install IDA MCP plugin from [idalib-mcp](https://github.com/mrexodia/ida-pro-mcp)
+
+   - Navigate to `<IDA_PATH>\idalib\python` and run `pip install .` to install `idalib`
+   
+   *Note: If you face issues when install, try copying the `Python` folder to lower permission directories and run pip again.*
+
+   - Add IDA and DIE to your system PATH with `IDA_PATH` variable name.
+
+   - Prepare a virtual environment and install required packages
    ```bash
+   python -m venv venv
+   venv\Scripts\activate
    pip install -r requirements.txt
    ```
 
 2. **Configuration**:
-   - Edit `config.yaml` to set your paths for `diec`, 
+   - Edit `config.yaml` to set your paths for `diec` or skip this step if `diec` is in your system PATH.
 
 3. **Requirements**:
    - Python 3.10+
@@ -79,8 +90,3 @@ curl -X POST http://127.0.0.1:8000/analyze/upload \
 - [ ] Caching mechanism
 - [ ] Unpackers integration
 - [ ] Extended heuristics
-
-## Deliverables
-- JSON output format
-- Log event format
-- Example analysis job

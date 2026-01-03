@@ -5,8 +5,6 @@ HyperAgent is an automated malware analysis orchestrator that routes files to ap
 ## Features
 - **Smart Routing**: Uses `diec` (Detect It Easy) to identify file types and route them to specific agents.
 - **MCP Integration**: Controls IDA Pro via `idat` and `idalib-mcp` for deep static analysis.
-- **Static Analysis**: Automates CAPA (Capabilities) and FLOSS (Strings) execution.
-- **AI Reporting**: Generates human-readable reports using Gemini 1.5 Pro.
 
 ## Setup
 
@@ -16,12 +14,11 @@ HyperAgent is an automated malware analysis orchestrator that routes files to ap
    ```
 
 2. **Configuration**:
-   - Edit `config.yaml` to set your paths for `diec`, `capa`, `floss`, and `ida`.
-   - Set your `GEMINI_API_KEY` in `.env` or `config.yaml`.
+   - Edit `config.yaml` to set your paths for `diec`, 
 
 3. **Requirements**:
    - Python 3.10+
-   - Installed tools: DIE, IDA Pro, CAPA, FLOSS.
+   - Installed tools: DIE, IDA Pro
    - `uv` package manager (optional, for running mcp server if configured).
 
 ## Usage
@@ -58,3 +55,32 @@ curl -X POST http://127.0.0.1:8000/analyze/upload \
 - `core/`: Core logic (DIE handling, MCP client, Context Logger).
 - `agents/`: Specific analysis agents (Native, DotNet, etc).
 - `output/`: Generated reports.
+
+
+## Development Roadmap & Status
+
+### Phase 1: Create skeleton + FastAPI + basic schemas [COMPLETED]
+
+### Phase 2: MCP adapters [IN PROGRESS]
+- [ ] Implement Ghidra adapter
+- [x] Implement IDA adapter
+- [ ] Implement DnSpy adapter
+- [ ] Implement Script adapter
+
+### Phase 3: Static pipeline orchestrator [COMPLETED]
+- [x] Orchestrate the flow: Ingest → DIE → Strategy → Tool → Output
+- [x] Error handling and fallback mechanisms
+
+### Phase 4: API integration [IN PROGRESS]
+- [x] Finalize API endpoints for Hyperscope
+- [ ] Ensure proper response format
+
+### Phase 5: Optional [TODO]
+- [ ] Caching mechanism
+- [ ] Unpackers integration
+- [ ] Extended heuristics
+
+## Deliverables
+- JSON output format
+- Log event format
+- Example analysis job

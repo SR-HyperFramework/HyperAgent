@@ -1,5 +1,8 @@
 # Custom
 resource/
+trash/
+uploads/
+dotnet_output/
 die_result.json
 
 

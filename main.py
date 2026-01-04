@@ -4,7 +4,6 @@ import yaml
 from dotenv import load_dotenv
 
 from core.die_handler import DIEHandler, AnalysisType
-# from core.context_logger import ContextLogger
 from agents.native_agent import NativeAgent
 from agents.dotnet_agent import DotNetAgent
 from agents.script_agent import ScriptAgent
@@ -17,21 +16,10 @@ class HyperAgentOrchestrator:
         self.config_path = config_path
         self.config = self._load_config(config_path)
         self.die_handler = DIEHandler(config_path)
-        # self.context_logger = ContextLogger()
 
     def _load_config(self, path: str):
         with open(path, "r") as f:
             return yaml.safe_load(f)
-
-    # def setup_ai(self):
-    #     """Configures Gemini API."""
-    #     api_key = os.getenv("GEMINI_API_KEY") or self.config.get("google_api_key")
-    #     if not api_key or api_key == "YOUR_GEMINI_API_KEY":
-    #         print("Warning: Gemini API Key not found. Reports will not be generated.")
-    #         self.model = None
-    #     else:
-    #         genai.configure(api_key=api_key)
-    #         self.model = genai.GenerativeModel("gemini-pro") # Or 1.5-pro
 
     async def analyze(self, file_path: str) -> dict:
         """Analyze a file and return a JSON-serializable result."""
@@ -58,7 +46,7 @@ class HyperAgentOrchestrator:
     async def run(self, file_path: str):
         print(f"[*] Starting analysis for: {file_path}")
         result = await self.analyze(file_path)
-        print("[*] Phase 4: Exporting Results...")
+        print("[INFO] Phase 4: Exporting Results...")
         print(result)
             
 

@@ -4,6 +4,8 @@
 # Use absolute paths or ensure tools are in system PATH
 tools:
   diec: "diec.exe"  # Path to Detect It Easy CLI
+  de4dot: "de4dot.exe"
+  dnspy: "dnspyc.exe"
 
 # MCP Settings
 mcp:

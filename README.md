@@ -26,7 +26,6 @@ HyperAgent is an automated malware analysis orchestrator that routes files to ap
    pip install -r requirements.txt
    ```
 
-
 2. **Configuration**:
    - Edit `config.yaml` of `Goose MCPClient` to set your paths for `diec` or skip this step if `diec` is in your system PATH.
 
@@ -50,7 +49,11 @@ HyperAgent is an automated malware analysis orchestrator that routes files to ap
       timeout: 1800
       bundled: null
       available_tools: []
+   GOOSE_MODE: auto
    ```
+
+   *Note: 
+   - `GOOSE_MODE` must be set at `auto` to prevent processing issues.
 
 3. **Requirements**:
    - Python 3.10+

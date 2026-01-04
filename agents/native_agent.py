@@ -25,7 +25,7 @@ class NativeAgent:
                     return yaml.safe_load(f)
             return {}
         except Exception as e:
-            print(f"[-] Error loading config: {e}")
+            print(f"[ERROR] Error loading config: {e}")
             return {}
 
     def _get_file_hash(self, file_path: str) -> str:
@@ -54,7 +54,7 @@ class NativeAgent:
 
     async def run_goose_analysis(self, file_path: str) -> str:
         """Khởi chạy IDA MCP Server và bắt Stream từ Goose CLI."""
-        print(f"[*] Khởi động IDA MCP Server cho: {os.path.basename(file_path)} tại {file_path}")
+        print(f"[INFO] Khởi động IDA MCP Server cho: {os.path.basename(file_path)} tại {file_path}")
         
         server_proc = None
         captured_logs = []
@@ -92,7 +92,7 @@ class NativeAgent:
             # Give IDA a bit more time to finish initial auto-analysis if needed.
             await asyncio.sleep(5)
 
-            print("[*] Đang chạy Goose AI Agent (Bắt luồng stream trực tiếp)...")
+            print("[INFO] Đang chạy Goose AI Agent (Bắt luồng stream trực tiếp)...")
             
             # Instruction tối ưu cho Crackme/Malware
             abs_target = os.path.abspath(file_path)
@@ -125,7 +125,7 @@ class NativeAgent:
                 
                 # In ra màn hình để người dùng theo dõi tiến trình của AI
                 if "[tool call" not in decoded_line.lower(): # Ẩn bớt log gọi tool cho sạch
-                    print(f"  [AI]: {decoded_line.strip()}")
+                    print(f"  [IDA-AI]: {decoded_line.strip()}")
 
             await goose_proc.wait()
             return "".join(captured_logs)
@@ -157,7 +157,7 @@ class NativeAgent:
                             pass
                 except Exception:
                     pass
-            print("[*] Đã đóng IDA MCP Server.")
+            print("[INFO] Đã đóng IDA MCP Server.")
 
     @staticmethod
     def filter_goose_report(raw_log: str) -> str:
@@ -202,11 +202,11 @@ class NativeAgent:
         # capa_res, floss_res = await asyncio.gather(capa_task, floss_task)
 
         # Bước 3: Tổng hợp kết quả (Context Logger)
-        final_context = {
+        f_context = {
             "file_name": os.path.basename(file_path),
             "file_hash": file_hash,
             "ai_analysis_report": clean_rp,
         }
 
-        print(f"\n[+] Phân tích hoàn tất. \n{final_context}")
-        return final_context
+        print(f"\n[INFO] Phân tích hoàn tất.")
+        return f_context

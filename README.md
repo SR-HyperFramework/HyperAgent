@@ -1,12 +1,16 @@
-# HyperAgent IDA MCP Orchestrator
+# HyperAgent
 
 HyperAgent is an automated malware analysis orchestrator that routes files to appropriate analysis agents (Native, .NET, Script) and uses MCP (Model Context Protocol) to control tools like IDA Pro.
 
 ## Features
 - **Smart Routing**: Uses `diec` (Detect It Easy) to identify file types and route them to specific agents.
-- **MCP Integration**: Controls IDA Pro via `ida` and `idalib-mcp` for deep static analysis.
+- **MCP Integration**: 
+   + Supported IDA Pro via `ida` and `idalib-mcp` for deep static analysis.
+   + Supported DnSpy via `dnspyc` for .NET binaries.
 
 ## Setup
+
+### IDA MCP Integration
 
 1. **Install Dependencies**: 
    - Install IDA MCP plugin from [idalib-mcp](https://github.com/mrexodia/ida-pro-mcp)
@@ -60,6 +64,15 @@ HyperAgent is an automated malware analysis orchestrator that routes files to ap
    - Installed tools: DIE, IDA Pro
    - `uv` package manager (optional, for running mcp server if configured).
 
+### DnSpy MCP Integration
+1. **Install Dependencies**:
+   - Get a build of [dnspyc](https://github.com/dnSpyEx/dnSpy/releases/tag/v6.5.1)
+   - Rename `dnSpy.Console.exe` to `dnspyc.exe` and add it to your system PATH.
+   - Install Goose and configure provider as above.
+
+2. **Configuration**:
+   - Run `goose configure` and enable `developer` extension.
+   
 ## Usage
 
 ```bash

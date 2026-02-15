@@ -3,9 +3,11 @@
 # Tool Paths
 # Use absolute paths or ensure tools are in system PATH
 tools:
-  diec: "diec.exe"  # Path to Detect It Easy CLI
+  diec: "diec.exe"  # Updated absolute path
   de4dot: "de4dot.exe"
   dnspy: "dnspyc.exe"
+  yara_rules: "../HyperScope/yara/rules"
+  ida_path: "" # Added IDA path
 
 # MCP Settings
 mcp:

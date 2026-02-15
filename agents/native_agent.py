@@ -16,6 +16,14 @@ class NativeAgent:
         self.config = self._load_config(config_path)
         self.ida_mcp_cmd = "uv run idalib-mcp"
         self.goose_cmd = "goose"
+        
+        # Auto-configure IDA_PATH environment variable for idalib
+        ida_path = self.config.get("tools", {}).get("ida_path")
+        if ida_path:
+            os.environ["IDA_PATH"] = ida_path
+            # Also add to PATH to ensure ida64.exe/ida.exe can be found if needed
+            if ida_path not in os.environ["PATH"]:
+                os.environ["PATH"] = ida_path + os.pathsep + os.environ["PATH"]
 
     def _load_config(self, path: str) -> Dict[str, Any]:
         """Load cấu hình từ file yaml."""

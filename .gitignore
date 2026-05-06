@@ -4,6 +4,7 @@ trash/
 uploads/
 dotnet_output/
 die_result.json
+pycdc/
 
 
 # Byte-compiled / optimized / DLL files

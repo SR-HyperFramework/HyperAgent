@@ -16,6 +16,14 @@ class NativeAgent:
         self.config = self._load_config(config_path)
         self.ida_mcp_cmd = "uv run idalib-mcp"
         self.goose_cmd = "goose"
+        mcp_cfg = (self.config or {}).get("mcp") or {}
+        # Big binaries (eg. Go) can take a long time before the MCP HTTP server is actually usable.
+        # config.yaml example:
+        # mcp:
+        #   ida_startup_timeout_s: 300
+        #   ida_probe_interval_s: 0.5
+        self.ida_startup_timeout_s = float(mcp_cfg.get("ida_startup_timeout_s", 180))
+        self.ida_probe_interval_s = float(mcp_cfg.get("ida_probe_interval_s", 0.5))
 
     def _load_config(self, path: str) -> Dict[str, Any]:
         """Load cấu hình từ file yaml."""
@@ -36,20 +44,50 @@ class NativeAgent:
                 sha256_hash.update(byte_block)
         return sha256_hash.hexdigest()
 
-    async def _wait_for_port(self, host: str, port: int, timeout_s: float = 30.0) -> bool:
-        """Wait until a TCP port is accepting connections."""
+    async def _probe_http(self, host: str, port: int, path: str, expect_sse: bool, timeout_s: float = 2.0) -> bool:
+        """Probe an HTTP endpoint and return True if it responds.
+
+        If expect_sse=True, requires status 200 and 'text/event-stream' header.
+        Otherwise any HTTP status line is treated as success.
+        """
+        try:
+            reader, writer = await asyncio.wait_for(asyncio.open_connection(host, port), timeout=timeout_s)
+            req = (
+                f"GET {path} HTTP/1.1\r\n"
+                f"Host: {host}:{port}\r\n"
+                "Accept: */*\r\n"
+                "Connection: close\r\n"
+                "\r\n"
+            )
+            writer.write(req.encode("ascii", errors="ignore"))
+            await writer.drain()
+
+            raw = await asyncio.wait_for(reader.read(2048), timeout=timeout_s)
+            text = raw.decode("utf-8", errors="ignore")
+            writer.close()
+            try:
+                await writer.wait_closed()
+            except Exception:
+                pass
+
+            if expect_sse:
+                return ("HTTP/1.1 200" in text or "HTTP/1.0 200" in text) and ("text/event-stream" in text.lower())
+
+            return "HTTP/1.1" in text or "HTTP/1.0" in text
+        except Exception:
+            return False
+
+    async def _wait_for_http_ready(self, host: str, port: int, timeout_s: float) -> bool:
+        """Poll MCP HTTP server until it is usable."""
         deadline = time.monotonic() + timeout_s
         while time.monotonic() < deadline:
-            try:
-                reader, writer = await asyncio.open_connection(host, port)
-                writer.close()
-                try:
-                    await writer.wait_closed()
-                except Exception:
-                    pass
+            # Prefer /sse because it indicates the SSE endpoint is live.
+            if await self._probe_http(host, port, "/sse", expect_sse=True, timeout_s=2.0):
                 return True
-            except Exception:
-                await asyncio.sleep(0.5)
+            # Fallback: root responds (even 404/redirect/etc) means HTTP server is up.
+            if await self._probe_http(host, port, "/", expect_sse=False, timeout_s=2.0):
+                return True
+            await asyncio.sleep(self.ida_probe_interval_s)
         return False
 
     async def run_goose_analysis(self, file_path: str) -> str:
@@ -77,8 +115,8 @@ class NativeAgent:
                 creationflags=creationflags,
             )
 
-            # Wait for MCP server port to accept connections before running goose.
-            ready = await self._wait_for_port(host, port, timeout_s=45.0)
+            # Wait until MCP HTTP is actually responding, then start Goose.
+            ready = await self._wait_for_http_ready(host, port, timeout_s=self.ida_startup_timeout_s)
             if not ready:
                 server_err = ""
                 try:
@@ -87,7 +125,10 @@ class NativeAgent:
                         server_err = server_err_bytes.decode("utf-8", errors="ignore")
                 except Exception:
                     pass
-                return f"Error: IDA MCP server not ready on {host}:{port}. {server_err}".strip()
+                return (
+                    f"Error: IDA MCP HTTP not ready on http://{host}:{port} within {self.ida_startup_timeout_s:.0f}s. "
+                    f"{server_err}"
+                ).strip()
 
             # Give IDA a bit more time to finish initial auto-analysis if needed.
             await asyncio.sleep(5)
@@ -97,15 +138,19 @@ class NativeAgent:
             # Instruction tối ưu cho Crackme/Malware
             abs_target = os.path.abspath(file_path)
             instruction = (
-                f"Target file path: {abs_target}. "
-                f"An IDA MCP server is already running at http://{host}:{port}/sse with this file loaded. "
-                "Use MCP tools to inspect decompilation and add comments, rename variables and functions for clarity, "
-                "adjust variable/argument types (pointers/arrays), disassemble functions for deeper detail if needed. "
-                "ALWAYS use 'int_convert' for number bases. "
-                "Document all steps and findings in result as Markdown type. "
-                "ALWAYS start the report **Start of Analysis** and end with **End of Analysis**. "
-                "If you cannot access the target via MCP, return exactly: Error: Cannot access target file." 
-                "Do not draw table."
+                "Role: Senior Malware Researcher.\n"
+                f"Target: {abs_target}\n"
+                f"IDA MCP: http://{host}:{port}/sse\n\n"
+                "If MCP fails, reply exactly: 'Error: Cannot access target file.\n"
+                "Tasks:\n"
+                "- Decompile & Comment: Explain logic, fix types (ptr/array).\n"
+                "- Deep Dive: Disassemble if detail is needed.\n"
+                "- Number Base: ALWAYS use 'int_convert' for ALL bases.\n"
+                "- Constraint: No tables.'\n\n"
+                "Report Structure (Strictly Follow):\n"
+                "1. Start with **Start of Analysis**.\n"
+                "2. Content: [Entry Point & Main Flow] | [Sensitive Strings, IOCs, Network] | [API Imports/P-Invoke] | [Malicious Behavior/Obfuscation] | [File Summary] | [Conclusion].\n"
+                "3. End with **End of Analysis**."
             )
             
             # 2. Chạy Goose và hứng STDOUT theo thời gian thực

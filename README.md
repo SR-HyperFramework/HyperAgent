@@ -10,7 +10,7 @@ HyperAgent is an automated malware analysis orchestrator that routes files to ap
 
 ## Setup
 
-### IDA MCP Integration
+### 🌟 IDA MCP Integration
 
 1. **Install Dependencies**: 
    - Install IDA MCP plugin from [idalib-mcp](https://github.com/mrexodia/ida-pro-mcp)
@@ -64,7 +64,7 @@ HyperAgent is an automated malware analysis orchestrator that routes files to ap
    - Installed tools: DIE, IDA Pro
    - `uv` package manager (optional, for running mcp server if configured).
 
-### DnSpy MCP Integration
+### 🌟 DnSpy MCP Integration
 1. **Install Dependencies**:
    - Get a build of [dnspyc](https://github.com/dnSpyEx/dnSpy/releases/tag/v6.5.1)
    - Rename `dnSpy.Console.exe` to `dnspyc.exe` and add it to your system PATH.
@@ -72,6 +72,13 @@ HyperAgent is an automated malware analysis orchestrator that routes files to ap
 
 2. **Configuration**:
    - Run `goose configure` and enable `developer` extension.
+
+### 🌟 Python MCP Integration
+1 . **Install Dependencies**:
+   - Get a build here 
+   - Add [Graphviz](https://graphviz.org/download) into your system PATH. (run `dot -V` to verify)
+   - 
+
    
 ## Usage
 
@@ -116,7 +123,7 @@ curl -X POST http://127.0.0.1:8000/analyze/upload \
 ### Phase 2: MCP adapters [IN PROGRESS]
 - [ ] Implement Ghidra adapter
 - [x] Implement IDA adapter
-- [ ] Implement DnSpy adapter
+- [x] Implement DnSpy adapter
 - [ ] Implement Script adapter
 
 ### Phase 3: Static pipeline orchestrator [COMPLETED]

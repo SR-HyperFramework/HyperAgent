@@ -7,6 +7,7 @@ from core.die_handler import DIEHandler, AnalysisType
 from agents.native_agent import NativeAgent
 from agents.dotnet_agent import DotNetAgent
 from agents.script_agent import ScriptAgent
+from agents.unsort_agent import UnsortAgent
 
 # Load environment variables (API Key)
 load_dotenv()
@@ -32,8 +33,10 @@ class HyperAgentOrchestrator:
             agent = DotNetAgent()
         elif analysis_type == AnalysisType.PYTHON_SCRIPT:
             agent = ScriptAgent()
-        else:  # UNKNOWN, treat as Script or fallback
-            agent = ScriptAgent()
+        elif analysis_type == AnalysisType.UNKNOWN:  # UNKNOWN, treat as Script or fallback
+            agent = UnsortAgent()
+        else:
+            raise ValueError(f"Unsupported analysis type: {analysis_type}")
 
         analysis_data = await agent.analyze(file_path)
         return {

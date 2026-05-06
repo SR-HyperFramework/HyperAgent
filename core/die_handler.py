@@ -24,7 +24,7 @@ class DIEHandler:
             print(f"Error loading config: {e}")
             return {}
 
-    def parse_die_text_output(self, text: str) -> dict:
+    def parse_die_text_output(self, text: Optional[str]) -> dict:
         """
         Parses the text output from DIE to extract relevant fields.
         """
@@ -38,7 +38,8 @@ class DIEHandler:
             "malware": None
         }
         
-        lines = text.splitlines()
+        safe_text = text or ""
+        lines = safe_text.splitlines()
         for line in lines:
             # Skip empty lines
             if not line.strip():
@@ -90,14 +91,27 @@ class DIEHandler:
             # Assuming these flags produce the text output expected by the parser
             cmd = [self.die_path, "-b", "-p", "-u", file_path]
             
-            result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            # Capture raw bytes to avoid Windows cp1252 decode issues.
+            result = subprocess.run(cmd, capture_output=True, text=False, check=False)
+
+            stdout_text = ""
+            stderr_text = ""
+            try:
+                stdout_text = (result.stdout or b"").decode("utf-8", errors="replace")
+            except Exception:
+                stdout_text = ""
+            try:
+                stderr_text = (result.stderr or b"").decode("utf-8", errors="replace")
+            except Exception:
+                stderr_text = ""
             
             if result.returncode != 0:
-                print(f"DIE Error: {result.stderr}")
+                if stderr_text.strip():
+                    print(f"DIE Error: {stderr_text}")
                 # Sometimes DIE returns non-zero even if it found something?
             
             # Use the new parser
-            return self.parse_die_text_output(result.stdout)
+            return self.parse_die_text_output(stdout_text)
 
         except Exception as e:
             print(f"Error running DIE: {e}")
@@ -116,16 +130,23 @@ class DIEHandler:
         compiler = (data.get("compiler") or "").lower()
         language = (data.get("language") or "").lower()
         packer = (data.get("packer") or "").lower()
-        file_class = (data.get("file_class") or "").lower()
+        # file_class = (data.get("file_class") or "").lower()
 
         is_dotnet = ".net" in library or ".net" in compiler
-        is_python = "python" in language or file_path.lower().endswith(".py")
+        is_python = "python" in language or "pyinstaller" in packer
+        is_native = "c++" in language or "c" in language or compiler or packer
 
-        if is_dotnet:
+        is_comp_go = "go" in language or "golang" in language or compiler
+        is_comp_js = "javascript" in language or "nodejs" in language or compiler
+        bb_ext = "by extension" in language
+
+        if is_dotnet and not bb_ext:
             return data, AnalysisType.DOTNET
-        if is_python:
+        if is_python and not bb_ext:
             return data, AnalysisType.PYTHON_SCRIPT
-        if file_class or compiler or packer:
+        if is_native and not bb_ext:
+            return data, AnalysisType.NATIVE
+        if (is_comp_go or is_comp_js) and not bb_ext:
             return data, AnalysisType.NATIVE
         return data, AnalysisType.UNKNOWN
 

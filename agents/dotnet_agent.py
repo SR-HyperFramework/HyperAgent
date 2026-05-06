@@ -3,7 +3,6 @@ import os
 import hashlib
 import shutil
 import yaml
-import sys
 import re
 from typing import Dict, Any
 
@@ -236,27 +235,34 @@ class DotNetAgent:
         # Goose sẽ sử dụng extension 'developer' hoặc 'filesystem' để đọc các file .cs
         print("[*] Đang khởi chạy Goose AI để phân tích mã nguồn C#...")
         
-        # Use workspace-relative forward-slash paths to avoid Windows backslash issues inside LLM/tool calls.
+        # Use repo-root-relative paths for MCP filesystem tools.
+        # Many sandboxes reject absolute paths (drive letters) even if they point inside the repo.
         workspace_dir = self._to_workspace_rel_posix(specific_out_dir)
         key_files = self._pick_interesting_cs_files(specific_out_dir, limit=15)
 
         if not key_files:
             print("[WARN] No .cs files found for Goose to analyze (directory missing or empty).")
 
-        files_block = "\n".join(f"- {p}" for p in key_files) if key_files else "- (no .cs files detected)"
+        # Provide paths in a copy/paste-friendly block (no bullets), so the model can pass them verbatim.
+        files_block = "\n".join(key_files) if key_files else "(no .cs files detected)"
 
         instruction = (
-            "You are a Senior .NET Malware Researcher. "
-            f"Examine the decompiled C# source code under: {workspace_dir}\n"
-            "Start by opening the files listed below (they are paths inside the current workspace).\n"
-            f"Files to read first:\n{files_block}\n\n"
-            "Tasks:\n"
-            "1) Identify the Entry Point and main execution flow.\n"
-            "2) Search for sensitive strings, API imports (P/Invoke), or network activities.\n"
-            "3) Explain any malicious behavior or obfuscation remaining (e.g., Costura/Fody loaders).\n"
-            "4) NEVER try to execute any code.\n"
-            "If you cannot read files, write exactly: Error: File cannot accessed.\n"
-            "Write a report starting with **Start of Analysis** and ending with **End of Analysis**."
+            "Role: Senior .NET Malware Researcher.\n"
+            "Workspace Root: repository root (current working directory).\n"
+            f"Decompiled Output Directory (relative): {workspace_dir}\n\n"
+            "Priority Files (repo-root-relative paths; USE VERBATIM, do NOT convert to absolute):\n"
+            f"{files_block}\n\n"
+            "Constraints:\n"
+            "1. Read priority files first, using EXACT repo-relative paths shown above (no drive letters, no absolute paths).\n"
+            "2. NEVER execute code.\n"
+            "3. If file access fails, reply exactly: 'Error: File cannot accessed.'\n"
+            "4. Format: Start with '**Start of Analysis**', end with '**End of Analysis**'.\n\n"
+            "Analysis Requirements:\n"
+            "- Entry Point & Main Execution Flow.\n"
+            "- Sensitive Strings, P/Invoke (API Imports), Network IO.\n"
+            "- Obfuscation/Packers (e.g., Costura, Fody) & Malicious logic.\n"
+            "- Manual solutions for anti-debug/obfuscation encountered.\n"
+            "- Report Structure: [Entry Point] | [Flow] | [IOCs/APIs] | [Malicious/Obfuscation] | [File Summary] | [Conclusion]"
         )
 
         goose_cmd = ["goose", "run", "--text", instruction]

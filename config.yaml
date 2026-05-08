@@ -10,3 +10,7 @@ tools:
 # MCP Settings
 mcp:
   ida_server_command: ["uv", "run", "idalib-mcp"]
+
+# LLM Runner Settings
+llm:
+  claude_code_command: ["cmd.exe", "/c", "C:\\Users\\ADMIN\\AppData\\Roaming\\npm\\claude.cmd"]

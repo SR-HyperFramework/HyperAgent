@@ -2,20 +2,23 @@ import asyncio
 import subprocess
 import os
 import yaml
-from typing import Dict, Any, List
+from typing import Dict, Any
 import hashlib
 import re
 import shlex
 import time
 
-# Adjust import based on project structure
-# from core.mcp_client import IDAMCPClient
+from core.claude_code_runner import run_claude_code
+
 
 class NativeAgent:
     def __init__(self, config_path: str = "config.yaml"):
         self.config = self._load_config(config_path)
         self.ida_mcp_cmd = "uv run idalib-mcp"
-        self.goose_cmd = "goose"
+        # self.goose_cmd = "goose"
+        mcp_cfg = (self.config or {}).get("mcp") or {}
+        self.ida_startup_timeout_s = float(mcp_cfg.get("ida_startup_timeout_s", 180))
+        self.ida_probe_interval_s = float(mcp_cfg.get("ida_probe_interval_s", 0.5))
 
     def _load_config(self, path: str) -> Dict[str, Any]:
         """Load cấu hình từ file yaml."""
@@ -36,107 +39,135 @@ class NativeAgent:
                 sha256_hash.update(byte_block)
         return sha256_hash.hexdigest()
 
-    async def _wait_for_port(self, host: str, port: int, timeout_s: float = 30.0) -> bool:
-        """Wait until a TCP port is accepting connections."""
-        deadline = time.monotonic() + timeout_s
-        while time.monotonic() < deadline:
-            try:
-                reader, writer = await asyncio.open_connection(host, port)
+    async def _probe_http(
+        self,
+        host: str,
+        port: int,
+        path: str,
+        expect_sse: bool,
+        timeout_s: float = 2.0,
+    ) -> bool:
+        """Probe an HTTP endpoint and return True when the MCP server responds as expected."""
+        writer = None
+        try:
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(host, port), timeout=timeout_s
+            )
+            request = (
+                f"GET {path} HTTP/1.1\r\n"
+                f"Host: {host}:{port}\r\n"
+                "Accept: */*\r\n"
+                "Connection: close\r\n"
+                "\r\n"
+            )
+            writer.write(request.encode("ascii", errors="ignore"))
+            await writer.drain()
+
+            raw_response = await asyncio.wait_for(reader.read(2048), timeout=timeout_s)
+            response_text = raw_response.decode("utf-8", errors="ignore")
+
+            if expect_sse:
+                return (
+                    ("HTTP/1.1 200" in response_text or "HTTP/1.0 200" in response_text)
+                    and "text/event-stream" in response_text.lower()
+                )
+
+            return "HTTP/1.1" in response_text or "HTTP/1.0" in response_text
+        except Exception:
+            return False
+        finally:
+            if writer is not None:
                 writer.close()
                 try:
                     await writer.wait_closed()
                 except Exception:
                     pass
+
+    async def _wait_for_http_ready(self, host: str, port: int, timeout_s: float) -> bool:
+        """Wait until the IDA MCP HTTP/SSE interface is actually usable."""
+        deadline = time.monotonic() + timeout_s
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+
+            probe_timeout_s = min(2.0, remaining)
+            if await self._probe_http(host, port, "/sse", expect_sse=True, timeout_s=probe_timeout_s):
                 return True
-            except Exception:
-                await asyncio.sleep(0.5)
-        return False
+
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+
+            probe_timeout_s = min(2.0, remaining)
+            if await self._probe_http(host, port, "/", expect_sse=False, timeout_s=probe_timeout_s):
+                return True
+
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+
+            await asyncio.sleep(min(self.ida_probe_interval_s, remaining))
 
     async def run_goose_analysis(self, file_path: str) -> str:
-        """Khởi chạy IDA MCP Server và bắt Stream từ Goose CLI."""
-        print(f"[INFO] Khởi động IDA MCP Server cho: {os.path.basename(file_path)} tại {file_path}")
-        
+        """Khởi chạy IDA MCP Server và dùng shared Claude Code runner cho bước AI."""
+        print(f"[INFO] Starting IDA MCP server for: {os.path.basename(file_path)} at {file_path}")
+
         server_proc = None
-        captured_logs = []
         try:
-            # 1. Khởi động idalib-mcp server chạy ngầm (no shell -> fewer quoting/path issues)
             host = "127.0.0.1"
             port = 8745
             server_args = shlex.split(self.ida_mcp_cmd, posix=False)
             server_args += ["--host", host, "--port", str(port), file_path]
+            print(f"[DEBUG] IDA MCP command: {server_args!r}")
 
             creationflags = 0
             if os.name == "nt" and hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
                 creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
 
-            # Capture stderr so we can diagnose 'cannot access file' issues.
-            server_proc = await asyncio.create_subprocess_exec(
-                *server_args,
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.PIPE,
-                creationflags=creationflags,
-            )
+            try:
+                server_proc = await asyncio.create_subprocess_exec(
+                    *server_args,
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.PIPE,
+                    creationflags=creationflags,
+                )
+            except FileNotFoundError as e:
+                return f"Missing dependency while starting command {server_args!r}: {str(e)}"
 
-            # Wait for MCP server port to accept connections before running goose.
-            ready = await self._wait_for_port(host, port, timeout_s=45.0)
+            ready = await self._wait_for_http_ready(
+                host, port, timeout_s=self.ida_startup_timeout_s
+            )
             if not ready:
                 server_err = ""
                 try:
                     if server_proc.stderr is not None:
-                        server_err_bytes = await asyncio.wait_for(server_proc.stderr.read(4096), timeout=1)
+                        server_err_bytes = await asyncio.wait_for(
+                            server_proc.stderr.read(4096), timeout=1
+                        )
                         server_err = server_err_bytes.decode("utf-8", errors="ignore")
                 except Exception:
                     pass
-                return f"Error: IDA MCP server not ready on {host}:{port}. {server_err}".strip()
+                return (
+                    f"Error: IDA MCP HTTP not ready on http://{host}:{port} "
+                    f"within {self.ida_startup_timeout_s:.0f}s. {server_err}"
+                ).strip()
 
-            # Give IDA a bit more time to finish initial auto-analysis if needed.
             await asyncio.sleep(5)
 
-            print("[INFO] Đang chạy Goose AI Agent (Bắt luồng stream trực tiếp)...")
-            
-            # Instruction tối ưu cho Crackme/Malware
+            print("[INFO] Running Claude Code AI agent...")
+
             abs_target = os.path.abspath(file_path)
             instruction = (
                 f"Target file path: {abs_target}. "
-                f"An IDA MCP server is already running at http://{host}:{port}/sse with this file loaded. "
-                "Use MCP tools to inspect decompilation and add comments, rename variables and functions for clarity, "
-                "adjust variable/argument types (pointers/arrays), disassemble functions for deeper detail if needed. "
-                "ALWAYS use 'int_convert' for number bases. "
-                "Document all steps and findings in result as Markdown type. "
-                "ALWAYS start the report **Start of Analysis** and end with **End of Analysis**. "
-                "If you cannot access the target via MCP, return exactly: Error: Cannot access target file." 
-                "Do not draw table."
-            )
-            
-            # 2. Chạy Goose và hứng STDOUT theo thời gian thực
-            goose_proc = await asyncio.create_subprocess_exec(
-                self.goose_cmd, "run", "--text", instruction,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.STDOUT
+                f"An IDA MCP server is already running with this file loaded. Use hyperagent-malware-analysis skill and start analyze"
             )
 
-            while True:
-                line = await goose_proc.stdout.readline()
-                if not line:
-                    break
-                
-                decoded_line = line.decode('utf-8', errors='ignore')
-                captured_logs.append(decoded_line)
-                
-                # In ra màn hình để người dùng theo dõi tiến trình của AI
-                if "[tool call" not in decoded_line.lower(): # Ẩn bớt log gọi tool cho sạch
-                    print(f"  [IDA-AI]: {decoded_line.strip()}")
-
-            await goose_proc.wait()
-            return "".join(captured_logs)
-
-        except FileNotFoundError as e:
-            return f"Missing dependency: {str(e)}"
+            return await run_claude_code(instruction, config=self.config)
 
         except Exception as e:
-            return f"Lỗi thực thi Goose: {str(e)}"
+            return f"Claude Code execution error: {str(e)}"
         finally:
-            # Dọn dẹp: Tắt server IDA và giải phóng port
             if server_proc is not None:
                 try:
                     if os.name == "nt":
@@ -157,7 +188,7 @@ class NativeAgent:
                             pass
                 except Exception:
                     pass
-            print("[INFO] Đã đóng IDA MCP Server.")
+            print("[INFO] Closed IDA MCP server.")
 
     @staticmethod
     def filter_goose_report(raw_log: str) -> str:
@@ -190,7 +221,7 @@ class NativeAgent:
     async def analyze(self, file_path: str) -> Dict[str, Any]:
         """Workflow chính: Tự động hóa toàn bộ quá trình."""
         if not os.path.exists(file_path):
-            return {"error": "File không tồn tại"}
+            return {"error": "File does not exist"}
 
         file_hash = self._get_file_hash(file_path)
         
@@ -208,5 +239,5 @@ class NativeAgent:
             "ai_analysis_report": clean_rp,
         }
 
-        print(f"\n[INFO] Phân tích hoàn tất.")
+        print("\n[INFO] Analysis complete.")
         return f_context

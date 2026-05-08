@@ -4,9 +4,9 @@ HyperAgent is an automated malware analysis orchestrator that routes files to ap
 
 ## Features
 - **Smart Routing**: Uses `diec` (Detect It Easy) to identify file types and route them to specific agents.
-- **MCP Integration**: 
-   + Supported IDA Pro via `ida` and `idalib-mcp` for deep static analysis.
-   + Supported DnSpy via `dnspyc` for .NET binaries.
+- **MCP Integration**:
+   + Supports IDA Pro through the `idalib-mcp` server for deep static analysis.
+   + Supports DnSpy via `dnspyc` for .NET binaries.
 
 ## Setup
 
@@ -15,13 +15,14 @@ HyperAgent is an automated malware analysis orchestrator that routes files to ap
 1. **Install Dependencies**: 
    - Install IDA MCP plugin from [idalib-mcp](https://github.com/mrexodia/ida-pro-mcp)
 
-   - Install [Goose](https://github.com/block/goose) and configure provider
+   - Install [Claude Code](https://www.anthropic.com/claude-code) and ensure the `claude` command is available in your system PATH
 
    - Navigate to `<IDA_PATH>\idalib\python` and run `pip install .` to install `idalib`
    
    *Note: If you face issues when install, try copying the `Python` folder to lower permission directories and run pip again.*
 
-   - Add IDA and DIE to your system PATH with `IDA_PATH` variable name.
+   - Add the DIE CLI to your system PATH, or configure an explicit `tools.diec` path in `config.yaml`.
+   - Configure the IDA MCP server command under `mcp.ida_server_command`. IDA itself is required for the MCP workflow, but this repository does not expose a `tools.ida` config key.
 
    - Prepare a virtual environment and install required packages
    ```bash
@@ -31,47 +32,39 @@ HyperAgent is an automated malware analysis orchestrator that routes files to ap
    ```
 
 2. **Configuration**:
-   - Edit `config.yaml` of `Goose MCPClient` to set your paths for `diec` or skip this step if `diec` is in your system PATH.
+   - Edit `config.yaml` to set supported tool entries either to executable names that resolve via your system PATH, or to explicit executable paths.
+   - `mcp.ida_server_command` controls how the IDA MCP server is launched.
+   - `llm.claude_code_command` is a command-plus-arguments list, not just `['claude']`.
 
    Example
    ```yaml
-   GOOSE_PROVIDER: github_copilot
-   GOOSE_MODEL: gpt-4.1
-   extensions:
-   ida:
-      enabled: true
-      type: sse
-      name: ida
-      description: demo
-      uri: http://localhost:8745/sse
-      args:
-      - mcp-cli
-      - --host
-      - 127.0.0.1
-      - --port
-      - '8745'
-      timeout: 1800
-      bundled: null
-      available_tools: []
-   GOOSE_MODE: auto
-   ```
+   tools:
+     diec: "diec.exe"                       # or "C:/Tools/diec.exe"
+     de4dot: "de4dot.exe"                   # or an explicit path
+     dnspy: "dnspyc.exe"                    # or "C:/Tools/dnspyc.exe"
 
-   *Note: 
-   - `GOOSE_MODE` must be set at `auto` to prevent processing issues.
+   mcp:
+     ida_server_command: ["uv", "run", "idalib-mcp"]
+
+   llm:
+     claude_code_command: ["claude"]        # e.g. ["claude", "--model", "sonnet"]
+   ```
 
 3. **Requirements**:
    - Python 3.10+
-   - Installed tools: DIE, IDA Pro
+   - Installed tools: DIE and Claude Code
+   - IDA Pro with `idalib` installed if you want native/IDA-backed analysis
    - `uv` package manager (optional, for running mcp server if configured).
 
 ### DnSpy MCP Integration
 1. **Install Dependencies**:
    - Get a build of [dnspyc](https://github.com/dnSpyEx/dnSpy/releases/tag/v6.5.1)
-   - Rename `dnSpy.Console.exe` to `dnspyc.exe` and add it to your system PATH.
-   - Install Goose and configure provider as above.
+   - Rename `dnSpy.Console.exe` to `dnspyc.exe`, then either add it to your system PATH or point `tools.dnspy` at its full path in `config.yaml`.
+   - Ensure Claude Code is installed and the configured runner command is available, as above.
 
 2. **Configuration**:
-   - Run `goose configure` and enable `developer` extension.
+   - For .NET analysis, the relevant `config.yaml` fields are `tools.dnspy` for DnSpy Console and `llm.claude_code_command` for the Claude Code runner.
+   - If you also use IDA-based analysis in the same setup, keep `mcp.ida_server_command` configured as shown above.
    
 ## Usage
 

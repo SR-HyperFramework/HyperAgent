@@ -7,6 +7,9 @@ import sys
 import re
 from typing import Dict, Any
 
+from core.claude_code_runner import run_claude_code
+
+
 class DotNetAgent:
     def __init__(self, config_path: str = "config.yaml"):
         self.config = self._load_config(config_path)       
@@ -54,9 +57,7 @@ class DotNetAgent:
 
     def _abs_path(self, path: str) -> str:
         """Return a normalized absolute path for consistent tool invocation/logging."""
-        absp = os.path.normpath(os.path.abspath(os.path.expandvars(os.path.expanduser(path))))
-        print(absp)
-        return absp
+        return os.path.normpath(os.path.abspath(os.path.expandvars(os.path.expanduser(path))))
     
     def _load_config(self, path: str) -> Dict[str, Any]:
         """Load cấu hình từ file yaml."""
@@ -114,6 +115,9 @@ class DotNetAgent:
                     hits.append(rel)
                 else:
                     others.append(rel)
+
+        hits.sort()
+        others.sort()
 
         # Prefer "hits" but fall back to any .cs files
         result = hits[:limit]
@@ -232,16 +236,15 @@ class DotNetAgent:
         return content
     
     async def run_goose_analysis(self, specific_out_dir: str) -> str:
-        # 3. Gọi Goose AI phân tích cấu trúc thư mục source
-        # Goose sẽ sử dụng extension 'developer' hoặc 'filesystem' để đọc các file .cs
-        print("[*] Đang khởi chạy Goose AI để phân tích mã nguồn C#...")
-        
+        # 3. Gọi AI phân tích cấu trúc thư mục source C# thông qua shared Claude Code runner.
+        print("[*] Đang khởi chạy Claude Code để phân tích mã nguồn C#...")
+
         # Use workspace-relative forward-slash paths to avoid Windows backslash issues inside LLM/tool calls.
         workspace_dir = self._to_workspace_rel_posix(specific_out_dir)
         key_files = self._pick_interesting_cs_files(specific_out_dir, limit=15)
 
         if not key_files:
-            print("[WARN] No .cs files found for Goose to analyze (directory missing or empty).")
+            print("[WARN] No .cs files found for analysis (directory missing or empty).")
 
         files_block = "\n".join(f"- {p}" for p in key_files) if key_files else "- (no .cs files detected)"
 
@@ -259,23 +262,7 @@ class DotNetAgent:
             "Write a report starting with **Start of Analysis** and ending with **End of Analysis**."
         )
 
-        goose_cmd = ["goose", "run", "--text", instruction]
-        process = await asyncio.create_subprocess_exec(
-            *goose_cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT
-        )
-
-        captured_logs = []
-        while True:
-            line = await process.stdout.readline()
-            if not line: break
-            decoded = line.decode('utf-8', errors='ignore')
-            captured_logs.append(decoded)
-            print(f"  [DotNet-AI]: {decoded.strip()}")
-
-        await process.wait()
-        return "".join(captured_logs)
+        return await run_claude_code(instruction, config=self.config)
 
     async def analyze(self, file_path: str) -> Dict[str, Any]:
         """Workflow .NET: de4dot -> dnSpy-Ex -> Goose Analysis."""

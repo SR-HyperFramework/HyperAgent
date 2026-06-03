@@ -1,0 +1,19 @@
+# HyperAgent Configuration Template
+# Copy to config.yaml or run bootstrap.ps1 to generate a local config.
+
+tools:
+  diec: "diec.exe"
+  de4dot: "de4dot.exe"
+  dnspy: "dnspyc.exe"
+  pyinstxtractor: "pyinstxtractor.py"
+  pycdas: "pycdas"
+
+mcp:
+  # Legacy IDA MCP settings kept only for backward compatibility in older docs/workflows.
+  # Current native analysis opens files from inside Claude via /ida-pro:idapython.
+  ida_server_command: ["uv", "run", "idalib-mcp"]
+  ida_startup_timeout_s: 180
+  ida_probe_interval_s: 0.5
+
+llm:
+  claude_code_command: ["claude"]

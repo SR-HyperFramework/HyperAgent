@@ -33,8 +33,11 @@ async def analyze_path(body: AnalyzePathRequest):
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
 
+    run_id = uuid.uuid4().hex
     try:
-        return await orchestrator.analyze(file_path)
+        result = await orchestrator.analyze(file_path, run_id=run_id)
+        result["run_id"] = run_id
+        return result
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -82,8 +85,9 @@ async def analyze_upload(
                     tmp.write(chunk)
             analysis_target = tmp_path
 
-        result = await orchestrator.analyze(analysis_target)
+        result = await orchestrator.analyze(analysis_target, run_id=upload_id)
         result["upload_id"] = upload_id
+        result["run_id"] = upload_id
         # result["original_name"] = original_name or (file.filename if file.filename else None)
         result["saved_path"] = str(saved_path) if saved_path else None
         return result

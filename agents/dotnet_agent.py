@@ -4,7 +4,11 @@ import hashlib
 import shutil
 import yaml
 import re
-from typing import Dict, Any
+from typing import Dict, Any, Optional
+
+from core.claude_code_runner import run_claude_code
+from core.pipeline_logger import PipelineLogger
+
 
 class DotNetAgent:
     def __init__(self, config_path: str = "config.yaml"):
@@ -53,9 +57,7 @@ class DotNetAgent:
 
     def _abs_path(self, path: str) -> str:
         """Return a normalized absolute path for consistent tool invocation/logging."""
-        absp = os.path.normpath(os.path.abspath(os.path.expandvars(os.path.expanduser(path))))
-        print(absp)
-        return absp
+        return os.path.normpath(os.path.abspath(os.path.expandvars(os.path.expanduser(path))))
     
     def _load_config(self, path: str) -> Dict[str, Any]:
         """Load cấu hình từ file yaml."""
@@ -114,6 +116,9 @@ class DotNetAgent:
                 else:
                     others.append(rel)
 
+        hits.sort()
+        others.sort()
+
         # Prefer "hits" but fall back to any .cs files
         result = hits[:limit]
         if len(result) < limit:
@@ -141,13 +146,25 @@ class DotNetAgent:
     #         print(f"[-] de4dot failed: {e}")
     #         return file_path
 
-    async def run_dnspy_decompile(self, file_path: str, output_dir: str):
+    async def run_dnspy_decompile(
+        self,
+        file_path: str,
+        output_dir: str,
+        pipeline_logger: Optional[PipelineLogger] = None,
+    ):
         """Sử dụng dnSpy.Console để xuất toàn bộ project C#."""
         file_path = self._abs_path(file_path)
         output_dir = self._abs_path(output_dir)
 
         # fh_dir = file_hash + output_dir
         print(f"[*] Đang Decompile project (dnSpy-Ex) vào: {output_dir}")
+        if pipeline_logger:
+            pipeline_logger.log(
+                "dotnet_agent.decompile",
+                "started",
+                "Starting dnSpy decompile",
+                output_dir=output_dir,
+            )
 
         dnspy_exe = self._resolve_executable(
             self._tool_config("dnspy"),
@@ -165,6 +182,13 @@ class DotNetAgent:
             print("[-] dnSpy tool not found.")
             print(f"    - config.yaml tools.dnspy = {configured!r}")
             print("    - Put dnspyc.exe in PATH, or set tools.dnspy to an absolute path.")
+            if pipeline_logger:
+                pipeline_logger.log(
+                    "dotnet_agent.decompile",
+                    "failed",
+                    "dnSpy tool not found",
+                    configured=configured,
+                )
             return False
 
         # Safety: only delete output inside output_root to avoid accidents
@@ -196,52 +220,81 @@ class DotNetAgent:
                 if stderr:
                     print("[dnSpy stderr]")
                     print(stderr.decode("utf-8", errors="ignore"))
+                if pipeline_logger:
+                    pipeline_logger.log(
+                        "dotnet_agent.decompile",
+                        "failed",
+                        "dnSpy decompile exited with non-zero status",
+                        exit_code=proc.returncode,
+                    )
                 return False
+            if pipeline_logger:
+                pipeline_logger.log(
+                    "dotnet_agent.decompile",
+                    "completed",
+                    "dnSpy decompile completed",
+                    output_dir=output_dir,
+                )
             return True
         except Exception as e:
             print(f"[-] dnSpy-Ex failed: {e}")
+            if pipeline_logger:
+                pipeline_logger.log(
+                    "dotnet_agent.decompile",
+                    "failed",
+                    "dnSpy decompile raised an exception",
+                    error=str(e),
+                )
             return False
         
-    @staticmethod
-    def filter_goose_report(raw_log: str) -> str:
-        # 1. Cắt đoạn từ **Start of Analysis** đến **End of Analysis**
-        start_marker = "**Start of Analysis**"
-        end_marker = "**End of Analysis**"
+    # @staticmethod
+    # def filter_goose_report(raw_log: str) -> str:
+    #     # 1. Cắt đoạn từ **Start of Analysis** đến **End of Analysis**
+    #     start_marker = "**Start of Analysis**"
+    #     end_marker = "**End of Analysis**"
 
-        start_idx = raw_log.find(start_marker)
-        end_idx = raw_log.find(end_marker)
+    #     start_idx = raw_log.find(start_marker)
+    #     end_idx = raw_log.find(end_marker)
 
-        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-            content = raw_log[start_idx : end_idx + len(end_marker)]
-        elif start_idx != -1:
-            content = raw_log[start_idx:]
-        else:
-            content = raw_log
+    #     if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+    #         content = raw_log[start_idx : end_idx + len(end_marker)]
+    #     elif start_idx != -1:
+    #         content = raw_log[start_idx:]
+    #     else:
+    #         content = raw_log
 
-        # 2. Regex để xóa các log gọi tool MCP (các thanh kẻ ngang ───)
-        # Loại bỏ các dòng dạng: ─── tên_tool | ida ─────────────────────────-
-        content = re.sub(r"───.*?\n", "", content)
+    #     # 2. Regex để xóa các log gọi tool MCP (các thanh kẻ ngang ───)
+    #     # Loại bỏ các dòng dạng: ─── tên_tool | ida ─────────────────────────-
+    #     content = re.sub(r"───.*?\n", "", content)
 
-        # Loại bỏ các thông báo lỗi tham số tool (nếu có)
-        content = re.sub(r"-\d+: Could not interpret tool use parameters.*?\n", "", content)
+    #     # Loại bỏ các thông báo lỗi tham số tool (nếu có)
+    #     content = re.sub(r"-\d+: Could not interpret tool use parameters.*?\n", "", content)
 
-        # Loại bỏ các dòng trống dư thừa
-        content = re.sub(r"\n\s*\n", "\n\n", content).strip()
+    #     # Loại bỏ các dòng trống dư thừa
+    #     content = re.sub(r"\n\s*\n", "\n\n", content).strip()
 
-        return content
+    #     return content
     
-    async def run_goose_analysis(self, specific_out_dir: str) -> str:
-        # 3. Gọi Goose AI phân tích cấu trúc thư mục source
-        # Goose sẽ sử dụng extension 'developer' hoặc 'filesystem' để đọc các file .cs
-        print("[*] Đang khởi chạy Goose AI để phân tích mã nguồn C#...")
-        
-        # Use repo-root-relative paths for MCP filesystem tools.
-        # Many sandboxes reject absolute paths (drive letters) even if they point inside the repo.
+    async def run_goose_analysis(
+        self,
+        specific_out_dir: str,
+        pipeline_logger: Optional[PipelineLogger] = None,
+    ) -> str:
+        # 3. Gọi AI phân tích cấu trúc thư mục source C# thông qua shared Claude Code runner.
+        print("[*] Đang khởi chạy Claude Code để phân tích mã nguồn C#...")
+        if pipeline_logger:
+            pipeline_logger.log(
+                "dotnet_agent.claude",
+                "started",
+                "Starting Claude Code source analysis",
+            )
+
+        # Use workspace-relative forward-slash paths to avoid Windows backslash issues inside LLM/tool calls.
         workspace_dir = self._to_workspace_rel_posix(specific_out_dir)
         key_files = self._pick_interesting_cs_files(specific_out_dir, limit=15)
 
         if not key_files:
-            print("[WARN] No .cs files found for Goose to analyze (directory missing or empty).")
+            print("[WARN] No .cs files found for analysis (directory missing or empty).")
 
         # Provide paths in a copy/paste-friendly block (no bullets), so the model can pass them verbatim.
         files_block = "\n".join(key_files) if key_files else "(no .cs files detected)"
@@ -265,40 +318,47 @@ class DotNetAgent:
             "- Report Structure: [Entry Point] | [Flow] | [IOCs/APIs] | [Malicious/Obfuscation] | [File Summary] | [Conclusion]"
         )
 
-        goose_cmd = ["goose", "run", "--text", instruction]
-        process = await asyncio.create_subprocess_exec(
-            *goose_cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT
+        return await run_claude_code(
+            instruction,
+            config=self.config,
+            pipeline_logger=pipeline_logger,
         )
 
-        captured_logs = []
-        while True:
-            line = await process.stdout.readline()
-            if not line: break
-            decoded = line.decode('utf-8', errors='ignore')
-            captured_logs.append(decoded)
-            print(f"  [DotNet-AI]: {decoded.strip()}")
-
-        await process.wait()
-        return "".join(captured_logs)
-
-    async def analyze(self, file_path: str) -> Dict[str, Any]:
+    async def analyze(
+        self,
+        file_path: str,
+        pipeline_logger: Optional[PipelineLogger] = None,
+    ) -> Dict[str, Any]:
         """Workflow .NET: de4dot -> dnSpy-Ex -> Goose Analysis."""
         file_hash = self._get_file_hash(file_path)
         specific_out_dir = os.path.join(self.output_root, file_hash)
+        if pipeline_logger:
+            pipeline_logger.log(
+                "dotnet_agent",
+                "started",
+                "DotNet analysis started",
+                file_name=os.path.basename(file_path),
+                file_hash=file_hash,
+            )
 
         # 1. Unpack/Clean file
         # target_file = await self.run_de4dot(file_path)
 
         # 2. Decompile ra mã nguồn C#
-        dnspyc = await self.run_dnspy_decompile(file_path, specific_out_dir)
+        dnspyc = await self.run_dnspy_decompile(
+            file_path,
+            specific_out_dir,
+            pipeline_logger=pipeline_logger,
+        )
         if not dnspyc:
             return {
                 "error": "Decompilation failed"
             }
-        goose_report_raw = await self.run_goose_analysis(specific_out_dir)
-        clean_rp = self.filter_goose_report(goose_report_raw)
+        goose_report_raw = await self.run_goose_analysis(
+            specific_out_dir,
+            pipeline_logger=pipeline_logger,
+        )
+        # clean_rp = self.filter_goose_report(goose_report_raw)
 
         # Dọn dẹp file cleaned sau khi xong (tùy chọn)
         # if target_file != file_path and os.path.exists(target_file):
@@ -309,7 +369,7 @@ class DotNetAgent:
             "file_name": os.path.basename(file_path),
             "file_hash": file_hash,
             "source_directory": specific_out_dir,
-            "ai_analysis_report": clean_rp
+            "ai_analysis_report": goose_report_raw
         }
 
         print(f"\n[INFO] Phân tích hoàn tất.")

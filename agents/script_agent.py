@@ -4,11 +4,12 @@ import os
 import re
 import shutil
 import sys
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import yaml
 
 from core.claude_code_runner import run_claude_code
+from core.pipeline_logger import PipelineLogger
 
 
 class ScriptAgent:
@@ -82,19 +83,44 @@ class ScriptAgent:
 
         return None
 
-    async def _extract_pyinstaller(self, file_path: str, output_dir: str) -> tuple[str, list[str]]:
+    async def _extract_pyinstaller(
+        self,
+        file_path: str,
+        output_dir: str,
+        pipeline_logger: Optional[PipelineLogger] = None,
+    ) -> tuple[str, list[str]]:
         extractor = self._resolve_tool(
             self._tool_config("pyinstxtractor"),
             ["pyinstxtractor.py", "pyinstxtractor"],
         )
         if not extractor:
+            if pipeline_logger:
+                pipeline_logger.log(
+                    "script_agent.extract",
+                    "failed",
+                    "PyInstaller extractor not found",
+                )
             return file_path, []
 
+        if pipeline_logger:
+            pipeline_logger.log(
+                "script_agent.extract",
+                "started",
+                "Starting PyInstaller extraction",
+                output_dir=output_dir,
+            )
         before_dirs = {entry for entry in os.listdir(output_dir) if os.path.isdir(os.path.join(output_dir, entry))}
         cmd = [sys.executable, extractor, file_path]
         code, _, stderr = await self._run_cmd(*cmd, cwd=output_dir)
         if code != 0:
             print(f"[WARN] pyinstxtractor failed: {stderr.strip()}")
+            if pipeline_logger:
+                pipeline_logger.log(
+                    "script_agent.extract",
+                    "failed",
+                    "PyInstaller extraction failed",
+                    stderr=stderr[:500],
+                )
             return file_path, []
 
         after_dirs = [
@@ -111,12 +137,39 @@ class ScriptAgent:
                 for name in files:
                     extracted_files.append(os.path.join(root, name))
 
+        if pipeline_logger:
+            pipeline_logger.log(
+                "script_agent.extract",
+                "completed",
+                "PyInstaller extraction completed",
+                extract_dir=extract_dir,
+                extracted_file_count=len(extracted_files),
+            )
         return extract_dir, extracted_files
 
-    async def _disassemble_with_pycdas(self, target_dir: str) -> list[str]:
+    async def _disassemble_with_pycdas(
+        self,
+        target_dir: str,
+        pipeline_logger: Optional[PipelineLogger] = None,
+    ) -> list[str]:
         pycdas = self._resolve_tool(self._tool_config("pycdas"), ["pycdas", "pycdas.exe"])
         if not pycdas or not os.path.isdir(target_dir):
+            if pipeline_logger:
+                pipeline_logger.log(
+                    "script_agent.disassemble",
+                    "failed",
+                    "pycdas unavailable or target directory missing",
+                    target_dir=target_dir,
+                )
             return []
+
+        if pipeline_logger:
+            pipeline_logger.log(
+                "script_agent.disassemble",
+                "started",
+                "Starting pycdas disassembly",
+                target_dir=target_dir,
+            )
 
         pyc_files: list[str] = []
         for root, _, files in os.walk(target_dir):
@@ -135,6 +188,13 @@ class ScriptAgent:
                 f.write(stdout)
             created_pyasm.append(pyasm_path)
 
+        if pipeline_logger:
+            pipeline_logger.log(
+                "script_agent.disassemble",
+                "completed",
+                "pycdas disassembly completed",
+                pyasm_count=len(created_pyasm),
+            )
         return created_pyasm
 
     def _pick_interesting_files(self, base_dir: str, suffixes: tuple[str, ...], limit: int = 20) -> list[str]:
@@ -190,7 +250,12 @@ class ScriptAgent:
                 sha256_hash.update(byte_block)
         return sha256_hash.hexdigest()
 
-    async def run_goose_analysis(self, file_path: str, extract_dir: str) -> str:
+    async def run_goose_analysis(
+        self,
+        file_path: str,
+        extract_dir: str,
+        pipeline_logger: Optional[PipelineLogger] = None,
+    ) -> str:
         abs_target = self._abs_path(file_path)
         workspace_target = self._to_workspace_rel_posix(file_path)
 
@@ -200,6 +265,14 @@ class ScriptAgent:
 
         files_block = "\n".join(f"- {path}" for path in pyasm_files) if pyasm_files else "- (no .pyasm files generated)"
         extracted_block = "\n".join(f"- {path}" for path in extracted_files) if extracted_files else "- (no extracted files detected)"
+
+        if pipeline_logger:
+            pipeline_logger.log(
+                "script_agent.claude",
+                "started",
+                "Starting Claude Code script analysis",
+                extract_dir=extract_dir,
+            )
 
         instruction = (
             "You are a Senior Python malware analyst. "
@@ -218,32 +291,72 @@ class ScriptAgent:
             "If you cannot read the target or extracted files, write exactly: Error: Cannot access target file.\n"
             "Write a report starting with **Start of Analysis** and ending with **End of Analysis**."
         )
-        return await run_claude_code(instruction, config=self.config)
+        return await run_claude_code(
+            instruction,
+            config=self.config,
+            pipeline_logger=pipeline_logger,
+        )
 
-    async def analyze(self, file_path: str) -> Dict[str, Any]:
+    async def analyze(
+        self,
+        file_path: str,
+        pipeline_logger: Optional[PipelineLogger] = None,
+    ) -> Dict[str, Any]:
         if not os.path.exists(file_path):
+            if pipeline_logger:
+                pipeline_logger.log("script_agent", "failed", "File does not exist", file_path=file_path)
             return {"error": "File does not exist"}
         if not os.access(file_path, os.R_OK):
+            if pipeline_logger:
+                pipeline_logger.log("script_agent", "failed", "File is not readable", file_path=file_path)
             return {"error": "File is not readable"}
 
         abs_file_path = self._abs_path(file_path)
         file_hash = self._get_file_hash(abs_file_path)
+        if pipeline_logger:
+            pipeline_logger.log(
+                "script_agent",
+                "started",
+                "Script analysis started",
+                file_name=os.path.basename(abs_file_path),
+                file_hash=file_hash,
+            )
         output_dir = self._ensure_output_dir(file_hash)
-        extract_dir, _ = await self._extract_pyinstaller(abs_file_path, output_dir)
+        extract_dir, _ = await self._extract_pyinstaller(
+            abs_file_path,
+            output_dir,
+            pipeline_logger=pipeline_logger,
+        )
         if os.path.isfile(extract_dir):
             extract_dir = os.path.dirname(abs_file_path)
-        pyasm_files = await self._disassemble_with_pycdas(extract_dir)
+        pyasm_files = await self._disassemble_with_pycdas(
+            extract_dir,
+            pipeline_logger=pipeline_logger,
+        )
         if not pyasm_files and os.path.isdir(extract_dir):
             for root, _, files in os.walk(extract_dir):
                 for name in files:
                     if name.lower().endswith(".pyasm"):
                         pyasm_files.append(os.path.join(root, name))
 
-        raw_report = await self.run_goose_analysis(abs_file_path, extract_dir)
-        return {
+        raw_report = await self.run_goose_analysis(
+            abs_file_path,
+            extract_dir,
+            pipeline_logger=pipeline_logger,
+        )
+        result = {
             "file_name": os.path.basename(abs_file_path),
             "file_hash": file_hash,
             "extract_dir": extract_dir,
             "pyasm_files": [self._to_workspace_rel_posix(path) for path in pyasm_files],
             "ai_analysis_report": self.filter_goose_report(raw_report),
         }
+        if pipeline_logger:
+            pipeline_logger.log(
+                "script_agent",
+                "completed",
+                "Script analysis complete",
+                file_hash=file_hash,
+                pyasm_count=len(pyasm_files),
+            )
+        return result

@@ -4,7 +4,23 @@ trash/
 uploads/
 dotnet_output/
 die_result.json
-
+*_report.md
+*.log
+*.bin
+*.id0
+*.id1
+*.id2
+*.nam
+*.til
+*.i64
+*.idb
+*.cache
+.cache/
+__pycache__/
+.pytest_cache/
+.playwright-mcp/
+.claude/
+bin/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -152,6 +168,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+config.yaml
 
 # Spyder project settings
 .spyderproject

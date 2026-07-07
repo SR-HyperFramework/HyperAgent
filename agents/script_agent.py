@@ -10,6 +10,9 @@ import yaml
 
 from core.claude_code_runner import run_claude_code
 from core.pipeline_logger import PipelineLogger
+from core.result_models import AgentResult, ArtifactNode, Finding, RunContext
+from core.tool_policy import resolve_candidate_path
+from agents.python_bytecode_prep_agent import PythonBytecodePrepAgent
 
 
 class ScriptAgent:
@@ -17,6 +20,9 @@ class ScriptAgent:
         self.config = self._load_config(config_path)
         self.output_root = "script_output"
         self.repo_root = os.path.normpath(os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir)))
+
+    def _prep_agent(self) -> PythonBytecodePrepAgent:
+        return PythonBytecodePrepAgent(config=self.config, repo_root=self.repo_root)
 
     def _load_config(self, path: str) -> Dict[str, Any]:
         try:
@@ -65,23 +71,7 @@ class ScriptAgent:
         )
 
     def _resolve_tool(self, configured: str | None, fallbacks: list[str]) -> str | None:
-        candidates = [configured] if configured else []
-        candidates.extend(fallbacks)
-
-        for candidate in candidates:
-            expanded = os.path.expandvars(os.path.expanduser(str(candidate)))
-            if os.path.isabs(expanded) and os.path.isfile(expanded):
-                return os.path.normpath(expanded)
-
-            which = shutil.which(expanded)
-            if which:
-                return os.path.normpath(which)
-
-            repo_rel = os.path.normpath(os.path.join(self.repo_root, expanded))
-            if os.path.isfile(repo_rel):
-                return repo_rel
-
-        return None
+        return resolve_candidate_path(configured, fallbacks, repo_root=self.repo_root)
 
     async def _extract_pyinstaller(
         self,
@@ -89,138 +79,31 @@ class ScriptAgent:
         output_dir: str,
         pipeline_logger: Optional[PipelineLogger] = None,
     ) -> tuple[str, list[str]]:
-        extractor = self._resolve_tool(
-            self._tool_config("pyinstxtractor"),
-            ["pyinstxtractor.py", "pyinstxtractor"],
-        )
-        if not extractor:
-            if pipeline_logger:
-                pipeline_logger.log(
-                    "script_agent.extract",
-                    "failed",
-                    "PyInstaller extractor not found",
-                )
-            return file_path, []
-
-        if pipeline_logger:
-            pipeline_logger.log(
-                "script_agent.extract",
-                "started",
-                "Starting PyInstaller extraction",
-                output_dir=output_dir,
-            )
-        before_dirs = {entry for entry in os.listdir(output_dir) if os.path.isdir(os.path.join(output_dir, entry))}
-        cmd = [sys.executable, extractor, file_path]
-        code, _, stderr = await self._run_cmd(*cmd, cwd=output_dir)
-        if code != 0:
-            print(f"[WARN] pyinstxtractor failed: {stderr.strip()}")
-            if pipeline_logger:
-                pipeline_logger.log(
-                    "script_agent.extract",
-                    "failed",
-                    "PyInstaller extraction failed",
-                    stderr=stderr[:500],
-                )
-            return file_path, []
-
-        after_dirs = [
-            os.path.join(output_dir, entry)
-            for entry in os.listdir(output_dir)
-            if os.path.isdir(os.path.join(output_dir, entry)) and entry not in before_dirs
-        ]
-        after_dirs.sort(key=lambda p: len(p), reverse=True)
-        extract_dir = after_dirs[0] if after_dirs else file_path
-
-        extracted_files: list[str] = []
-        if os.path.isdir(extract_dir):
-            for root, _, files in os.walk(extract_dir):
-                for name in files:
-                    extracted_files.append(os.path.join(root, name))
-
-        if pipeline_logger:
-            pipeline_logger.log(
-                "script_agent.extract",
-                "completed",
-                "PyInstaller extraction completed",
-                extract_dir=extract_dir,
-                extracted_file_count=len(extracted_files),
-            )
-        return extract_dir, extracted_files
+        return await self._prep_agent().extract_pyinstaller(file_path, output_dir, pipeline_logger=pipeline_logger)
 
     async def _disassemble_with_pycdas(
         self,
         target_dir: str,
         pipeline_logger: Optional[PipelineLogger] = None,
     ) -> list[str]:
-        pycdas = self._resolve_tool(self._tool_config("pycdas"), ["pycdas", "pycdas.exe"])
-        if not pycdas or not os.path.isdir(target_dir):
-            if pipeline_logger:
-                pipeline_logger.log(
-                    "script_agent.disassemble",
-                    "failed",
-                    "pycdas unavailable or target directory missing",
-                    target_dir=target_dir,
-                )
-            return []
-
-        if pipeline_logger:
-            pipeline_logger.log(
-                "script_agent.disassemble",
-                "started",
-                "Starting pycdas disassembly",
-                target_dir=target_dir,
-            )
-
-        pyc_files: list[str] = []
-        for root, _, files in os.walk(target_dir):
-            for name in files:
-                if name.lower().endswith((".pyc", ".pyo")):
-                    pyc_files.append(os.path.join(root, name))
-
-        created_pyasm: list[str] = []
-        for pyc_file in pyc_files:
-            pyasm_path = f"{pyc_file}.pyasm"
-            code, stdout, stderr = await self._run_cmd(pycdas, pyc_file)
-            if code != 0:
-                print(f"[WARN] pycdas failed for {pyc_file}: {(stderr or stdout).strip()}")
-                continue
-            with open(pyasm_path, "w", encoding="utf-8", errors="replace") as f:
-                f.write(stdout)
-            created_pyasm.append(pyasm_path)
-
-        if pipeline_logger:
-            pipeline_logger.log(
-                "script_agent.disassemble",
-                "completed",
-                "pycdas disassembly completed",
-                pyasm_count=len(created_pyasm),
-            )
-        return created_pyasm
+        return await self._prep_agent().disassemble_with_pycdas(target_dir, pipeline_logger=pipeline_logger)
 
     def _pick_interesting_files(self, base_dir: str, suffixes: tuple[str, ...], limit: int = 20) -> list[str]:
-        if not os.path.isdir(base_dir):
-            return []
+        return self._prep_agent().pick_interesting_files(base_dir, suffixes, limit=limit)
 
-        interesting_names = {"__main__.py", "main.py", "app.py", "run.py", "loader.py", "bootstrap.py"}
-        keywords = ("main", "entry", "loader", "bootstrap", "decrypt", "config", "socket", "http", "request", "exec")
-        hits: list[str] = []
-        others: list[str] = []
-
-        for root, _, files in os.walk(base_dir):
-            for name in files:
-                low = name.lower()
-                if not low.endswith(suffixes):
-                    continue
-                rel = self._to_workspace_rel_posix(os.path.join(root, name))
-                if low in interesting_names or any(keyword in low for keyword in keywords):
-                    hits.append(rel)
-                else:
-                    others.append(rel)
-
-        result = hits[:limit]
-        if len(result) < limit:
-            result.extend(others[: limit - len(result)])
-        return result
+    async def _prepare_extraction(
+        self,
+        file_path: str,
+        output_dir: str,
+        pipeline_logger: Optional[PipelineLogger] = None,
+    ):
+        return await self._prep_agent().prepare(
+            file_path,
+            output_dir,
+            pipeline_logger=pipeline_logger,
+            extract_pyinstaller=self._extract_pyinstaller,
+            disassemble_with_pycdas=self._disassemble_with_pycdas,
+        )
 
     @staticmethod
     def filter_goose_report(raw_log: str) -> str:
@@ -249,6 +132,80 @@ class ScriptAgent:
             for byte_block in iter(lambda: f.read(4096), b""):
                 sha256_hash.update(byte_block)
         return sha256_hash.hexdigest()
+
+    def _build_result(
+        self,
+        *,
+        file_path: str,
+        file_hash: str,
+        extract_dir: str,
+        pyasm_files: list[str],
+        report: str,
+        run_context: RunContext | None,
+    ) -> dict[str, Any] | AgentResult:
+        legacy_payload = {
+            "file_name": os.path.basename(file_path),
+            "file_hash": file_hash,
+            "extract_dir": extract_dir,
+            "pyasm_files": [self._to_workspace_rel_posix(path) for path in pyasm_files],
+            "ai_analysis_report": report,
+        }
+        if run_context is None:
+            return legacy_payload
+
+        input_artifact = ArtifactNode(
+            path=self._abs_path(file_path),
+            sha256=file_hash,
+            depth=run_context.depth,
+            kind="script_input",
+        )
+        artifacts = [input_artifact]
+        if run_context.artifact_registry:
+            run_context.artifact_registry.add(input_artifact)
+
+        if os.path.isdir(extract_dir):
+            extract_artifact = ArtifactNode(
+                path=self._abs_path(extract_dir),
+                parent_id=input_artifact.id,
+                depth=run_context.depth + 1,
+                kind="script_extract_directory",
+                metadata={"display_path": extract_dir},
+            )
+            artifacts.append(extract_artifact)
+            if run_context.artifact_registry:
+                run_context.artifact_registry.add(extract_artifact)
+            parent_id = extract_artifact.id
+        else:
+            parent_id = input_artifact.id
+
+        for pyasm_path in pyasm_files:
+            pyasm_artifact = ArtifactNode(
+                path=self._abs_path(pyasm_path),
+                parent_id=parent_id,
+                depth=run_context.depth + 1,
+                kind="script_pyasm",
+                metadata={"display_path": self._to_workspace_rel_posix(pyasm_path)},
+            )
+            artifacts.append(pyasm_artifact)
+            if run_context.artifact_registry:
+                run_context.artifact_registry.add(pyasm_artifact)
+
+        finding = Finding(
+            artifact_id=input_artifact.id,
+            category="analysis_report",
+            summary="Script analysis report generated",
+            evidence=report,
+            confidence=1.0,
+        )
+        if run_context.finding_store:
+            run_context.finding_store.add(finding)
+
+        return AgentResult(
+            artifact_id=input_artifact.id,
+            legacy_payload=legacy_payload,
+            artifacts=artifacts,
+            findings=[finding],
+        )
 
     async def run_goose_analysis(
         self,
@@ -301,7 +258,8 @@ class ScriptAgent:
         self,
         file_path: str,
         pipeline_logger: Optional[PipelineLogger] = None,
-    ) -> Dict[str, Any]:
+        run_context: RunContext | None = None,
+    ) -> Dict[str, Any] | AgentResult:
         if not os.path.exists(file_path):
             if pipeline_logger:
                 pipeline_logger.log("script_agent", "failed", "File does not exist", file_path=file_path)
@@ -322,41 +280,31 @@ class ScriptAgent:
                 file_hash=file_hash,
             )
         output_dir = self._ensure_output_dir(file_hash)
-        extract_dir, _ = await self._extract_pyinstaller(
+        prep = await self._prepare_extraction(
             abs_file_path,
             output_dir,
             pipeline_logger=pipeline_logger,
         )
-        if os.path.isfile(extract_dir):
-            extract_dir = os.path.dirname(abs_file_path)
-        pyasm_files = await self._disassemble_with_pycdas(
-            extract_dir,
-            pipeline_logger=pipeline_logger,
-        )
-        if not pyasm_files and os.path.isdir(extract_dir):
-            for root, _, files in os.walk(extract_dir):
-                for name in files:
-                    if name.lower().endswith(".pyasm"):
-                        pyasm_files.append(os.path.join(root, name))
 
         raw_report = await self.run_goose_analysis(
             abs_file_path,
-            extract_dir,
+            prep.extract_dir,
             pipeline_logger=pipeline_logger,
         )
-        result = {
-            "file_name": os.path.basename(abs_file_path),
-            "file_hash": file_hash,
-            "extract_dir": extract_dir,
-            "pyasm_files": [self._to_workspace_rel_posix(path) for path in pyasm_files],
-            "ai_analysis_report": self.filter_goose_report(raw_report),
-        }
+        report = self.filter_goose_report(raw_report)
         if pipeline_logger:
             pipeline_logger.log(
                 "script_agent",
                 "completed",
                 "Script analysis complete",
                 file_hash=file_hash,
-                pyasm_count=len(pyasm_files),
+                pyasm_count=len(prep.pyasm_files),
             )
-        return result
+        return self._build_result(
+            file_path=abs_file_path,
+            file_hash=file_hash,
+            extract_dir=prep.extract_dir,
+            pyasm_files=prep.pyasm_files,
+            report=report,
+            run_context=run_context,
+        )

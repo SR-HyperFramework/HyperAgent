@@ -1,7 +1,30 @@
 import asyncio
+import subprocess
 from typing import Any, Dict, Optional
 
 from core.pipeline_logger import PipelineLogger
+from core.tool_policy import get_claude_code_args, get_claude_code_command
+
+
+async def _run_claude_process(command: list[str], command_args: list[str]) -> tuple[int, bytes | str, bytes | str, str]:
+    argv = [*command, *command_args]
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *argv,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await process.communicate()
+        return process.returncode, stdout, stderr, "asyncio_subprocess"
+    except NotImplementedError:
+        completed = await asyncio.to_thread(
+            subprocess.run,
+            argv,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        return completed.returncode, completed.stdout, completed.stderr, "threaded_subprocess"
 
 
 async def run_claude_code(
@@ -9,11 +32,8 @@ async def run_claude_code(
     config: Optional[Dict[str, Any]] = None,
     pipeline_logger: Optional[PipelineLogger] = None,
 ) -> str:
-    command = ["claude"]
-    if config:
-        configured_command = config.get("llm", {}).get("claude_code_command")
-        if isinstance(configured_command, list) and configured_command:
-            command = configured_command
+    command = get_claude_code_command(config)
+    command_args = get_claude_code_args(instruction)
 
     if pipeline_logger:
         pipeline_logger.log(
@@ -23,32 +43,25 @@ async def run_claude_code(
             command=" ".join(command),
         )
 
-    process = await asyncio.create_subprocess_exec(
-        *command,
-        "-p",
-        "--dangerously-skip-permissions",
-        instruction,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    stdout, stderr = await process.communicate()
+    returncode, stdout, stderr, execution_mode = await _run_claude_process(command, command_args)
 
     if isinstance(stdout, bytes):
         stdout = stdout.decode(errors="replace")
     if isinstance(stderr, bytes):
         stderr = stderr.decode(errors="replace")
 
-    if process.returncode != 0:
+    if returncode != 0:
         if pipeline_logger:
             pipeline_logger.log(
                 "claude_runner",
                 "failed",
                 "Claude Code command failed",
-                exit_code=process.returncode,
+                exit_code=returncode,
+                execution_mode=execution_mode,
                 stderr=(stderr[:500] if stderr else ""),
             )
         raise RuntimeError(
-            f"Claude Code command failed with exit code {process.returncode}: {command!r}"
+            f"Claude Code command failed with exit code {returncode}: {command!r}"
             f" for instruction {instruction!r}. stderr: {stderr}"
         )
 
@@ -57,7 +70,8 @@ async def run_claude_code(
             "claude_runner",
             "completed",
             "Claude Code command completed",
-            exit_code=process.returncode,
+            exit_code=returncode,
+            execution_mode=execution_mode,
         )
 
     return stdout

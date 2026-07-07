@@ -1,23 +1,32 @@
 import asyncio
-import os
 import hashlib
-import shutil
-import yaml
+import os
 import re
-from typing import Dict, Any, Optional
+import shutil
+from typing import Any, Dict, Optional
 
+import yaml
+
+from agents.dotnet_decompiler_agent import DotNetDecompilerAgent
 from core.claude_code_runner import run_claude_code
 from core.pipeline_logger import PipelineLogger
+from core.result_models import AgentResult, ArtifactNode, Finding, RunContext
+from core.tool_policy import resolve_candidate_path, resolve_tool_path
 
 
 class DotNetAgent:
     def __init__(self, config_path: str = "config.yaml"):
-        self.config = self._load_config(config_path)       
-        # Đường dẫn tới các công cụ (Nên để trong config.yaml)
-        # self.de4dot_path = r"E:\Program\de4dot\de4dot.exe" 
-        # self.dnspy_path = r"E:\Program\dnSpyEx\dnSpy.Console.exe"
+        self.config = self._load_config(config_path)
         self.output_root = "dotnet_output"
         self.repo_root = os.path.normpath(os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir)))
+
+    def _prep_agent(self) -> DotNetDecompilerAgent:
+        return DotNetDecompilerAgent(
+            config=self.config,
+            output_root=self.output_root,
+            repo_root=self.repo_root,
+            resolve_executable=self._resolve_executable,
+        )
 
     def _tool_config(self, key: str) -> str | None:
         tools = (self.config or {}).get("tools") or {}
@@ -25,42 +34,12 @@ class DotNetAgent:
         return str(value) if value else None
 
     def _resolve_executable(self, configured: str | None, fallbacks: list[str]) -> str | None:
-        """Resolve an executable path from config, PATH, or repo-relative locations."""
-
-        def _candidates() -> list[str]:
-            out: list[str] = []
-            if configured:
-                out.append(configured)
-            out.extend(fallbacks)
-            return out
-
-        for candidate in _candidates():
-            expanded = os.path.expandvars(os.path.expanduser(str(candidate)))
-
-            # Absolute/relative filesystem path
-            path_like = expanded
-            if os.path.isabs(path_like):
-                if os.path.isfile(path_like):
-                    return os.path.normpath(path_like)
-            else:
-                # PATH lookup
-                which = shutil.which(path_like)
-                if which:
-                    return os.path.normpath(which)
-
-                # repo-root relative lookup (common for bundled tools)
-                repo_rel = os.path.normpath(os.path.join(self.repo_root, path_like))
-                if os.path.isfile(repo_rel):
-                    return repo_rel
-
-        return None
+        return resolve_candidate_path(configured, fallbacks, repo_root=self.repo_root)
 
     def _abs_path(self, path: str) -> str:
-        """Return a normalized absolute path for consistent tool invocation/logging."""
         return os.path.normpath(os.path.abspath(os.path.expandvars(os.path.expanduser(path))))
-    
+
     def _load_config(self, path: str) -> Dict[str, Any]:
-        """Load cấu hình từ file yaml."""
         try:
             if os.path.exists(path):
                 with open(path, "r") as f:
@@ -78,7 +57,6 @@ class DotNetAgent:
         return sha256_hash.hexdigest()
 
     def _to_workspace_rel_posix(self, path: str) -> str:
-        """Convert an absolute path to a workspace-relative POSIX-style path for Goose tools."""
         repo_root_abs = self._abs_path(self.repo_root)
         path_abs = self._abs_path(path)
         try:
@@ -87,64 +65,117 @@ class DotNetAgent:
             rel = path_abs
         return rel.replace("\\", "/")
 
+    @staticmethod
+    def filter_goose_report(raw_log: str) -> str:
+        start_marker = "**Start of Analysis**"
+        end_marker = "**End of Analysis**"
+
+        start_idx = raw_log.find(start_marker)
+        end_idx = raw_log.find(end_marker)
+
+        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+            content = raw_log[start_idx : end_idx + len(end_marker)]
+        elif start_idx != -1:
+            content = raw_log[start_idx:]
+        else:
+            content = raw_log
+
+        content = re.sub(r"───.*?\n", "", content)
+        content = re.sub(r"-\d+: Could not interpret tool use parameters.*?\n", "", content)
+        content = re.sub(r"\n\s*\n", "\n\n", content).strip()
+        return content
+
     def _pick_interesting_cs_files(self, base_dir: str, limit: int = 15) -> list[str]:
-        """Return up to `limit` interesting .cs files (workspace-relative, POSIX path)."""
-        base_abs = self._abs_path(base_dir)
-        if not os.path.isdir(base_abs):
-            return []
+        return self._prep_agent().pick_interesting_cs_files(base_dir, limit=limit)
 
-        interesting_names = {
-            "program.cs",
-            "assemblyloader.cs",
-            "app.xaml.cs",
-            "mainwindow.xaml.cs",
+    def _build_result(
+        self,
+        *,
+        file_path: str,
+        file_hash: str,
+        source_directory: str,
+        cleaned_file: str | None,
+        report: str,
+        run_context: RunContext | None,
+    ) -> dict[str, Any] | AgentResult:
+        legacy_payload = {
+            "file_name": os.path.basename(file_path),
+            "file_hash": file_hash,
+            "source_directory": source_directory,
+            "cleaned_file": cleaned_file,
+            "ai_analysis_report": report,
         }
-        keywords = ("load", "inject", "decrypt", "encrypt", "http", "socket", "dns", "web", "download", "shell", "process", "registry")
+        if run_context is None:
+            return legacy_payload
 
-        hits: list[str] = []
-        others: list[str] = []
+        input_artifact = ArtifactNode(
+            path=self._abs_path(file_path),
+            sha256=file_hash,
+            depth=run_context.depth,
+            kind="dotnet_input",
+        )
+        source_artifact = ArtifactNode(
+            path=self._abs_path(source_directory),
+            parent_id=input_artifact.id,
+            depth=run_context.depth + 1,
+            kind="dotnet_source_directory",
+            metadata={"display_path": source_directory},
+        )
+        if run_context.artifact_registry:
+            run_context.artifact_registry.add(input_artifact)
+            run_context.artifact_registry.add(source_artifact)
 
-        for root, _, files in os.walk(base_abs):
-            for name in files:
-                if not name.lower().endswith(".cs"):
-                    continue
-                full = os.path.join(root, name)
-                rel = self._to_workspace_rel_posix(full)
-                low = name.lower()
-                if low in interesting_names or any(k in low for k in keywords):
-                    hits.append(rel)
-                else:
-                    others.append(rel)
+        finding = Finding(
+            artifact_id=input_artifact.id,
+            category="analysis_report",
+            summary="DotNet analysis report generated",
+            evidence=report,
+            confidence=1.0,
+        )
+        if run_context.finding_store:
+            run_context.finding_store.add(finding)
 
-        hits.sort()
-        others.sort()
+        return AgentResult(
+            artifact_id=input_artifact.id,
+            legacy_payload=legacy_payload,
+            artifacts=[input_artifact, source_artifact],
+            findings=[finding],
+            metadata={"source_directory_artifact_id": source_artifact.id},
+        )
 
-        # Prefer "hits" but fall back to any .cs files
-        result = hits[:limit]
-        if len(result) < limit:
-            remaining = limit - len(result)
-            result.extend(others[:remaining])
-        return result
+    async def run_de4dot(
+        self,
+        file_path: str,
+        pipeline_logger: Optional[PipelineLogger] = None,
+    ) -> str:
+        de4dot = resolve_tool_path(self.config, "de4dot", ["de4dot.exe", "de4dot"], repo_root=self.repo_root)
+        if not de4dot:
+            if pipeline_logger:
+                pipeline_logger.log("dotnet_agent.de4dot", "skipped", "de4dot tool not found")
+            return file_path
 
-    # async def run_de4dot(self, file_path: str) -> str:
-    #     """Sử dụng de4dot để làm sạch mã nguồn .NET."""
-    #     print(f"[*] Đang thực hiện De-obfuscate (de4dot): {os.path.basename(file_path)}")
-    #     try:
-    #         # de4dot sẽ tạo ra file mới có đuôi -cleaned.exe
-    #         proc = await asyncio.create_subprocess_exec(
-    #             self.de4dot_path, file_path,
-    #             stdout=asyncio.subprocess.PIPE,
-    #             stderr=asyncio.subprocess.PIPE
-    #         )
-    #         await proc.communicate()
-            
-    #         cleaned_path = file_path.replace(".exe", "-cleaned.exe")
-    #         if os.path.exists(cleaned_path):
-    #             return cleaned_path
-    #         return file_path
-    #     except Exception as e:
-    #         print(f"[-] de4dot failed: {e}")
-    #         return file_path
+        file_path = self._abs_path(file_path)
+        if pipeline_logger:
+            pipeline_logger.log("dotnet_agent.de4dot", "started", "Starting de4dot cleanup")
+
+        proc = await asyncio.create_subprocess_exec(
+            de4dot,
+            file_path,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        await proc.communicate()
+
+        root, ext = os.path.splitext(file_path)
+        cleaned_path = f"{root}-cleaned{ext}"
+        if proc.returncode == 0 and os.path.exists(cleaned_path):
+            if pipeline_logger:
+                pipeline_logger.log("dotnet_agent.de4dot", "completed", "de4dot cleanup completed", cleaned_path=cleaned_path)
+            return cleaned_path
+
+        if pipeline_logger:
+            pipeline_logger.log("dotnet_agent.de4dot", "failed", "de4dot did not produce a cleaned file", exit_code=proc.returncode)
+        return file_path
 
     async def run_dnspy_decompile(
         self,
@@ -152,12 +183,10 @@ class DotNetAgent:
         output_dir: str,
         pipeline_logger: Optional[PipelineLogger] = None,
     ):
-        """Sử dụng dnSpy.Console để xuất toàn bộ project C#."""
         file_path = self._abs_path(file_path)
         output_dir = self._abs_path(output_dir)
 
-        # fh_dir = file_hash + output_dir
-        print(f"[*] Đang Decompile project (dnSpy-Ex) vào: {output_dir}")
+        print(f"[*] Decompile project (dnSpy-Ex) to: {output_dir}")
         if pipeline_logger:
             pipeline_logger.log(
                 "dotnet_agent.decompile",
@@ -168,14 +197,7 @@ class DotNetAgent:
 
         dnspy_exe = self._resolve_executable(
             self._tool_config("dnspy"),
-            [
-                # preferred wrapper name
-                "dnspyc.exe",
-                "dnspyc",
-                # fallback to dnSpy console (if user points config at it)
-                "dnSpy.Console.exe",
-                "dnSpy.Console",
-            ],
+            ["dnspyc.exe", "dnspyc", "dnSpy.Console.exe", "dnSpy.Console"],
         )
         if not dnspy_exe:
             configured = self._tool_config("dnspy")
@@ -191,7 +213,6 @@ class DotNetAgent:
                 )
             return False
 
-        # Safety: only delete output inside output_root to avoid accidents
         output_root_abs = self._abs_path(self.output_root)
         if not os.path.commonpath([output_root_abs, output_dir]) == output_root_abs:
             raise ValueError(f"Refusing to use output_dir outside output_root: {output_dir}")
@@ -201,15 +222,13 @@ class DotNetAgent:
         os.makedirs(output_dir, exist_ok=True)
 
         try:
-            # Lệnh: dnSpy.Console.exe -o <outdir> <file>
-            # Thêm các option tối ưu cho malware: --no-resources để nhanh hơn nếu chỉ cần code
             print(f"[*] Input file (absolute): {file_path}")
             print(f"[*] Output dir  (absolute): {output_dir}")
             cmd = [dnspy_exe, "-o", output_dir, file_path]
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
             stdout, stderr = await proc.communicate()
             if proc.returncode != 0:
@@ -246,42 +265,28 @@ class DotNetAgent:
                     error=str(e),
                 )
             return False
-        
-    # @staticmethod
-    # def filter_goose_report(raw_log: str) -> str:
-    #     # 1. Cắt đoạn từ **Start of Analysis** đến **End of Analysis**
-    #     start_marker = "**Start of Analysis**"
-    #     end_marker = "**End of Analysis**"
 
-    #     start_idx = raw_log.find(start_marker)
-    #     end_idx = raw_log.find(end_marker)
+    async def _prepare_source_directory(
+        self,
+        file_path: str,
+        file_hash: str,
+        pipeline_logger: Optional[PipelineLogger] = None,
+    ):
+        return await self._prep_agent().prepare(
+            file_path,
+            file_hash,
+            pipeline_logger=pipeline_logger,
+            run_de4dot=self.run_de4dot,
+            run_dnspy_decompile=self.run_dnspy_decompile,
+            pick_interesting_cs_files=self._pick_interesting_cs_files,
+        )
 
-    #     if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-    #         content = raw_log[start_idx : end_idx + len(end_marker)]
-    #     elif start_idx != -1:
-    #         content = raw_log[start_idx:]
-    #     else:
-    #         content = raw_log
-
-    #     # 2. Regex để xóa các log gọi tool MCP (các thanh kẻ ngang ───)
-    #     # Loại bỏ các dòng dạng: ─── tên_tool | ida ─────────────────────────-
-    #     content = re.sub(r"───.*?\n", "", content)
-
-    #     # Loại bỏ các thông báo lỗi tham số tool (nếu có)
-    #     content = re.sub(r"-\d+: Could not interpret tool use parameters.*?\n", "", content)
-
-    #     # Loại bỏ các dòng trống dư thừa
-    #     content = re.sub(r"\n\s*\n", "\n\n", content).strip()
-
-    #     return content
-    
     async def run_goose_analysis(
         self,
         specific_out_dir: str,
         pipeline_logger: Optional[PipelineLogger] = None,
     ) -> str:
-        # 3. Gọi AI phân tích cấu trúc thư mục source C# thông qua shared Claude Code runner.
-        print("[*] Đang khởi chạy Claude Code để phân tích mã nguồn C#...")
+        print("[*] Starting Claude Code C# analysis...")
         if pipeline_logger:
             pipeline_logger.log(
                 "dotnet_agent.claude",
@@ -289,32 +294,30 @@ class DotNetAgent:
                 "Starting Claude Code source analysis",
             )
 
-        # Use workspace-relative forward-slash paths to avoid Windows backslash issues inside LLM/tool calls.
         workspace_dir = self._to_workspace_rel_posix(specific_out_dir)
         key_files = self._pick_interesting_cs_files(specific_out_dir, limit=15)
 
         if not key_files:
             print("[WARN] No .cs files found for analysis (directory missing or empty).")
 
-        # Provide paths in a copy/paste-friendly block (no bullets), so the model can pass them verbatim.
-        files_block = "\n".join(key_files) if key_files else "(no .cs files detected)"
+        files_block = "\n".join(key_files) if key_files else "- (no .cs files detected)"
 
         instruction = (
             "Role: Senior .NET Malware Researcher.\n"
             "Workspace Root: repository root (current working directory).\n"
-            f"Decompiled Output Directory (relative): {workspace_dir}\n\n"
-            "Priority Files (repo-root-relative paths; USE VERBATIM, do NOT convert to absolute):\n"
+            f"Examine the decompiled C# source code under: {workspace_dir}\n\n"
+            "Files to read first:\n"
             f"{files_block}\n\n"
             "Constraints:\n"
             "1. Read priority files first, using EXACT repo-relative paths shown above (no drive letters, no absolute paths).\n"
-            "2. NEVER execute code.\n"
-            "3. If file access fails, reply exactly: 'Error: File cannot accessed.'\n"
+            "2. NEVER try to execute any code.\n"
+            "3. If file access fails, reply exactly: 'Error: File cannot accessed.'.\n"
             "4. Format: Start with '**Start of Analysis**', end with '**End of Analysis**'.\n\n"
             "Analysis Requirements:\n"
-            "- Entry Point & Main Execution Flow.\n"
-            "- Sensitive Strings, P/Invoke (API Imports), Network IO.\n"
-            "- Obfuscation/Packers (e.g., Costura, Fody) & Malicious logic.\n"
-            "- Manual solutions for anti-debug/obfuscation encountered.\n"
+            "- Identify the Entry Point and main execution flow.\n"
+            "- Identify sensitive strings, API imports (P/Invoke), or network activities.\n"
+            "- Identify Costura/Fody loaders, packers, obfuscation, and malicious logic.\n"
+            "- If embedded or unpacked next-stage payloads are visible, list their paths and explain how to analyze them next.\n"
             "- Report Structure: [Entry Point] | [Flow] | [IOCs/APIs] | [Malicious/Obfuscation] | [File Summary] | [Conclusion]"
         )
 
@@ -328,10 +331,9 @@ class DotNetAgent:
         self,
         file_path: str,
         pipeline_logger: Optional[PipelineLogger] = None,
-    ) -> Dict[str, Any]:
-        """Workflow .NET: de4dot -> dnSpy-Ex -> Goose Analysis."""
+        run_context: RunContext | None = None,
+    ) -> Dict[str, Any] | AgentResult:
         file_hash = self._get_file_hash(file_path)
-        specific_out_dir = os.path.join(self.output_root, file_hash)
         if pipeline_logger:
             pipeline_logger.log(
                 "dotnet_agent",
@@ -341,36 +343,26 @@ class DotNetAgent:
                 file_hash=file_hash,
             )
 
-        # 1. Unpack/Clean file
-        # target_file = await self.run_de4dot(file_path)
-
-        # 2. Decompile ra mã nguồn C#
-        dnspyc = await self.run_dnspy_decompile(
+        prep = await self._prepare_source_directory(
             file_path,
-            specific_out_dir,
+            file_hash,
             pipeline_logger=pipeline_logger,
         )
-        if not dnspyc:
-            return {
-                "error": "Decompilation failed"
-            }
+        if not prep.decompiled:
+            return {"error": "Decompilation failed"}
+
         goose_report_raw = await self.run_goose_analysis(
-            specific_out_dir,
+            prep.source_directory,
             pipeline_logger=pipeline_logger,
         )
-        # clean_rp = self.filter_goose_report(goose_report_raw)
+        report = self.filter_goose_report(goose_report_raw)
 
-        # Dọn dẹp file cleaned sau khi xong (tùy chọn)
-        # if target_file != file_path and os.path.exists(target_file):
-        #     os.remove(target_file)
-
-        f_context = {
-            # "type": "DOTNET_ANALYSIS",
-            "file_name": os.path.basename(file_path),
-            "file_hash": file_hash,
-            "source_directory": specific_out_dir,
-            "ai_analysis_report": goose_report_raw
-        }
-
-        print(f"\n[INFO] Phân tích hoàn tất.")
-        return f_context
+        print("\n[INFO] Analysis complete.")
+        return self._build_result(
+            file_path=file_path,
+            file_hash=file_hash,
+            source_directory=prep.source_directory,
+            cleaned_file=prep.cleaned_file,
+            report=report,
+            run_context=run_context,
+        )

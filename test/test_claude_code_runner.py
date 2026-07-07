@@ -1,3 +1,4 @@
+import subprocess
 import unittest
 from unittest.mock import AsyncMock, patch
 
@@ -53,6 +54,27 @@ class ClaudeCodeRunnerTests(unittest.IsolatedAsyncioTestCase):
         ):
             with self.assertRaises(FileNotFoundError):
                 await run_claude_code("inspect binary")
+
+    async def test_notimplementederror_falls_back_to_threaded_subprocess(self):
+        completed = subprocess.CompletedProcess(
+            args=["claude", "-p", "--dangerously-skip-permissions", "inspect binary"],
+            returncode=0,
+            stdout=b"fallback-output",
+            stderr=b"",
+        )
+
+        with patch(
+            "core.claude_code_runner.asyncio.create_subprocess_exec",
+            new=AsyncMock(side_effect=NotImplementedError),
+        ) as create_subprocess_exec, patch(
+            "core.claude_code_runner.subprocess.run",
+            return_value=completed,
+        ) as subprocess_run:
+            result = await run_claude_code("inspect binary")
+
+        create_subprocess_exec.assert_awaited_once()
+        subprocess_run.assert_called_once()
+        self.assertEqual(result, "fallback-output")
 
 
 if __name__ == "__main__":

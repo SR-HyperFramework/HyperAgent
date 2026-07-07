@@ -1,139 +1,215 @@
 # HyperAgent
 
-HyperAgent is an automated malware analysis orchestrator that routes files to appropriate analysis agents (Native, .NET, Script) and uses MCP (Model Context Protocol) to control tools like IDA Pro.
+HyperAgent là bộ điều phối phân tích malware theo hướng **artifact graph**: nhận một mẫu đầu vào, phân loại file, chọn agent phù hợp, tạo artifact con, chạy các specialist agent trên từng artifact, rồi tổng hợp lại thành kết quả có cấu trúc.
 
-## Features
-- **Smart Routing**: Uses `diec` (Detect It Easy) to identify file types and route them to specific agents.
-- **MCP Integration**:
-  - Supports IDA Pro through the `idalib-mcp` server for deep static analysis.
-  - Supports DnSpy via `dnspyc` for .NET binaries.
-- **API + CLI**:
-  - Run single-file analysis from the CLI.
-  - Run upload- or path-based analysis through FastAPI.
+README này tổng hợp:
+- những phần đã hoàn thành trong đợt refactor hiện tại
+- kiến trúc hiện tại của hệ thống
+- cách cài đặt và sử dụng bằng CLI / API
+- contract output hiện tại để tích hợp hoặc test
 
-## Windows setup
+## 1. Trạng thái hiện tại
 
-This repository is currently optimized for **Windows-only** setup.
+Refactor hiện tại đã hoàn thành ổn định các phần chính sau:
 
-### Requirements by feature
+### Đã hoàn thành
+- **Phase 0 — contract hóa output và giữ nguyên behavior công khai**
+  - Giữ ổn định interface `HyperAgentOrchestrator.analyze()` trong `main.py`
+  - Khóa response envelope công khai bằng test contract
+- **Phase 1 — data model trung tâm**
+  - Có `RunContext`, `ArtifactNode`, `Finding`, `AgentResult`
+  - Có `ArtifactRegistry` và `FindingStore`
+- **Phase 2 — tách preparation/classification layer**
+  - Có `FileClassifierAgent`
+  - Các agent coarse hiện tại hoạt động như compatibility wrapper
+- **Phase 3 — ArtifactGraphOrchestrator và queue scheduling**
+  - Orchestration đã chuyển sang `ArtifactGraphOrchestrator`
+  - Có `WorkQueue` và `WorkItem`
+  - Next-stage recursion không còn bám kiểu scan ad-hoc trong `main.py`
+- **Phase 4 — specialist analysis agents**
+  - Có `BehaviorAnalyzerAgent`
+  - Có `ObfuscationAnalyzerAgent`
+  - Có `ConfigExtractorAgent`
+- **Phase 5 — IOC / correlation / synthesis**
+  - Có `IOCExtractorAgent`
+  - Có `CapabilityMapperAgent`
+  - Có `ReportSynthesizerAgent`
+  - Có `RiskScoringAgent`
+  - Root result đã có `artifacts`, `findings`, `iocs`, `verdict`, `final_report_markdown`
+- **Phase 6 — next-stage intelligence (đã triển khai phần lớn các slice compatibility-safe)**
+  - Có `NextStageHunterAgent`
+  - Dedup theo **canonical path** và **SHA-256**
+  - Hợp nhất **provenance** khi nhiều signal cùng trỏ đến một artifact
+  - Ưu tiên candidate theo structured signals
+  - Queue ưu tiên artifact quan trọng hơn trước
+  - Fallback scan bỏ qua thư mục noise và bytecode Python giá trị thấp trong một số trường hợp
 
-#### Required for core startup
+### Mục tiêu quan trọng đã giữ được
+Toàn bộ các thay đổi trên được làm theo nguyên tắc:
+- **giữ nguyên behavior công khai**
+- **giữ nguyên `result["result"]` cho compatibility**
+- **giữ nguyên shape của `next_stage_results`**
+- **giữ các trường summary chỉ ở root**
+
+## 2. Kiến trúc hiện tại
+
+Luồng chính hiện tại:
+
+```text
+input file
+  -> FileClassifierAgent
+  -> routed coarse agent (Native / DotNet / Script)
+  -> AgentResult + ArtifactRegistry update
+  -> specialist analyzers
+       - BehaviorAnalyzerAgent
+       - ObfuscationAnalyzerAgent
+       - ConfigExtractorAgent
+       - IOCExtractorAgent
+       - CapabilityMapperAgent
+  -> NextStageHunterAgent tìm artifact con đáng phân tích
+  -> WorkQueue điều phối phân tích tiếp theo
+  -> ReportSynthesizerAgent
+  -> RiskScoringAgent
+  -> final public response
+```
+
+### Thành phần chính
+- `main.py`
+  - Entry point CLI
+  - Tạo `HyperAgentOrchestrator`
+- `core/orchestration.py`
+  - `ArtifactGraphOrchestrator`
+  - Điều phối classify -> agent -> specialist -> next-stage -> synthesis
+- `core/result_models.py`
+  - Các model trung tâm
+- `core/artifact_registry.py`
+  - Quản lý artifact graph, parent/child, hash, tra cứu theo path
+- `core/finding_store.py`
+  - Lưu finding theo artifact
+- `core/work_queue.py`
+  - Queue có ưu tiên cho next-stage analysis
+- `agents/`
+  - Chứa coarse agents và specialist agents
+- `api.py`
+  - FastAPI wrapper cho path/upload workflows
+
+## 3. Response contract hiện tại
+
+Kết quả public ở root hiện giữ ổn định envelope sau:
+
+```json
+{
+  "run_id": "...",
+  "file_path": "...",
+  "detected_type": "NATIVE | DOTNET | PYTHON_SCRIPT | ...",
+  "die": {},
+  "result": {},
+  "next_stage_results": [],
+  "pipeline_log": [],
+  "artifacts": [],
+  "findings": [],
+  "iocs": [],
+  "verdict": null,
+  "final_report_markdown": null
+}
+```
+
+Ý nghĩa ngắn gọn:
+- `result`: payload compatibility từ coarse agent hiện tại
+- `next_stage_results`: các artifact con đã được phân tích tiếp
+- `artifacts`: danh sách artifact đã biết ở root summary
+- `findings`: danh sách finding đã chuẩn hóa
+- `iocs`: IOC đã normalize
+- `verdict`: đánh giá rủi ro cuối
+- `final_report_markdown`: báo cáo cuối dạng markdown
+
+## 4. Cấu trúc thư mục đáng chú ý
+
+```text
+HyperAgent/
+├─ agents/
+│  ├─ native_agent.py
+│  ├─ dotnet_agent.py
+│  ├─ script_agent.py
+│  ├─ file_classifier_agent.py
+│  ├─ next_stage_hunter_agent.py
+│  ├─ behavior_analyzer_agent.py
+│  ├─ obfuscation_analyzer_agent.py
+│  ├─ config_extractor_agent.py
+│  ├─ ioc_extractor_agent.py
+│  ├─ capability_mapper_agent.py
+│  ├─ report_synthesizer_agent.py
+│  └─ risk_scoring_agent.py
+├─ core/
+│  ├─ orchestration.py
+│  ├─ result_models.py
+│  ├─ artifact_registry.py
+│  ├─ finding_store.py
+│  ├─ work_queue.py
+│  ├─ pipeline_logger.py
+│  └─ die_handler.py
+├─ api.py
+├─ main.py
+├─ config.yaml.template
+├─ bootstrap.ps1
+└─ test_*.py
+```
+
+## 5. Yêu cầu môi trường
+
+Repository hiện đang thiên về **Windows workflow**.
+
+### Bắt buộc
 - Python 3.10+
 - Node.js LTS
-- Claude Code CLI available as `claude` or installable via `npm`
+- Claude Code CLI (`claude`)
+- `diec` (Detect It Easy CLI)
 
-Bootstrap will attempt to install Node.js LTS with `winget` and then install Claude Code CLI with `npm` if either is missing.
+### Tùy theo loại phân tích
+- **Native**
+  - IDA Pro
+  - `uv`
+  - `idalib-mcp`
+- **.NET**
+  - `dnspyc.exe` hoặc `dnSpy.Console.exe` đổi tên phù hợp
+- **Script / Python bytecode**
+  - `pyinstxtractor.py`
+  - `pycdas`
+  - tùy chọn: `de4dot.exe`
 
-If automatic install is not possible, install them manually:
+## 6. Cài đặt nhanh
 
-```powershell
-winget install --id OpenJS.NodeJS.LTS -e
-npm install -g @anthropic-ai/claude-code
-```
-
-Then verify:
-
-```powershell
-node --version
-npm --version
-claude --version
-```
-
-If `claude` is still not on PATH, rerun bootstrap with `HYPERAGENT_CLAUDE_CMD` set.
-
-```powershell
-$env:HYPERAGENT_CLAUDE_CMD = '["C:\\path\\to\\claude.exe"]'
-powershell -ExecutionPolicy Bypass -File .\bootstrap.ps1 -Force
-```
-
-```powershell
-$env:HYPERAGENT_CLAUDE_HOME = 'C:\Users\ADMIN\.claude'
-```
-#### Required for native analysis
-- Detect It Easy CLI (`diec`)
-- IDA Pro if you want IDA-backed analysis
-- `uv` for `uv run idalib-mcp`
-- Claude plugin marketplace + `ida-pro-mcp` plugin
-
-Bootstrap will attempt to:
-- install `uv` if it is missing
-- run `claude plugin marketplace add mrexodia/claude-marketplace`
-- run `claude plugin install ida-pro-mcp@mrexodia`
-- detect `C:\Program Files\IDA Professional*\idalib\python\py-activate-idalib.py`
-- run the `py-activate-idalib.py` installer when found
-
-#### Required for .NET analysis
-- `dnspyc.exe` or `dnSpy.Console.exe` renamed to `dnspyc.exe`
-
-#### Optional helpers for script analysis
-- `pyinstxtractor.py`
-- `pycdas`
-- `de4dot.exe`
-
-## Automated bootstrap
-
-Run the bootstrap script from PowerShell:
+### Cách khuyến nghị: dùng bootstrap
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\bootstrap.ps1
 ```
 
-What it does:
-- checks for Python
-- installs Node.js LTS with `winget` if `node`/`npm` are missing
-- installs Claude Code CLI with `npm` if `claude` is missing
-- installs `uv` if it is missing
-- creates `.venv` if needed
-- installs Python dependencies from `requirements.txt`
-- discovers external tools from PATH or environment-variable overrides
-- generates a local `config.yaml` from `config.yaml.template`
-- copies `skill/hyperagent-malware-analyze/` into the target machine's Claude skills directory
-- installs the `mrexodia/claude-marketplace` marketplace source and the `ida-pro-mcp@mrexodia` plugin
-- runs the `idalib` activation script automatically when IDA is detected
-- verifies Python imports and app startup imports
+Bootstrap sẽ:
+- tạo `.venv`
+- cài dependency Python từ `requirements.txt`
+- dò tool ngoài từ `PATH` hoặc biến môi trường override
+- tạo `config.yaml` từ `config.yaml.template`
+- cài phần liên quan Claude / plugin nếu môi trường hỗ trợ
+- chạy bước verify cơ bản
 
-Re-run it anytime after installing new tools. If you want to regenerate `config.yaml`, use:
+Nếu muốn tạo lại `config.yaml`:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\bootstrap.ps1 -Force
 ```
 
-If you only want environment setup without final smoke checks:
+Nếu chỉ muốn setup mà bỏ verify cuối:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\bootstrap.ps1 -SkipVerify
 ```
 
-## Tool path overrides
+## 7. Cấu hình
 
-If tools are not on PATH, set overrides before running the bootstrap.
+Template cấu hình nằm ở `config.yaml.template`.
 
-```powershell
-$env:HYPERAGENT_DIEC_PATH = 'C:\Tools\diec.exe'
-$env:HYPERAGENT_DNSPYC_PATH = 'C:\Tools\dnspyc.exe'
-$env:HYPERAGENT_DE4DOT_PATH = 'C:\Tools\de4dot.exe'
-$env:HYPERAGENT_PYINSTXTRACTOR_PATH = 'C:\Tools\pyinstxtractor.py'
-$env:HYPERAGENT_PYCDAS_PATH = 'C:\Tools\pycdas.exe'
-$env:HYPERAGENT_CLAUDE_CMD = '["claude"]'
-$env:HYPERAGENT_IDA_SERVER_COMMAND = '["uv","run","idalib-mcp"]'
-$env:HYPERAGENT_CLAUDE_HOME = 'C:\Users\ADMIN\.claude'
-$env:HYPERAGENT_IDA_ROOT = 'C:\Program Files\IDA Professional 9.0'
-$env:HYPERAGENT_IDALIB_ACTIVATE = 'C:\Program Files\IDA Professional 9.0\idalib\python\py-activate-idalib.py'
-```
-
-Notes:
-- `HYPERAGENT_CLAUDE_CMD` accepts either a JSON array string or a single command string.
-- `HYPERAGENT_IDA_SERVER_COMMAND` accepts a JSON array string.
-- `HYPERAGENT_CLAUDE_HOME` overrides the target Claude home directory; otherwise bootstrap installs into `$HOME/.claude/skills/hyperagent-malware-analyze`.
-- `HYPERAGENT_IDA_ROOT` points bootstrap at a specific IDA installation root.
-- `HYPERAGENT_IDALIB_ACTIVATE` points bootstrap at a specific `py-activate-idalib.py` script.
-- The generated `config.yaml` is local to your machine and should not be committed.
-
-## Configuration
-
-`config.yaml.template` is the versioned template. `bootstrap.ps1` generates `config.yaml` from it.
-
-Default template values are PATH-friendly:
+Các giá trị mặc định hiện có:
 
 ```yaml
 tools:
@@ -145,53 +221,53 @@ tools:
 
 mcp:
   ida_server_command: ["uv", "run", "idalib-mcp"]
+  ida_startup_timeout_s: 180
+  ida_probe_interval_s: 0.5
 
 llm:
   claude_code_command: ["claude"]
 ```
 
-If `config.yaml` is missing, the app will now tell you to run `bootstrap.ps1` or copy the template first.
+Nếu tool không có trong `PATH`, có thể set biến môi trường trước khi bootstrap, ví dụ:
 
-## Usage
-
-### Claude skill
-
-After bootstrap, the bundled skill is installed to:
-
-```text
-%USERPROFILE%\.claude\skills\hyperagent-malware-analyze
+```powershell
+$env:HYPERAGENT_DIEC_PATH = 'C:\Tools\diec.exe'
+$env:HYPERAGENT_DNSPYC_PATH = 'C:\Tools\dnspyc.exe'
+$env:HYPERAGENT_DE4DOT_PATH = 'C:\Tools\de4dot.exe'
+$env:HYPERAGENT_PYINSTXTRACTOR_PATH = 'C:\Tools\pyinstxtractor.py'
+$env:HYPERAGENT_PYCDAS_PATH = 'C:\Tools\pycdas.exe'
+$env:HYPERAGENT_CLAUDE_CMD = '["claude"]'
+$env:HYPERAGENT_IDA_SERVER_COMMAND = '["uv","run","idalib-mcp"]'
 ```
 
-You can invoke it in Claude Code with a sample attachment, for example:
+## 8. Cách sử dụng
 
-```text
-/hyperagent-malware-analyze @sample.exe
-```
+### 8.1. Chạy bằng CLI
 
-### CLI
-
-Activate the virtual environment:
+Kích hoạt môi trường:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
 ```
 
-Run analysis:
+Phân tích một file:
 
 ```powershell
 python main.py C:\path\to\sample.exe
 ```
 
-### FastAPI
+Entry point CLI hiện ở `main.py` và sẽ in kết quả phân tích ra stdout.
 
-Start the API server:
+### 8.2. Chạy bằng API
+
+Khởi động FastAPI:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
 uvicorn api:app --host 0.0.0.0 --port 8000
 ```
 
-Analyze by file path:
+#### Phân tích theo file path
 
 ```bash
 curl -X POST http://127.0.0.1:8000/analyze/path \
@@ -199,38 +275,79 @@ curl -X POST http://127.0.0.1:8000/analyze/path \
   -d '{"file_path": "C:/path/to/sample.exe"}'
 ```
 
-Analyze by upload:
+#### Phân tích bằng upload
 
 ```bash
 curl -X POST http://127.0.0.1:8000/analyze/upload \
   -F "file=@C:/path/to/sample.exe"
 ```
 
-## Structure
-- `core/`: Core logic such as DIE handling, Claude runner, and pipeline logging.
-- `agents/`: Specific analysis agents (Native, DotNet, Script).
-- `uploads/`: Optional persisted API uploads.
-- `dotnet_output/`, `script_output/`: Generated analysis artifacts.
+Ghi chú:
+- `/analyze/path` yêu cầu file đã tồn tại trên máy chạy API
+- `/analyze/upload` hỗ trợ lưu tạm hoặc giữ file tùy tham số `keep_file`
 
-## Development roadmap & status
+## 9. Test và verification
 
-### Phase 1: Create skeleton + FastAPI + basic schemas [COMPLETED]
+Các test quan trọng đang khóa behavior hiện tại gồm:
+- `test_phase0_contract.py`
+- `test_result_models.py`
+- `test_phase4_specialist_agents.py`
+- `test_orchestrator_next_stage.py`
+- `test_agent_runner_integration.py`
 
-### Phase 2: MCP adapters [IN PROGRESS]
-- [ ] Implement Ghidra adapter
-- [x] Implement IDA adapter
-- [x] Implement DnSpy adapter
-- [ ] Implement Script adapter
+Chạy nhanh các suite chính:
 
-### Phase 3: Static pipeline orchestrator [COMPLETED]
-- [x] Orchestrate the flow: Ingest → DIE → Strategy → Tool → Output
-- [x] Error handling and fallback mechanisms
+```powershell
+python -m unittest test_phase0_contract.py
+python -m unittest test_result_models.py
+python -m unittest test_phase4_specialist_agents.py
+python -m unittest test_orchestrator_next_stage.py
+python -m unittest test_agent_runner_integration.py
+```
 
-### Phase 4: API integration [IN PROGRESS]
-- [x] Finalize API endpoints for Hyperscope
-- [ ] Ensure proper response format
+Nếu muốn chạy toàn bộ unittest trong repo:
 
-### Phase 5: Optional [TODO]
-- [ ] Caching mechanism
-- [ ] Unpackers integration
-- [ ] Extended heuristics
+```powershell
+python -m unittest discover
+```
+
+## 10. Những gì đã thay đổi đáng chú ý so với bản cũ
+
+So với kiến trúc cũ kiểu:
+
+```text
+1 artifact -> 1 coarse agent -> 1 report text
+```
+
+Hệ thống hiện đã chuyển sang:
+
+```text
+1 root sample -> artifact graph -> nhiều specialist sub-agent -> structured findings -> final synthesized report
+```
+
+Các thay đổi đáng chú ý nhất:
+- orchestration đã tập trung hơn và có state model rõ ràng
+- findings không còn chỉ nằm trong prose report
+- root result đã có summary dùng được cho downstream processing
+- next-stage analysis bớt nở artifact vô ích nhờ ưu tiên, dedup và skip policy
+- compatibility công khai vẫn được giữ để tránh phá caller hiện tại
+
+## 11. Hướng sử dụng khuyến nghị
+
+Nếu bạn mới làm việc với repo này, nên đi theo thứ tự:
+1. chạy `bootstrap.ps1`
+2. chuẩn bị `config.yaml`
+3. test một file nhỏ bằng `python main.py <file>`
+4. kiểm tra output root envelope
+5. nếu cần tích hợp service, chạy `uvicorn api:app ...`
+6. trước khi sửa orchestration, luôn chạy lại các suite contract và next-stage
+
+## 12. Lưu ý
+
+- `config.yaml` là file local, không nên commit.
+- Native / .NET / script analysis phụ thuộc khá nhiều vào tool ngoài; nếu thiếu tool, pipeline có thể không phân tích sâu được.
+- Refactor hiện được làm theo hướng **không phá behavior công khai**, nên khi mở rộng logic nội bộ cần giữ ổn định envelope hiện tại.
+
+---
+
+Nếu cần tiếp tục roadmap, bước kế tiếp nên là hoàn thiện nốt Phase 6 hoặc chuyển sang Phase 7 theo cách vẫn giữ compatibility ở public contract.

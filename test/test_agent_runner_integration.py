@@ -95,7 +95,7 @@ class NativeAgentRunnerIntegrationTests(unittest.IsolatedAsyncioTestCase):
             instruction = run_claude_code_mock.await_args.args[0]
             self.assertIs(run_claude_code_mock.await_args.kwargs["config"], agent.config)
             self.assertIn(os.path.abspath(file_path), instruction)
-            self.assertIn("Use hyperagent-malware-analysis skill and start analyze", instruction)
+            self.assertIn("/hyperagent-malware-analyze @", instruction)
 
             self.assertEqual(result["file_name"], os.path.basename(file_path))
             self.assertEqual(result["file_hash"], expected_hash)

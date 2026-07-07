@@ -5,6 +5,8 @@ import yaml
 from enum import Enum, auto
 from typing import Dict, Any, Optional
 
+from core.tool_policy import get_tool_setting
+
 class AnalysisType(Enum):
     NATIVE = auto()
     DOTNET = auto()
@@ -14,7 +16,7 @@ class AnalysisType(Enum):
 class DIEHandler:
     def __init__(self, config_path: str = "config.yaml"):
         self.config = self._load_config(config_path)
-        self.die_path = self.config.get("tools", {}).get("diec", "diec.exe")
+        self.die_path = get_tool_setting(self.config, "diec", default="diec.exe") or "diec.exe"
 
     def _load_config(self, path: str) -> Dict[str, Any]:
         try:
@@ -132,12 +134,14 @@ class DIEHandler:
         packer = (data.get("packer") or "").lower()
         # file_class = (data.get("file_class") or "").lower()
 
-        is_dotnet = ".net" in library or ".net" in compiler
-        is_python = "python" in language or "pyinstaller" in packer
-        is_native = "c++" in language or "c" in language or compiler or packer
+        is_dotnet = ".net" in library or ".net" in compiler or "c#" in language
+        is_python = "python" in language or "pyinstaller" in packer or "pyinstaller" in compiler
+        is_native = any(token in language for token in ("c++", "delphi", "visual basic")) or any(
+            token in compiler for token in ("msvc", "visual c", "mingw", "gcc", "clang", "delphi", "borland")
+        )
 
-        is_comp_go = "go" in language or "golang" in language or compiler
-        is_comp_js = "javascript" in language or "nodejs" in language or compiler
+        is_comp_go = "go" in language or "golang" in language or "go " in compiler or "golang" in compiler
+        is_comp_js = "javascript" in language or "nodejs" in language or "node.js" in compiler
         bb_ext = "by extension" in language
 
         if is_dotnet and not bb_ext:

@@ -1,10 +1,10 @@
-import subprocess
 import json
 import os
 import yaml
 from enum import Enum, auto
 from typing import Dict, Any, Optional
 
+from core.task_runtime import run_tracked_subprocess
 from core.tool_policy import get_tool_setting
 
 class AnalysisType(Enum):
@@ -94,7 +94,7 @@ class DIEHandler:
             cmd = [self.die_path, "-b", "-p", "-u", file_path]
             
             # Capture raw bytes to avoid Windows cp1252 decode issues.
-            result = subprocess.run(cmd, capture_output=True, text=False, check=False)
+            result = run_tracked_subprocess(cmd)
 
             stdout_text = ""
             stderr_text = ""

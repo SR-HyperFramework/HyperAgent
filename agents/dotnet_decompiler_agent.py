@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from core.pipeline_logger import PipelineLogger
+from core.task_runtime import create_child_task_scope, run_tracked_process
 from core.tool_policy import resolve_candidate_path, resolve_tool_path
 
 
@@ -87,33 +88,39 @@ class DotNetDecompilerAgent:
         file_path: str,
         pipeline_logger: Optional[PipelineLogger] = None,
     ) -> str:
+        de4dot_logger = pipeline_logger
+        if pipeline_logger:
+            _, de4dot_logger = create_child_task_scope(
+                pipeline_logger,
+                stage_key="dotnet_agent.de4dot",
+                title="Run de4dot cleanup",
+            )
+
         de4dot = resolve_tool_path(self.config, "de4dot", ["de4dot.exe", "de4dot"], repo_root=self.repo_root)
         if not de4dot:
-            if pipeline_logger:
-                pipeline_logger.log("dotnet_agent.de4dot", "skipped", "de4dot tool not found")
+            if de4dot_logger:
+                de4dot_logger.log("dotnet_agent.de4dot", "skipped", "de4dot tool not found")
             return file_path
 
         file_path = self._abs_path(file_path)
-        if pipeline_logger:
-            pipeline_logger.log("dotnet_agent.de4dot", "started", "Starting de4dot cleanup")
+        if de4dot_logger:
+            de4dot_logger.log("dotnet_agent.de4dot", "started", "Starting de4dot cleanup")
 
-        proc = await asyncio.create_subprocess_exec(
+        returncode, _, _ = await run_tracked_process(
             de4dot,
             file_path,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+            pipeline_logger=de4dot_logger,
         )
-        await proc.communicate()
 
         root, ext = os.path.splitext(file_path)
         cleaned_path = f"{root}-cleaned{ext}"
-        if proc.returncode == 0 and os.path.exists(cleaned_path):
-            if pipeline_logger:
-                pipeline_logger.log("dotnet_agent.de4dot", "completed", "de4dot cleanup completed", cleaned_path=cleaned_path)
+        if returncode == 0 and os.path.exists(cleaned_path):
+            if de4dot_logger:
+                de4dot_logger.log("dotnet_agent.de4dot", "completed", "de4dot cleanup completed", cleaned_path=cleaned_path)
             return cleaned_path
 
-        if pipeline_logger:
-            pipeline_logger.log("dotnet_agent.de4dot", "failed", "de4dot did not produce a cleaned file", exit_code=proc.returncode)
+        if de4dot_logger:
+            de4dot_logger.log("dotnet_agent.de4dot", "failed", "de4dot did not produce a cleaned file", exit_code=returncode)
         return file_path
 
     async def run_dnspy_decompile(
@@ -122,12 +129,20 @@ class DotNetDecompilerAgent:
         output_dir: str,
         pipeline_logger: Optional[PipelineLogger] = None,
     ) -> bool:
+        decompile_logger = pipeline_logger
+        if pipeline_logger:
+            _, decompile_logger = create_child_task_scope(
+                pipeline_logger,
+                stage_key="dotnet_agent.decompile",
+                title="Decompile DotNet assembly",
+            )
+
         file_path = self._abs_path(file_path)
         output_dir = self._abs_path(output_dir)
 
         print(f"[*] Decompile project (dnSpy-Ex) to: {output_dir}")
-        if pipeline_logger:
-            pipeline_logger.log(
+        if decompile_logger:
+            decompile_logger.log(
                 "dotnet_agent.decompile",
                 "started",
                 "Starting dnSpy decompile",
@@ -143,8 +158,8 @@ class DotNetDecompilerAgent:
             print("[-] dnSpy tool not found.")
             print(f"    - config.yaml tools.dnspy = {configured!r}")
             print("    - Put dnspyc.exe in PATH, or set tools.dnspy to an absolute path.")
-            if pipeline_logger:
-                pipeline_logger.log(
+            if decompile_logger:
+                decompile_logger.log(
                     "dotnet_agent.decompile",
                     "failed",
                     "dnSpy tool not found",
@@ -164,30 +179,28 @@ class DotNetDecompilerAgent:
             print(f"[*] Input file (absolute): {file_path}")
             print(f"[*] Output dir  (absolute): {output_dir}")
             cmd = [dnspy_exe, "-o", output_dir, file_path]
-            proc = await asyncio.create_subprocess_exec(
+            returncode, stdout, stderr = await run_tracked_process(
                 *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+                pipeline_logger=decompile_logger,
             )
-            stdout, stderr = await proc.communicate()
-            if proc.returncode != 0:
-                print(f"[-] dnSpy-Ex exited with code {proc.returncode}")
+            if returncode != 0:
+                print(f"[-] dnSpy-Ex exited with code {returncode}")
                 if stdout:
                     print("[dnSpy stdout]")
                     print(stdout.decode("utf-8", errors="ignore"))
                 if stderr:
                     print("[dnSpy stderr]")
                     print(stderr.decode("utf-8", errors="ignore"))
-                if pipeline_logger:
-                    pipeline_logger.log(
+                if decompile_logger:
+                    decompile_logger.log(
                         "dotnet_agent.decompile",
                         "failed",
                         "dnSpy decompile exited with non-zero status",
-                        exit_code=proc.returncode,
+                        exit_code=returncode,
                     )
                 return False
-            if pipeline_logger:
-                pipeline_logger.log(
+            if decompile_logger:
+                decompile_logger.log(
                     "dotnet_agent.decompile",
                     "completed",
                     "dnSpy decompile completed",
@@ -196,8 +209,8 @@ class DotNetDecompilerAgent:
             return True
         except Exception as e:
             print(f"[-] dnSpy-Ex failed: {e}")
-            if pipeline_logger:
-                pipeline_logger.log(
+            if decompile_logger:
+                decompile_logger.log(
                     "dotnet_agent.decompile",
                     "failed",
                     "dnSpy decompile raised an exception",

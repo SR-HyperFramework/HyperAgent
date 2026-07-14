@@ -3,10 +3,150 @@ import unittest
 from core.artifact_registry import ArtifactRegistry
 from core.finding_store import FindingStore
 from core.output_normalizer import build_public_run_summary, normalize_agent_result
-from core.result_models import AgentResult, ArtifactNode, Finding
+from core.pipeline_logger import PipelineLogger
+from core.result_models import AgentResult, ArtifactNode, Finding, RunContext, TaskSession, TaskStatus
+from core.task_runtime import create_child_task_scope, executor_kind_for_stage
 
 
 class ResultModelTests(unittest.TestCase):
+    def test_task_session_defaults_to_pending_local_execution(self):
+        task = TaskSession(run_id="run-1", stage_key="identify", title="Identify file")
+
+        self.assertEqual(task.run_id, "run-1")
+        self.assertEqual(task.stage_key, "identify")
+        self.assertEqual(task.title, "Identify file")
+        self.assertEqual(task.status, TaskStatus.PENDING)
+        self.assertIsNone(task.terminal_state)
+        self.assertEqual(task.executor_kind, "local")
+        self.assertTrue(task.task_id)
+        self.assertTrue(task.session_id)
+
+    def test_run_context_can_carry_task_scope(self):
+        context = RunContext(
+            run_id="run-1",
+            root_file_path="C:/sample.exe",
+            task_id="task-1",
+            session_id="session-1",
+            parent_task_id="task-0",
+            executor_kind="claude",
+        )
+
+        self.assertEqual(context.task_id, "task-1")
+        self.assertEqual(context.session_id, "session-1")
+        self.assertEqual(context.parent_task_id, "task-0")
+        self.assertEqual(context.executor_kind, "claude")
+
+    def test_pipeline_logger_can_bind_task_scope_without_breaking_event_shape(self):
+        logger = PipelineLogger(run_id="run-1")
+        logger.bind_task(task_id="task-1", session_id="session-1", parent_task_id="task-0", executor_kind="local")
+
+        event = logger.log("identify", "started", "Detecting file type")
+
+        self.assertEqual(event["run_id"], "run-1")
+        self.assertEqual(event["stage"], "identify")
+        self.assertEqual(event["state"], "started")
+        self.assertEqual(event["status_label"], "started")
+        self.assertEqual(event["display_stage"], "Identify")
+        self.assertEqual(
+            event["data"],
+            {
+                "task_id": "task-1",
+                "session_id": "session-1",
+                "parent_task_id": "task-0",
+                "executor_kind": "local",
+            },
+        )
+
+    def test_pipeline_logger_child_inherits_and_overrides_task_scope(self):
+        logger = PipelineLogger(run_id="run-1", task_id="task-1", session_id="session-1", executor_kind="local")
+
+        child = logger.child(task_id="task-2", parent_task_id="task-1", executor_kind="claude")
+        event = child.log("agent", "started", "Agent analysis started")
+
+        self.assertEqual(event["data"]["task_id"], "task-2")
+        self.assertEqual(event["data"]["session_id"], "session-1")
+        self.assertEqual(event["data"]["parent_task_id"], "task-1")
+        self.assertEqual(event["data"]["executor_kind"], "claude")
+
+    def test_pipeline_logger_tracks_task_outputs_and_events(self):
+        logger = PipelineLogger(run_id="run-1", task_id="task-1", session_id="session-1", parent_task_id="task-0", executor_kind="claude")
+
+        logger.log("claude_runner", "started", "Launching Claude Code command")
+        logger.record_task_output({"stdout": "ok", "exit_code": 0}, output_kind="claude_command")
+        logger.log("claude_runner", "completed", "Claude Code command completed")
+
+        output = logger.task_output()
+
+        self.assertEqual(output["output_kind"], "claude_command")
+        self.assertEqual(output["result"], {"stdout": "ok", "exit_code": 0})
+        self.assertEqual(output["status"], "completed")
+        self.assertEqual(output["terminal_state"], "success")
+        self.assertEqual(output["summary"], "Claude Code command completed")
+        self.assertEqual(output["session_id"], "session-1")
+        self.assertEqual(output["parent_task_id"], "task-0")
+        self.assertEqual(output["executor_kind"], "claude")
+        self.assertEqual(len(output["events"]), 2)
+
+    def test_task_scoped_logger_record_output_uses_child_task_id(self):
+        root_logger = PipelineLogger(run_id="run-1", task_id="task-parent", session_id="session-parent", executor_kind="local")
+        task, child_logger = create_child_task_scope(
+            root_logger,
+            stage_key="claude_runner",
+            title="Launch Claude Code command",
+        )
+
+        child_logger.record_output({"stdout": "child-output"}, output_kind="claude_command")
+
+        self.assertIsNone(root_logger.task_output(task_id="task-parent"))
+        self.assertEqual(
+            root_logger.task_output(task_id=task.task_id),
+            {
+                "output_kind": "claude_command",
+                "result": {"stdout": "child-output"},
+            },
+        )
+
+    def test_task_scoped_logger_seed_output_preserves_task_scope(self):
+        root_logger = PipelineLogger(run_id="run-1", task_id="task-parent", session_id="session-parent", executor_kind="local")
+        task, child_logger = create_child_task_scope(
+            root_logger,
+            stage_key="script_agent.extract",
+            title="Extract archive",
+        )
+
+        child_logger.seed_output(stage_key="script_agent.extract", title="Extract archive")
+
+        output = root_logger.task_output(task_id=task.task_id)
+        self.assertEqual(output["stage_key"], "script_agent.extract")
+        self.assertEqual(output["title"], "Extract archive")
+        self.assertEqual(output["session_id"], task.session_id)
+        self.assertEqual(output["parent_task_id"], "task-parent")
+        self.assertEqual(output["executor_kind"], "local")
+
+    def test_executor_kind_for_stage_marks_claude_and_local_steps(self):
+        self.assertEqual(executor_kind_for_stage("native_agent.claude"), "claude")
+        self.assertEqual(executor_kind_for_stage("script_agent.extract"), "local")
+        self.assertEqual(executor_kind_for_stage("report_synthesizer"), "local")
+
+    def test_create_child_task_scope_creates_distinct_child_task_with_parent_link(self):
+        logger = PipelineLogger(run_id="run-1", task_id="task-parent", session_id="session-parent", executor_kind="local")
+
+        task, child_logger = create_child_task_scope(
+            logger,
+            stage_key="claude_runner",
+            title="Launch Claude Code command",
+        )
+        event = child_logger.log("claude_runner", "started", "Launching Claude Code command")
+
+        self.assertNotEqual(task.task_id, "task-parent")
+        self.assertNotEqual(task.session_id, "session-parent")
+        self.assertEqual(task.parent_task_id, "task-parent")
+        self.assertEqual(task.executor_kind, "claude")
+        self.assertEqual(event["data"]["task_id"], task.task_id)
+        self.assertEqual(event["data"]["session_id"], task.session_id)
+        self.assertEqual(event["data"]["parent_task_id"], "task-parent")
+        self.assertEqual(event["data"]["executor_kind"], "claude")
+
     def test_artifact_registry_stores_and_queries_artifacts(self):
         registry = ArtifactRegistry()
         artifact = ArtifactNode(path="C:/sample.exe", sha256="abc")

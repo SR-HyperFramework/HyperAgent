@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from core.pipeline_logger import PipelineLogger
+from core.task_runtime import create_child_task_scope, run_tracked_process
 from core.tool_policy import resolve_candidate_path, resolve_tool_path
 
 
@@ -35,16 +36,15 @@ class PythonBytecodePrepAgent:
             rel = path_abs
         return rel.replace("\\", "/")
 
-    async def _run_cmd(self, *cmd: str, cwd: str | None = None) -> tuple[int, str, str]:
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            cwd=cwd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await process.communicate()
+    async def _run_cmd(
+        self,
+        *cmd: str,
+        cwd: str | None = None,
+        pipeline_logger: Optional[PipelineLogger] = None,
+    ) -> tuple[int, str, str]:
+        returncode, stdout, stderr = await run_tracked_process(*cmd, cwd=cwd, pipeline_logger=pipeline_logger)
         return (
-            process.returncode,
+            returncode,
             stdout.decode("utf-8", errors="replace") if isinstance(stdout, bytes) else str(stdout),
             stderr.decode("utf-8", errors="replace") if isinstance(stderr, bytes) else str(stderr),
         )
@@ -58,6 +58,14 @@ class PythonBytecodePrepAgent:
         output_dir: str,
         pipeline_logger: Optional[PipelineLogger] = None,
     ) -> tuple[str, list[str]]:
+        extract_logger = pipeline_logger
+        if pipeline_logger:
+            _, extract_logger = create_child_task_scope(
+                pipeline_logger,
+                stage_key="script_agent.extract",
+                title="Extract PyInstaller bundle",
+            )
+
         extractor = resolve_tool_path(
             self.config,
             "pyinstxtractor",
@@ -65,16 +73,16 @@ class PythonBytecodePrepAgent:
             repo_root=self.repo_root,
         )
         if not extractor:
-            if pipeline_logger:
-                pipeline_logger.log(
+            if extract_logger:
+                extract_logger.log(
                     "script_agent.extract",
                     "failed",
                     "PyInstaller extractor not found",
                 )
             return file_path, []
 
-        if pipeline_logger:
-            pipeline_logger.log(
+        if extract_logger:
+            extract_logger.log(
                 "script_agent.extract",
                 "started",
                 "Starting PyInstaller extraction",
@@ -82,11 +90,11 @@ class PythonBytecodePrepAgent:
             )
         before_dirs = {entry for entry in os.listdir(output_dir) if os.path.isdir(os.path.join(output_dir, entry))}
         cmd = [sys.executable, extractor, file_path]
-        code, _, stderr = await self._run_cmd(*cmd, cwd=output_dir)
+        code, _, stderr = await self._run_cmd(*cmd, cwd=output_dir, pipeline_logger=extract_logger)
         if code != 0:
             print(f"[WARN] pyinstxtractor failed: {stderr.strip()}")
-            if pipeline_logger:
-                pipeline_logger.log(
+            if extract_logger:
+                extract_logger.log(
                     "script_agent.extract",
                     "failed",
                     "PyInstaller extraction failed",
@@ -108,8 +116,8 @@ class PythonBytecodePrepAgent:
                 for name in files:
                     extracted_files.append(os.path.join(root, name))
 
-        if pipeline_logger:
-            pipeline_logger.log(
+        if extract_logger:
+            extract_logger.log(
                 "script_agent.extract",
                 "completed",
                 "PyInstaller extraction completed",
@@ -123,10 +131,18 @@ class PythonBytecodePrepAgent:
         target_dir: str,
         pipeline_logger: Optional[PipelineLogger] = None,
     ) -> list[str]:
+        disassemble_logger = pipeline_logger
+        if pipeline_logger:
+            _, disassemble_logger = create_child_task_scope(
+                pipeline_logger,
+                stage_key="script_agent.disassemble",
+                title="Disassemble Python bytecode",
+            )
+
         pycdas = resolve_tool_path(self.config, "pycdas", ["pycdas", "pycdas.exe"], repo_root=self.repo_root)
         if not pycdas or not os.path.isdir(target_dir):
-            if pipeline_logger:
-                pipeline_logger.log(
+            if disassemble_logger:
+                disassemble_logger.log(
                     "script_agent.disassemble",
                     "failed",
                     "pycdas unavailable or target directory missing",
@@ -134,8 +150,8 @@ class PythonBytecodePrepAgent:
                 )
             return []
 
-        if pipeline_logger:
-            pipeline_logger.log(
+        if disassemble_logger:
+            disassemble_logger.log(
                 "script_agent.disassemble",
                 "started",
                 "Starting pycdas disassembly",
@@ -151,7 +167,7 @@ class PythonBytecodePrepAgent:
         created_pyasm: list[str] = []
         for pyc_file in pyc_files:
             pyasm_path = f"{pyc_file}.pyasm"
-            code, stdout, stderr = await self._run_cmd(pycdas, pyc_file)
+            code, stdout, stderr = await self._run_cmd(pycdas, pyc_file, pipeline_logger=disassemble_logger)
             if code != 0:
                 print(f"[WARN] pycdas failed for {pyc_file}: {(stderr or stdout).strip()}")
                 continue
@@ -159,8 +175,8 @@ class PythonBytecodePrepAgent:
                 f.write(stdout)
             created_pyasm.append(pyasm_path)
 
-        if pipeline_logger:
-            pipeline_logger.log(
+        if disassemble_logger:
+            disassemble_logger.log(
                 "script_agent.disassemble",
                 "completed",
                 "pycdas disassembly completed",

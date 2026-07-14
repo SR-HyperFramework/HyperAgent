@@ -11,6 +11,7 @@ import yaml
 from core.claude_code_runner import run_claude_code
 from core.pipeline_logger import PipelineLogger
 from core.result_models import AgentResult, ArtifactNode, Finding, RunContext
+from core.task_runtime import bind_process_scope, create_child_task_scope, run_tracked_process
 from core.tool_policy import resolve_candidate_path
 from agents.python_bytecode_prep_agent import PythonBytecodePrepAgent
 
@@ -56,16 +57,15 @@ class ScriptAgent:
         os.makedirs(output_dir, exist_ok=True)
         return output_dir
 
-    async def _run_cmd(self, *cmd: str, cwd: str | None = None) -> tuple[int, str, str]:
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            cwd=cwd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await process.communicate()
+    async def _run_cmd(
+        self,
+        *cmd: str,
+        cwd: str | None = None,
+        pipeline_logger: Optional[PipelineLogger] = None,
+    ) -> tuple[int, str, str]:
+        returncode, stdout, stderr = await run_tracked_process(*cmd, cwd=cwd, pipeline_logger=pipeline_logger)
         return (
-            process.returncode,
+            returncode,
             stdout.decode("utf-8", errors="replace") if isinstance(stdout, bytes) else str(stdout),
             stderr.decode("utf-8", errors="replace") if isinstance(stderr, bytes) else str(stderr),
         )
@@ -223,8 +223,14 @@ class ScriptAgent:
         files_block = "\n".join(f"- {path}" for path in pyasm_files) if pyasm_files else "- (no .pyasm files generated)"
         extracted_block = "\n".join(f"- {path}" for path in extracted_files) if extracted_files else "- (no extracted files detected)"
 
+        claude_logger = pipeline_logger
         if pipeline_logger:
-            pipeline_logger.log(
+            _, claude_logger = create_child_task_scope(
+                pipeline_logger,
+                stage_key="script_agent.claude",
+                title="Run script Claude analysis",
+            )
+            claude_logger.log(
                 "script_agent.claude",
                 "started",
                 "Starting Claude Code script analysis",
@@ -248,11 +254,30 @@ class ScriptAgent:
             "If you cannot read the target or extracted files, write exactly: Error: Cannot access target file.\n"
             "Write a report starting with **Start of Analysis** and ending with **End of Analysis**."
         )
-        return await run_claude_code(
-            instruction,
-            config=self.config,
-            pipeline_logger=pipeline_logger,
-        )
+        try:
+            result = await run_claude_code(
+                instruction,
+                config=self.config,
+                pipeline_logger=claude_logger,
+            )
+            if claude_logger:
+                claude_logger.log(
+                    "script_agent.claude",
+                    "completed",
+                    "Claude Code script analysis completed",
+                    extract_dir=extract_dir,
+                )
+            return result
+        except Exception as exc:
+            if claude_logger:
+                claude_logger.log(
+                    "script_agent.claude",
+                    "failed",
+                    "Claude Code script analysis failed",
+                    extract_dir=extract_dir,
+                    error=str(exc),
+                )
+            raise
 
     async def analyze(
         self,
@@ -280,17 +305,18 @@ class ScriptAgent:
                 file_hash=file_hash,
             )
         output_dir = self._ensure_output_dir(file_hash)
-        prep = await self._prepare_extraction(
-            abs_file_path,
-            output_dir,
-            pipeline_logger=pipeline_logger,
-        )
+        with bind_process_scope(pipeline_logger=run_context.pipeline_logger if run_context else pipeline_logger):
+            prep = await self._prepare_extraction(
+                abs_file_path,
+                output_dir,
+                pipeline_logger=pipeline_logger,
+            )
 
-        raw_report = await self.run_goose_analysis(
-            abs_file_path,
-            prep.extract_dir,
-            pipeline_logger=pipeline_logger,
-        )
+            raw_report = await self.run_goose_analysis(
+                abs_file_path,
+                prep.extract_dir,
+                pipeline_logger=pipeline_logger,
+            )
         report = self.filter_goose_report(raw_report)
         if pipeline_logger:
             pipeline_logger.log(

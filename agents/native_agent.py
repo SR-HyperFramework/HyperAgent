@@ -9,6 +9,7 @@ from agents.native_disassembly_prep_agent import NativeDisassemblyPrepAgent
 from core.claude_code_runner import run_claude_code
 from core.pipeline_logger import PipelineLogger
 from core.result_models import AgentResult, ArtifactNode, Finding, RunContext
+from core.task_runtime import create_child_task_scope
 from core.tool_policy import get_ida_server_command
 
 
@@ -77,33 +78,46 @@ class NativeAgent:
             findings=[finding],
         )
 
-    async def _prepare_native_target(self, file_path: str):
-        return self.prep_agent.prepare(file_path)
+    async def _prepare_native_target(self, file_path: str, pipeline_logger: Optional[PipelineLogger] = None):
+        return self.prep_agent.prepare(file_path, pipeline_logger=pipeline_logger)
 
     async def run_goose_analysis(
         self,
         file_path: str,
         pipeline_logger: Optional[PipelineLogger] = None,
     ) -> str:
+        claude_logger = pipeline_logger
         try:
             print("[INFO] Running Claude Code AI agent...")
+            prep = await self._prepare_native_target(file_path, pipeline_logger=pipeline_logger)
+
             if pipeline_logger:
-                pipeline_logger.log(
+                _, claude_logger = create_child_task_scope(
+                    pipeline_logger,
+                    stage_key="native_agent.claude",
+                    title="Run native Claude analysis",
+                )
+                claude_logger.log(
                     "native_agent.claude",
                     "started",
                     "Running Claude Code AI agent",
                 )
 
-            prep = await self._prepare_native_target(file_path)
-
-            return await run_claude_code(
+            result = await run_claude_code(
                 prep.instruction,
                 config=self.config,
-                pipeline_logger=pipeline_logger,
+                pipeline_logger=claude_logger,
             )
+            if claude_logger:
+                claude_logger.log(
+                    "native_agent.claude",
+                    "completed",
+                    "Claude Code native analysis completed",
+                )
+            return result
         except Exception as e:
-            if pipeline_logger:
-                pipeline_logger.log(
+            if claude_logger:
+                claude_logger.log(
                     "native_agent.claude",
                     "failed",
                     "Claude Code execution error",
@@ -150,7 +164,7 @@ class NativeAgent:
                 pipeline_logger.log("native_agent", "failed", "File does not exist", file_path=file_path)
             return {"error": "File does not exist"}
 
-        prep = await self._prepare_native_target(file_path)
+        prep = await self._prepare_native_target(file_path, pipeline_logger=pipeline_logger)
         file_hash = prep.file_hash
         if pipeline_logger:
             pipeline_logger.log(

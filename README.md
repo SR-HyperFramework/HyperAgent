@@ -1,107 +1,195 @@
 # HyperAgent
 
-HyperAgent là bộ điều phối phân tích malware theo hướng **artifact graph**: nhận một mẫu đầu vào, phân loại file, chọn agent phù hợp, tạo artifact con, chạy các specialist agent trên từng artifact, rồi tổng hợp lại thành kết quả có cấu trúc.
+HyperAgent là một malware-analysis orchestrator theo mô hình **artifact graph**. Hệ thống nhận mẫu đầu vào, nhận diện loại file, route sang coarse agent phù hợp, mở rộng artifact graph khi phát hiện payload con, chạy specialist analyzers, rồi tổng hợp về một **run-level public response** ổn định.
 
-README này tổng hợp:
-- những phần đã hoàn thành trong đợt refactor hiện tại
-- kiến trúc hiện tại của hệ thống
-- cách cài đặt và sử dụng bằng CLI / API
-- contract output hiện tại để tích hợp hoặc test
+Phiên bản hiện tại có thêm lớp **task-session observability**:
+- caller cũ vẫn có thể đọc `GET /runs/{run_id}` như compatibility snapshot
+- operator và dashboard có thể theo dõi từng bước thực thi qua `GET /runs/{run_id}/tasks`
+- các bước local và Claude-backed đều được project về cùng một task model
 
-## 1. Trạng thái hiện tại
+## 1. Mental model hiện tại
 
-Refactor hiện tại đã hoàn thành ổn định các phần chính sau:
+Dùng các khái niệm này khi đọc repo:
 
-### Đã hoàn thành
-- **Phase 0 — contract hóa output và giữ nguyên behavior công khai**
-  - Giữ ổn định interface `HyperAgentOrchestrator.analyze()` trong `main.py`
-  - Khóa response envelope công khai bằng test contract
-- **Phase 1 — data model trung tâm**
-  - Có `RunContext`, `ArtifactNode`, `Finding`, `AgentResult`
-  - Có `ArtifactRegistry` và `FindingStore`
-- **Phase 2 — tách preparation/classification layer**
-  - Có `FileClassifierAgent`
-  - Các agent coarse hiện tại hoạt động như compatibility wrapper
-- **Phase 3 — ArtifactGraphOrchestrator và queue scheduling**
-  - Orchestration đã chuyển sang `ArtifactGraphOrchestrator`
-  - Có `WorkQueue` và `WorkItem`
-  - Next-stage recursion không còn bám kiểu scan ad-hoc trong `main.py`
-- **Phase 4 — specialist analysis agents**
-  - Có `BehaviorAnalyzerAgent`
-  - Có `ObfuscationAnalyzerAgent`
-  - Có `ConfigExtractorAgent`
-- **Phase 5 — IOC / correlation / synthesis**
-  - Có `IOCExtractorAgent`
-  - Có `CapabilityMapperAgent`
-  - Có `ReportSynthesizerAgent`
-  - Có `RiskScoringAgent`
-  - Root result đã có `artifacts`, `findings`, `iocs`, `verdict`, `final_report_markdown`
-- **Phase 6 — next-stage intelligence (đã triển khai phần lớn các slice compatibility-safe)**
-  - Có `NextStageHunterAgent`
-  - Dedup theo **canonical path** và **SHA-256**
-  - Hợp nhất **provenance** khi nhiều signal cùng trỏ đến một artifact
-  - Ưu tiên candidate theo structured signals
-  - Queue ưu tiên artifact quan trọng hơn trước
-  - Fallback scan bỏ qua thư mục noise và bytecode Python giá trị thấp trong một số trường hợp
+- **run** — lượt phân tích tổng thể, là compatibility projection public
+- **task session** — một đơn vị công việc traceable bên trong run
+- **artifact** — file hoặc thư mục được phát hiện trong quá trình phân tích
+- **finding** — kết quả chuẩn hóa gắn với artifact
+- **dashboard** — giao diện live hiển thị task board 3 cột và timeline chi tiết
+- **`/hyperagent-malware-analyze`** — entrypoint Claude skill ổn định, hiện đóng vai trò dispatcher
 
-### Mục tiêu quan trọng đã giữ được
-Toàn bộ các thay đổi trên được làm theo nguyên tắc:
-- **giữ nguyên behavior công khai**
-- **giữ nguyên `result["result"]` cho compatibility**
-- **giữ nguyên shape của `next_stage_results`**
-- **giữ các trường summary chỉ ở root**
+Luồng end-to-end hiện tại:
+
+```text
+sample
+  -> run created
+  -> identify
+  -> route
+  -> coarse agent
+  -> specialist analyzers
+  -> next-stage hunting
+  -> report synthesis
+  -> risk scoring
+  -> compatibility run snapshot + task snapshot
+```
 
 ## 2. Kiến trúc hiện tại
 
-Luồng chính hiện tại:
+Kiến trúc hiện tại là **artifact-graph orchestrator** với lớp **task-session observability** được thêm theo hướng compatibility-safe.
+
+### Các model và store chính
+
+- `TaskSession` — đơn vị công việc có `task_id`, `session_id`, `parent_task_id`, `status`, `terminal_state`, `executor_kind`, timestamps
+- `RunContext` — context được truyền xuyên pipeline, bao gồm cả run/task identity
+- `ArtifactNode` — artifact trong graph, có lineage và tùy chọn `sha256`
+- `Finding` — finding chuẩn hóa gắn với artifact
+- `AgentResult` — kết quả nội bộ của agent, giữ legacy payload đồng thời mở rộng structured fields
+- `ArtifactRegistry` — index artifact theo id, path, hash, parent/child
+- `FindingStore` — store findings theo artifact
+- `WorkQueue` / `WorkItem` — queue ưu tiên cho next-stage analysis
+
+### Orchestrator và execution model
+
+Entry point orchestration chính nằm ở `core/orchestration.py` trong `ArtifactGraphOrchestrator.analyze()`.
+
+Runtime hiện là hybrid:
+- các bước deterministic như identify, route, next-stage hunting vẫn chạy local/in-process
+- các bước reasoning-heavy có thể spawn Claude-backed child scope
+- cả hai loại work đều xuất hiện trong cùng task projection
+
+Các stage thường thấy trong run:
+- `request`
+- `identify`
+- `route`
+- `agent`
+- `next_stage_hunter`
+- `next_stage`
+- `report_synthesizer`
+- `risk_scoring`
+
+Các Claude-backed child stages thường thấy:
+- `native_agent.claude`
+- `script_agent.claude`
+- `dotnet_agent.claude`
+- `claude_runner`
+
+## 3. Agent và skill model
+
+### Coarse agents
+
+- `agents/native_agent.py` — native binaries
+- `agents/dotnet_agent.py` — .NET binaries
+- `agents/script_agent.py` — script / PyInstaller / Python bytecode workflows
+
+### Specialist analyzers
+
+- `BehaviorAnalyzerAgent`
+- `ObfuscationAnalyzerAgent`
+- `ConfigExtractorAgent`
+- `IOCExtractorAgent`
+- `CapabilityMapperAgent`
+- `ReportSynthesizerAgent`
+- `RiskScoringAgent`
+
+### Skill runtime
+
+Claude skill tree hiện đã tách thành dispatcher + specialist skills, nhưng vẫn giữ compatibility ở top-level entrypoint:
+
+- `/hyperagent-malware-analyze` — stable dispatcher / compatibility alias
+- specialist skills dưới `skill/`, gồm:
+  - `hyperagent-triage`
+  - `hyperagent-native-prep`
+  - `hyperagent-native-analysis`
+  - `hyperagent-dotnet-prep`
+  - `hyperagent-dotnet-analysis`
+  - `hyperagent-script-prep`
+  - `hyperagent-script-analysis`
+  - `hyperagent-behavior`
+  - `hyperagent-obfuscation`
+  - `hyperagent-config`
+  - `hyperagent-ioc`
+  - `hyperagent-capability`
+  - `hyperagent-next-stage`
+  - `hyperagent-report`
+  - `hyperagent-risk`
+
+**Compatibility contract quan trọng vẫn được giữ:** native prep vẫn emit đúng dạng:
 
 ```text
-input file
-  -> FileClassifierAgent
-  -> routed coarse agent (Native / DotNet / Script)
-  -> AgentResult + ArtifactRegistry update
-  -> specialist analyzers
-       - BehaviorAnalyzerAgent
-       - ObfuscationAnalyzerAgent
-       - ConfigExtractorAgent
-       - IOCExtractorAgent
-       - CapabilityMapperAgent
-  -> NextStageHunterAgent tìm artifact con đáng phân tích
-  -> WorkQueue điều phối phân tích tiếp theo
-  -> ReportSynthesizerAgent
-  -> RiskScoringAgent
-  -> final public response
+/hyperagent-malware-analyze @<ABSOLUTE_PATH>
 ```
 
-### Thành phần chính
-- `main.py`
-  - Entry point CLI
-  - Tạo `HyperAgentOrchestrator`
-- `core/orchestration.py`
-  - `ArtifactGraphOrchestrator`
-  - Điều phối classify -> agent -> specialist -> next-stage -> synthesis
-- `core/result_models.py`
-  - Các model trung tâm
-- `core/artifact_registry.py`
-  - Quản lý artifact graph, parent/child, hash, tra cứu theo path
-- `core/finding_store.py`
-  - Lưu finding theo artifact
-- `core/work_queue.py`
-  - Queue có ưu tiên cho next-stage analysis
-- `agents/`
-  - Chứa coarse agents và specialist agents
-- `api.py`
-  - FastAPI wrapper cho path/upload workflows
+## 4. API, dashboard, và projections
 
-## 3. Response contract hiện tại
+`api.py` hiện giữ state in-memory qua các store:
 
-Kết quả public ở root hiện giữ ổn định envelope sau:
+```python
+RUNS: dict[str, dict[str, Any]] = {}
+TASK_SESSIONS: dict[str, dict[str, Any]] = {}
+RUN_TASK_INDEX: dict[str, list[str]] = {}
+```
+
+Điều này có nghĩa là:
+- state chỉ sống theo process
+- restart API sẽ mất run/task history
+- đây chưa phải durable orchestration backend
+
+### Run snapshot vs task snapshot
+
+Public run snapshot vẫn giữ vai trò compatibility layer:
+
+```text
+GET /runs/{run_id}
+```
+
+Task snapshot dành cho live observability:
+
+```text
+GET /runs/{run_id}/tasks
+```
+
+Task snapshot điển hình có shape như sau:
+
+```json
+{
+  "task_id": "...",
+  "run_id": "...",
+  "session_id": "...",
+  "parent_task_id": null,
+  "stage_key": "identify | route | agent | next_stage | response | ...",
+  "title": "...",
+  "status": "pending | processing | completed",
+  "terminal_state": "success | failed | skipped | cancelled | null",
+  "executor_kind": "local | claude",
+  "artifact_id": null,
+  "summary": "...",
+  "created_at": "...",
+  "started_at": null,
+  "finished_at": null
+}
+```
+
+### Dashboard
+
+Dashboard trong `api.py` hiện kết hợp hai lớp quan sát:
+
+1. **task board** với ba cột:
+   - Pending
+   - Processing
+   - Completed
+2. **timeline/detail view** để đọc event flow chi tiết
+
+Các terminal outcomes như `failed`, `skipped`, `cancelled` vẫn nằm trong cột **Completed** và được hiển thị bằng badge.
+
+## 5. Public response contract
+
+Public response ở root vẫn giữ envelope ổn định sau:
 
 ```json
 {
   "run_id": "...",
   "file_path": "...",
-  "detected_type": "NATIVE | DOTNET | PYTHON_SCRIPT | ...",
+  "detected_type": "...",
   "die": {},
   "result": {},
   "next_stage_results": [],
@@ -114,72 +202,59 @@ Kết quả public ở root hiện giữ ổn định envelope sau:
 }
 ```
 
-Ý nghĩa ngắn gọn:
-- `result`: payload compatibility từ coarse agent hiện tại
-- `next_stage_results`: các artifact con đã được phân tích tiếp
-- `artifacts`: danh sách artifact đã biết ở root summary
-- `findings`: danh sách finding đã chuẩn hóa
-- `iocs`: IOC đã normalize
-- `verdict`: đánh giá rủi ro cuối
-- `final_report_markdown`: báo cáo cuối dạng markdown
+Ý nghĩa compatibility hiện tại:
+- `result` vẫn là legacy/coarse-agent payload
+- structured fields như `artifacts`, `findings`, `iocs`, `verdict`, `final_report_markdown` được add phía trên
+- task/session model là projection bổ sung, không thay thế run envelope cũ
 
-## 4. Cấu trúc thư mục đáng chú ý
+## 6. Repository map
 
 ```text
 HyperAgent/
 ├─ agents/
-│  ├─ native_agent.py
-│  ├─ dotnet_agent.py
-│  ├─ script_agent.py
-│  ├─ file_classifier_agent.py
-│  ├─ next_stage_hunter_agent.py
-│  ├─ behavior_analyzer_agent.py
-│  ├─ obfuscation_analyzer_agent.py
-│  ├─ config_extractor_agent.py
-│  ├─ ioc_extractor_agent.py
-│  ├─ capability_mapper_agent.py
-│  ├─ report_synthesizer_agent.py
-│  └─ risk_scoring_agent.py
 ├─ core/
-│  ├─ orchestration.py
-│  ├─ result_models.py
-│  ├─ artifact_registry.py
-│  ├─ finding_store.py
-│  ├─ work_queue.py
-│  ├─ pipeline_logger.py
-│  └─ die_handler.py
+├─ skill/
+├─ test/
+├─ openwiki/
 ├─ api.py
 ├─ main.py
-├─ config.yaml.template
 ├─ bootstrap.ps1
-└─ test_*.py
+├─ config.yaml.template
+└─ requirements.txt
 ```
 
-## 5. Yêu cầu môi trường
+Điểm bắt đầu tốt theo nhu cầu:
+- orchestration: `core/orchestration.py`
+- models/task semantics: `core/result_models.py`
+- task lifecycle/logging: `core/task_runtime.py`, `core/pipeline_logger.py`
+- API/dashboard: `api.py`
+- native/script/dotnet route behavior: các file trong `agents/`
+- compatibility docs sâu hơn: `openwiki/`
 
-Repository hiện đang thiên về **Windows workflow**.
+## 7. Yêu cầu môi trường
+
+Repository vẫn thiên về **Windows-first workflow**.
 
 ### Bắt buộc
 - Python 3.10+
 - Node.js LTS
-- Claude Code CLI (`claude`)
-- `diec` (Detect It Easy CLI)
+- Claude Code CLI
+- Detect It Easy CLI (`diec`)
 
-### Tùy theo loại phân tích
+### Tùy route
 - **Native**
-  - IDA Pro
+  - IDA Pro / idalib-related tooling
   - `uv`
-  - `idalib-mcp`
 - **.NET**
-  - `dnspyc.exe` hoặc `dnSpy.Console.exe` đổi tên phù hợp
+  - `dnspyc.exe` hoặc `dnSpy.Console.exe`
+  - tùy chọn `de4dot.exe`
 - **Script / Python bytecode**
   - `pyinstxtractor.py`
   - `pycdas`
-  - tùy chọn: `de4dot.exe`
 
-## 6. Cài đặt nhanh
+## 8. Cài đặt nhanh
 
-### Cách khuyến nghị: dùng bootstrap
+Cách khuyến nghị:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\bootstrap.ps1
@@ -187,29 +262,25 @@ powershell -ExecutionPolicy Bypass -File .\bootstrap.ps1
 
 Bootstrap sẽ:
 - tạo `.venv`
-- cài dependency Python từ `requirements.txt`
-- dò tool ngoài từ `PATH` hoặc biến môi trường override
-- tạo `config.yaml` từ `config.yaml.template`
-- cài phần liên quan Claude / plugin nếu môi trường hỗ trợ
-- chạy bước verify cơ bản
+- cài Python dependencies từ `requirements.txt`
+- generate `config.yaml` từ `config.yaml.template`
+- cài full Claude skill tree từ `skill/`
+- giữ `/hyperagent-malware-analyze` khả dụng như entrypoint ổn định
+- cài Claude plugin liên quan tới IDA nếu môi trường hỗ trợ
+- chạy verify cơ bản trừ khi dùng `-SkipVerify`
 
-Nếu muốn tạo lại `config.yaml`:
+Một số tùy chọn hữu ích:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\bootstrap.ps1 -Force
-```
-
-Nếu chỉ muốn setup mà bỏ verify cuối:
-
-```powershell
 powershell -ExecutionPolicy Bypass -File .\bootstrap.ps1 -SkipVerify
 ```
 
-## 7. Cấu hình
+## 9. Cấu hình
 
-Template cấu hình nằm ở `config.yaml.template`.
+Portable source of truth là `config.yaml.template`; không nên document hoặc commit các giá trị local trong `config.yaml`.
 
-Các giá trị mặc định hiện có:
+Các key cấu hình chính:
 
 ```yaml
 tools:
@@ -221,53 +292,28 @@ tools:
 
 mcp:
   ida_server_command: ["uv", "run", "idalib-mcp"]
-  ida_startup_timeout_s: 180
-  ida_probe_interval_s: 0.5
 
 llm:
   claude_code_command: ["claude"]
 ```
 
-Nếu tool không có trong `PATH`, có thể set biến môi trường trước khi bootstrap, ví dụ:
+## 10. Cách dùng
 
-```powershell
-$env:HYPERAGENT_DIEC_PATH = 'C:\Tools\diec.exe'
-$env:HYPERAGENT_DNSPYC_PATH = 'C:\Tools\dnspyc.exe'
-$env:HYPERAGENT_DE4DOT_PATH = 'C:\Tools\de4dot.exe'
-$env:HYPERAGENT_PYINSTXTRACTOR_PATH = 'C:\Tools\pyinstxtractor.py'
-$env:HYPERAGENT_PYCDAS_PATH = 'C:\Tools\pycdas.exe'
-$env:HYPERAGENT_CLAUDE_CMD = '["claude"]'
-$env:HYPERAGENT_IDA_SERVER_COMMAND = '["uv","run","idalib-mcp"]'
-```
-
-## 8. Cách sử dụng
-
-### 8.1. Chạy bằng CLI
-
-Kích hoạt môi trường:
+### CLI
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-```
-
-Phân tích một file:
-
-```powershell
 python main.py C:\path\to\sample.exe
 ```
 
-Entry point CLI hiện ở `main.py` và sẽ in kết quả phân tích ra stdout.
-
-### 8.2. Chạy bằng API
-
-Khởi động FastAPI:
+### API
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
 uvicorn api:app --host 0.0.0.0 --port 8000
 ```
 
-#### Phân tích theo file path
+Phân tích theo path:
 
 ```bash
 curl -X POST http://127.0.0.1:8000/analyze/path \
@@ -275,79 +321,108 @@ curl -X POST http://127.0.0.1:8000/analyze/path \
   -d '{"file_path": "C:/path/to/sample.exe"}'
 ```
 
-#### Phân tích bằng upload
+Phân tích bằng upload:
 
 ```bash
 curl -X POST http://127.0.0.1:8000/analyze/upload \
   -F "file=@C:/path/to/sample.exe"
 ```
 
-Ghi chú:
-- `/analyze/path` yêu cầu file đã tồn tại trên máy chạy API
-- `/analyze/upload` hỗ trợ lưu tạm hoặc giữ file tùy tham số `keep_file`
+Đọc run snapshot:
 
-## 9. Test và verification
-
-Các test quan trọng đang khóa behavior hiện tại gồm:
-- `test_phase0_contract.py`
-- `test_result_models.py`
-- `test_phase4_specialist_agents.py`
-- `test_orchestrator_next_stage.py`
-- `test_agent_runner_integration.py`
-
-Chạy nhanh các suite chính:
-
-```powershell
-python -m unittest test_phase0_contract.py
-python -m unittest test_result_models.py
-python -m unittest test_phase4_specialist_agents.py
-python -m unittest test_orchestrator_next_stage.py
-python -m unittest test_agent_runner_integration.py
+```bash
+curl http://127.0.0.1:8000/runs/<run_id>
 ```
 
-Nếu muốn chạy toàn bộ unittest trong repo:
+Đọc task snapshot:
 
-```powershell
-python -m unittest discover
+```bash
+curl http://127.0.0.1:8000/runs/<run_id>/tasks
 ```
 
-## 10. Những gì đã thay đổi đáng chú ý so với bản cũ
+## 11. Testing và change guidance
 
-So với kiến trúc cũ kiểu:
+Các suite có signal cao nhất hiện tại:
+
+- `test/test_phase0_contract.py` — public API contract
+- `test/test_result_models.py` — task/session semantics
+- `test/test_orchestrator_next_stage.py` — artifact graph, next-stage, structured outputs
+- `test/test_api_dashboard.py` — run/task projection và dashboard shell
+- `test/test_claude_code_runner.py` — Claude invocation layer
+- `test/test_phase2_prep_agents.py` — prep + compatibility handoff
+- `test/test_agent_runner_integration.py` — route-specific invocation behavior
+
+Chạy toàn bộ unittest:
+
+```bash
+python -m unittest discover -s test -p "test_*.py"
+```
+
+Một vài targeted suites hữu ích:
+
+```bash
+python -m unittest discover -s test -p "test_api_dashboard.py"
+python -m unittest discover -s test -p "test_result_models.py"
+python -m unittest discover -s test -p "test_orchestrator_next_stage.py"
+python -m unittest discover -s test -p "test_phase2_prep_agents.py"
+python -m unittest discover -s test -p "test_agent_runner_integration.py"
+```
+
+## 12. Real validation note
+
+Một run thực tế đã được thử bằng CLI với mẫu:
 
 ```text
-1 artifact -> 1 coarse agent -> 1 report text
+C:\Users\ADMIN\HyperAgent\RobloxPlayerInstaller.exe
 ```
 
-Hệ thống hiện đã chuyển sang:
+Kết quả validation đó xác nhận:
+- end-to-end CLI path hoạt động
+- sample được detect là `NATIVE`
+- `NativeAgent` route hoạt động
+- Claude-backed child stages như `native_agent.claude` và `claude_runner` thực sự được emit
+- specialist và synthesis stages cũng xuất hiện trong pipeline/task model
 
-```text
-1 root sample -> artifact graph -> nhiều specialist sub-agent -> structured findings -> final synthesized report
-```
+Điều này xác nhận task-session architecture đang hoạt động thực tế, không chỉ ở mức test.
 
-Các thay đổi đáng chú ý nhất:
-- orchestration đã tập trung hơn và có state model rõ ràng
-- findings không còn chỉ nằm trong prose report
-- root result đã có summary dùng được cho downstream processing
-- next-stage analysis bớt nở artifact vô ích nhờ ưu tiên, dedup và skip policy
-- compatibility công khai vẫn được giữ để tránh phá caller hiện tại
+## 13. Known caveats hiện tại
 
-## 11. Hướng sử dụng khuyến nghị
+Những điểm cần nhớ khi maintain repo:
 
-Nếu bạn mới làm việc với repo này, nên đi theo thứ tự:
-1. chạy `bootstrap.ps1`
-2. chuẩn bị `config.yaml`
-3. test một file nhỏ bằng `python main.py <file>`
-4. kiểm tra output root envelope
-5. nếu cần tích hợp service, chạy `uvicorn api:app ...`
-6. trước khi sửa orchestration, luôn chạy lại các suite contract và next-stage
+- API state vẫn chỉ là in-memory state, chưa durable.
+- Public contract ưu tiên compatibility hơn là “làm đẹp lại” payload.
+- Claude Code là một phần của runtime analysis, không chỉ là dev helper.
+- `/hyperagent-malware-analyze` không nên bị rename hoặc remove casually.
+- Native prep contract `/hyperagent-malware-analyze @<ABSOLUTE_PATH>` đang được test khóa.
 
-## 12. Lưu ý
+Ngoài ra, real validation gần đây cũng cho thấy một vấn đề semantic còn tồn tại:
+- coarse AI report có thể kết luận benign
+- nhưng downstream specialists / risk synthesis vẫn có thể over-interpret prose report và inflate verdict
+- một benign installer run đã bị đẩy thành `high risk` do capability/IOC extraction đọc quá rộng từ report text
 
-- `config.yaml` là file local, không nên commit.
-- Native / .NET / script analysis phụ thuộc khá nhiều vào tool ngoài; nếu thiếu tool, pipeline có thể không phân tích sâu được.
-- Refactor hiện được làm theo hướng **không phá behavior công khai**, nên khi mở rộng logic nội bộ cần giữ ổn định envelope hiện tại.
+Nói ngắn gọn: runtime path đang khỏe, nhưng specialist extraction và risk synthesis vẫn cần được siết lại để giảm false positives.
 
----
+## 14. Hướng đọc repo
 
-Nếu cần tiếp tục roadmap, bước kế tiếp nên là hoàn thiện nốt Phase 6 hoặc chuyển sang Phase 7 theo cách vẫn giữ compatibility ở public contract.
+Nếu mới vào repo, nên đọc theo thứ tự:
+
+1. `openwiki/quickstart.md`
+2. `openwiki/architecture.md`
+3. `openwiki/agents-and-analysis.md`
+4. `openwiki/api-and-operations.md`
+5. `openwiki/testing.md`
+
+## 15. Summary cho maintainer
+
+HyperAgent hiện là:
+- một **artifact-graph malware-analysis orchestrator**
+- có **run-level compatibility projection**
+- có **task-session observability** cho live runtime tracing
+- có **dispatcher-based Claude skill routing**
+- vẫn giữ **compatibility** cho caller cũ và operator workflow hiện tại
+
+Nếu bạn cần:
+- **tương thích ngược** → đọc `GET /runs/{run_id}`
+- **traceability runtime** → đọc `GET /runs/{run_id}/tasks`
+- **operator workflow** → dùng `/hyperagent-malware-analyze`
+- **implementation detail** → bắt đầu từ `core/orchestration.py`

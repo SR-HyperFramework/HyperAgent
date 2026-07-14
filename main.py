@@ -10,6 +10,7 @@ from core.die_handler import DIEHandler, AnalysisType
 from core.finding_store import FindingStore
 from core.orchestration import ArtifactGraphOrchestrator
 from core.pipeline_logger import PipelineLogger
+from core.task_runtime import bind_process_scope
 from agents.dotnet_agent import DotNetAgent
 from agents.file_classifier_agent import FileClassifierAgent
 from agents.native_agent import NativeAgent
@@ -66,12 +67,13 @@ class HyperAgentOrchestrator:
         )
 
         try:
-            return await engine.analyze(
-                file_path,
-                run_id=run_id,
-                initial_depth=_depth,
-                seen=_seen,
-            )
+            with bind_process_scope(pipeline_logger=pipeline_logger):
+                return await engine.analyze(
+                    file_path,
+                    run_id=run_id,
+                    initial_depth=_depth,
+                    seen=_seen,
+                )
         except Exception as e:
             pipeline_logger.log("request", "failed", "Analysis request failed", error=str(e))
             raise

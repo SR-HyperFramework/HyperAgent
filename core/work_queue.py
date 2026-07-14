@@ -10,7 +10,10 @@ class WorkItem:
     depth: int = 0
     parent_path: str | None = None
     parent_artifact_id: str | None = None
+    parent_task_id: str | None = None
     priority: int = 0
+    transition_task: object | None = None
+    transition_candidate: dict | None = None
 
 
 class WorkQueue:

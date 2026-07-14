@@ -11,10 +11,10 @@ $VenvDir = Join-Path $RepoRoot '.venv'
 $ConfigTemplatePath = Join-Path $RepoRoot 'config.yaml.template'
 $ConfigPath = Join-Path $RepoRoot 'config.yaml'
 $RequirementsPath = Join-Path $RepoRoot 'requirements.txt'
-$SkillSourceDir = Join-Path $RepoRoot 'skill\hyperagent-malware-analyze'
+$SkillSourceDir = Join-Path $RepoRoot 'skill'
 $ClaudeHomeOverride = [Environment]::GetEnvironmentVariable('HYPERAGENT_CLAUDE_HOME')
 $ClaudeHomeDir = if (-not [string]::IsNullOrWhiteSpace($ClaudeHomeOverride)) { $ClaudeHomeOverride } else { Join-Path $HOME '.claude' }
-$InstalledSkillDir = Join-Path (Join-Path $ClaudeHomeDir 'skills') 'hyperagent-malware-analyze'
+$InstalledSkillRootDir = Join-Path $ClaudeHomeDir 'skills'
 $IdaRootOverride = [Environment]::GetEnvironmentVariable('HYPERAGENT_IDA_ROOT')
 $IdaActivationOverride = [Environment]::GetEnvironmentVariable('HYPERAGENT_IDALIB_ACTIVATE')
 $IdaMcpPluginCommand = 'ida-pro-mcp@mrexodia'
@@ -299,9 +299,9 @@ else {
     Write-Host "Wrote $ConfigPath"
 }
 
-Write-Step 'Installing bundled Claude skill'
-Install-ClaudeSkill -SourceDir $SkillSourceDir -DestinationDir $InstalledSkillDir
-Write-Host "Installed skill to $InstalledSkillDir"
+Write-Step 'Installing bundled Claude skills'
+Install-ClaudeSkill -SourceDir $SkillSourceDir -DestinationDir $InstalledSkillRootDir
+Write-Host "Installed skills to $InstalledSkillRootDir"
 
 Write-Step 'Installing Claude IDA plugin'
 Install-ClaudePlugin -PluginSource $IdaMarketplaceCommand -PluginName $IdaMcpPluginCommand
@@ -328,7 +328,7 @@ foreach ($toolName in $toolMap.Keys) {
 }
 Write-Host ("claude_code_command: {0} ({1})" -f (($claudeCommand.Value) -join ' '), $claudeCommand.Source)
 Write-Host ("ida_server_command: {0} ({1})" -f (($idaServerCommand.Value) -join ' '), $idaServerCommand.Source)
-Write-Host ("claude_skill: {0}" -f $InstalledSkillDir)
+Write-Host ("claude_skills: {0}" -f $InstalledSkillRootDir)
 Write-Host ("claude_plugin: {0}" -f $IdaMcpPluginCommand)
 Write-Host ("ida_root: {0}" -f $(if ($IdaRootDir) { $IdaRootDir } else { 'not detected' }))
 Write-Host ("idalib_activation: {0}" -f $(if ($IdaActivationScript) { $IdaActivationScript } else { 'skipped' }))

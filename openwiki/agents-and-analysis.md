@@ -26,8 +26,9 @@ What it does:
 
 Important details:
 
-- the current implementation logs that legacy IDA MCP startup/cleanup is skipped, even though config still retains legacy IDA-related settings for compatibility (`/agents/native_agent.py`, `/config.yaml.template`)
-- native results only add the input artifact by default; there is no extra extracted directory model here unless a downstream workflow adds one
+- the current implementation still preserves the compatibility handoff `/hyperagent-malware-analyze @<ABSOLUTE_PATH>` through native prep
+- Claude-backed native analysis appears as child task scope(s) with `executor_kind="claude"`
+- native results only add the input artifact by default unless a downstream workflow adds more
 
 ### DotNetAgent
 
@@ -44,7 +45,7 @@ Important details:
 
 - output directories are constrained to stay under `dotnet_output/`
 - the source directory becomes a first-class artifact, which is later useful for next-stage hunting
-- missing dnSpy or failed decompilation is surfaced through pipeline logging
+- Claude-backed analysis may appear as nested task scope(s), while prep stays local
 
 ### ScriptAgent
 
@@ -64,21 +65,41 @@ Important details:
 - the result payload exposes `extract_dir` and `pyasm_files`, which the next-stage hunter can reuse
 - path handling normalizes to workspace-relative POSIX paths for prompt readability while preserving absolute paths in structured artifacts
 
-## Specialist agents
+## Specialist analysis tasks
 
-The orchestrator directly constructs and runs these specialist analyzers (`/core/orchestration.py`):
+The orchestrator creates explicit task sessions for specialist analyzers in `/core/orchestration.py`.
 
-- `/agents/behavior_analyzer_agent.py`
-- `/agents/obfuscation_analyzer_agent.py`
-- `/agents/config_extractor_agent.py`
-- `/agents/ioc_extractor_agent.py`
-- `/agents/capability_mapper_agent.py`
-- `/agents/report_synthesizer_agent.py`
-- `/agents/risk_scoring_agent.py`
+Current ordered specialist steps are:
 
-These agents do not replace the coarse report. They mine and normalize information from it into structured findings, then synthesize a final report and verdict.
+- `BehaviorAnalyzerAgent`
+- `ObfuscationAnalyzerAgent`
+- `ConfigExtractorAgent`
+- `IOCExtractorAgent`
+- `CapabilityMapperAgent`
 
-Tests make that design explicit by asserting that `result` remains the original compatibility payload while `findings`, `verdict`, and `final_report_markdown` grow richer (`/test/test_orchestrator_next_stage.py`, `/test/test_phase4_specialist_agents.py`).
+These specialists no longer matter only as conceptual stages. They are represented in task/session projections and emit their own lifecycle through the pipeline logger.
+
+Important consequence:
+
+- do not assume specialist work is an invisible inline side effect anymore
+- it is still orchestrated in-process today, but it is visible as task-level execution in API/dashboard views
+- findings produced by these steps carry task and origin-stage metadata
+
+Tests make the compatibility design explicit by asserting that `result` remains the original payload while `findings`, `verdict`, and `final_report_markdown` grow richer (`/test/test_orchestrator_next_stage.py`, `/test/test_phase4_specialist_agents.py`).
+
+## Report and risk stages
+
+After artifact expansion, root-level synthesis continues with:
+
+- `ReportSynthesizerAgent`
+- `RiskScoringAgent`
+
+These are also represented as task sessions with their own stage keys:
+
+- `report_synthesizer`
+- `risk_scoring`
+
+In the dashboard, they land in the same Pending / Processing / Completed board as the other tasks.
 
 ## Next-stage hunting
 
@@ -99,6 +120,37 @@ Selection rules worth knowing:
 - merges provenance and preserves the highest priority signal
 
 This logic is heavily exercised in `/test/test_orchestrator_next_stage.py`.
+
+Operationally, next-stage work is visible through two kinds of task sessions:
+
+- `next_stage_hunter` — finding candidates
+- `next_stage` — transitioning queued child artifacts into their own analysis path
+
+That split is important when reading the dashboard timeline or task board.
+
+## Task/session execution model
+
+The current runtime mixes local and Claude-backed work under one task model.
+
+Typical task stages visible in the API include:
+
+- `request`
+- `identify`
+- `route`
+- `agent`
+- `next_stage_hunter`
+- `next_stage`
+- `report_synthesizer`
+- `risk_scoring`
+
+Some child stages are explicitly Claude-backed and are marked with `executor_kind="claude"`, such as:
+
+- `native_agent.claude`
+- `script_agent.claude`
+- `dotnet_agent.claude`
+- `claude_runner`
+
+That means the same run can contain both local and Claude-backed task sessions while still projecting one compatibility run summary.
 
 ## External tool and command configuration
 
@@ -124,24 +176,40 @@ Claude Code is not just a development helper here; it is part of runtime analysi
 
 - builds the command from config/tool-policy helpers
 - launches the command asynchronously when possible
-- logs pipeline start/failure/completion events
+- logs task-scoped start/failure/completion events
 - raises a runtime error on non-zero exit
 
 Route-specific agents are responsible for assembling the instruction text, deciding what extracted material should be highlighted first, and post-processing the returned report.
 
-## Source-backed operator guidance already in the repo
+## Skill tree and operator guidance
 
-The bundled skill directory `/skill/hyperagent-malware-analyze/` contains repository-adjacent guidance pages such as:
+The runtime skill model is now split into a dispatcher plus specialist skills.
 
-- `environment-preparation.md`
-- `payload-extraction.md`
-- `static-analysis.md`
-- `dynamic-analysis.md`
-- `failure-recovery.md`
-- `report-template.md`
-- `SKILL.md`
+Stable alias:
 
-These are useful as operator playbooks, but the source code in `/agents/` and `/core/` is the stronger authority for actual runtime behavior.
+- `/hyperagent-malware-analyze`
+
+Specialist skill directories under `/skill/` include:
+
+- `hyperagent-triage`
+- `hyperagent-native-prep`
+- `hyperagent-native-analysis`
+- `hyperagent-dotnet-prep`
+- `hyperagent-dotnet-analysis`
+- `hyperagent-script-prep`
+- `hyperagent-script-analysis`
+- `hyperagent-behavior`
+- `hyperagent-obfuscation`
+- `hyperagent-config`
+- `hyperagent-ioc`
+- `hyperagent-capability`
+- `hyperagent-next-stage`
+- `hyperagent-report`
+- `hyperagent-risk`
+
+The dispatcher skill keeps the existing top-level command stable while routing work to narrower specialist boundaries.
+
+The existing playbooks under `/skill/hyperagent-malware-analyze/` remain the detailed compatibility references for environment preparation, static analysis, dynamic analysis, payload extraction, failure recovery, and report structure.
 
 ## If you need to modify analysis behavior
 
@@ -149,5 +217,7 @@ Start with the narrowest layer that owns the behavior:
 
 - route heuristics: `/core/die_handler.py`
 - prompt construction / tool invocation: the specific route agent file
+- task/session visibility and executor tagging: `/core/task_runtime.py`, `/core/pipeline_logger.py`, `/api.py`
 - artifact registration and recursive expansion: `/core/orchestration.py`, `/agents/next_stage_hunter_agent.py`
 - normalized findings or verdict logic: specialist agent files plus `/core/output_normalizer.py`
+- top-level operator workflow or skill dispatch: `/skill/`

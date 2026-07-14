@@ -11,6 +11,7 @@ from agents.dotnet_decompiler_agent import DotNetDecompilerAgent
 from core.claude_code_runner import run_claude_code
 from core.pipeline_logger import PipelineLogger
 from core.result_models import AgentResult, ArtifactNode, Finding, RunContext
+from core.task_runtime import bind_process_scope, create_child_task_scope, run_tracked_process
 from core.tool_policy import resolve_candidate_path, resolve_tool_path
 
 
@@ -158,23 +159,21 @@ class DotNetAgent:
         if pipeline_logger:
             pipeline_logger.log("dotnet_agent.de4dot", "started", "Starting de4dot cleanup")
 
-        proc = await asyncio.create_subprocess_exec(
+        returncode, _, _ = await run_tracked_process(
             de4dot,
             file_path,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+            pipeline_logger=pipeline_logger,
         )
-        await proc.communicate()
 
         root, ext = os.path.splitext(file_path)
         cleaned_path = f"{root}-cleaned{ext}"
-        if proc.returncode == 0 and os.path.exists(cleaned_path):
+        if returncode == 0 and os.path.exists(cleaned_path):
             if pipeline_logger:
                 pipeline_logger.log("dotnet_agent.de4dot", "completed", "de4dot cleanup completed", cleaned_path=cleaned_path)
             return cleaned_path
 
         if pipeline_logger:
-            pipeline_logger.log("dotnet_agent.de4dot", "failed", "de4dot did not produce a cleaned file", exit_code=proc.returncode)
+            pipeline_logger.log("dotnet_agent.de4dot", "failed", "de4dot did not produce a cleaned file", exit_code=returncode)
         return file_path
 
     async def run_dnspy_decompile(
@@ -225,14 +224,12 @@ class DotNetAgent:
             print(f"[*] Input file (absolute): {file_path}")
             print(f"[*] Output dir  (absolute): {output_dir}")
             cmd = [dnspy_exe, "-o", output_dir, file_path]
-            proc = await asyncio.create_subprocess_exec(
+            returncode, stdout, stderr = await run_tracked_process(
                 *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+                pipeline_logger=pipeline_logger,
             )
-            stdout, stderr = await proc.communicate()
-            if proc.returncode != 0:
-                print(f"[-] dnSpy-Ex exited with code {proc.returncode}")
+            if returncode != 0:
+                print(f"[-] dnSpy-Ex exited with code {returncode}")
                 if stdout:
                     print("[dnSpy stdout]")
                     print(stdout.decode("utf-8", errors="ignore"))
@@ -244,7 +241,7 @@ class DotNetAgent:
                         "dotnet_agent.decompile",
                         "failed",
                         "dnSpy decompile exited with non-zero status",
-                        exit_code=proc.returncode,
+                        exit_code=returncode,
                     )
                 return False
             if pipeline_logger:
@@ -287,8 +284,14 @@ class DotNetAgent:
         pipeline_logger: Optional[PipelineLogger] = None,
     ) -> str:
         print("[*] Starting Claude Code C# analysis...")
+        claude_logger = pipeline_logger
         if pipeline_logger:
-            pipeline_logger.log(
+            _, claude_logger = create_child_task_scope(
+                pipeline_logger,
+                stage_key="dotnet_agent.claude",
+                title="Run DotNet Claude analysis",
+            )
+            claude_logger.log(
                 "dotnet_agent.claude",
                 "started",
                 "Starting Claude Code source analysis",
@@ -321,11 +324,30 @@ class DotNetAgent:
             "- Report Structure: [Entry Point] | [Flow] | [IOCs/APIs] | [Malicious/Obfuscation] | [File Summary] | [Conclusion]"
         )
 
-        return await run_claude_code(
-            instruction,
-            config=self.config,
-            pipeline_logger=pipeline_logger,
-        )
+        try:
+            result = await run_claude_code(
+                instruction,
+                config=self.config,
+                pipeline_logger=claude_logger,
+            )
+            if claude_logger:
+                claude_logger.log(
+                    "dotnet_agent.claude",
+                    "completed",
+                    "Claude Code source analysis completed",
+                    source_directory=specific_out_dir,
+                )
+            return result
+        except Exception as exc:
+            if claude_logger:
+                claude_logger.log(
+                    "dotnet_agent.claude",
+                    "failed",
+                    "Claude Code source analysis failed",
+                    source_directory=specific_out_dir,
+                    error=str(exc),
+                )
+            raise
 
     async def analyze(
         self,
@@ -343,18 +365,19 @@ class DotNetAgent:
                 file_hash=file_hash,
             )
 
-        prep = await self._prepare_source_directory(
-            file_path,
-            file_hash,
-            pipeline_logger=pipeline_logger,
-        )
-        if not prep.decompiled:
-            return {"error": "Decompilation failed"}
+        with bind_process_scope(pipeline_logger=run_context.pipeline_logger if run_context else pipeline_logger):
+            prep = await self._prepare_source_directory(
+                file_path,
+                file_hash,
+                pipeline_logger=pipeline_logger,
+            )
+            if not prep.decompiled:
+                return {"error": "Decompilation failed"}
 
-        goose_report_raw = await self.run_goose_analysis(
-            prep.source_directory,
-            pipeline_logger=pipeline_logger,
-        )
+            goose_report_raw = await self.run_goose_analysis(
+                prep.source_directory,
+                pipeline_logger=pipeline_logger,
+            )
         report = self.filter_goose_report(goose_report_raw)
 
         print("\n[INFO] Analysis complete.")

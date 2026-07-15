@@ -87,6 +87,19 @@ class ResultModelTests(unittest.TestCase):
         self.assertEqual(output["executor_kind"], "claude")
         self.assertEqual(len(output["events"]), 2)
 
+    def test_pipeline_logger_notifies_task_output_listeners(self):
+        logger = PipelineLogger(run_id="run-1", task_id="task-1", session_id="session-1", executor_kind="claude")
+        updates: list[tuple[str, dict]] = []
+
+        logger.subscribe_task_output(lambda task_id, payload: updates.append((task_id, payload)))
+        logger.record_task_output({"stdout": "partial"}, output_kind="claude_command")
+        logger.sync_task_output_status(status="processing", summary="Streaming")
+
+        self.assertEqual(updates[-1][0], "task-1")
+        self.assertEqual(updates[-1][1]["result"]["stdout"], "partial")
+        self.assertEqual(updates[-1][1]["status"], "processing")
+        self.assertEqual(updates[-1][1]["summary"], "Streaming")
+
     def test_task_scoped_logger_record_output_uses_child_task_id(self):
         root_logger = PipelineLogger(run_id="run-1", task_id="task-parent", session_id="session-parent", executor_kind="local")
         task, child_logger = create_child_task_scope(

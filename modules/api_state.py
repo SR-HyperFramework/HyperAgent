@@ -214,31 +214,42 @@ def _sync_task_output_from_event(task_id: str, event: dict[str, Any], task: dict
         record["error"] = event.get("message")
 
 
+def _apply_task_output_snapshot(run_id: str, task_id: str, payload: dict[str, Any]) -> None:
+    if not isinstance(payload, dict):
+        return
+    task = TASK_SESSIONS.get(task_id)
+    if task is None:
+        return
+    merged = _merge_task_output(task_id, payload)
+    merged["run_id"] = run_id
+    merged.setdefault("task_id", task_id)
+    merged.setdefault("session_id", task.get("session_id"))
+    merged.setdefault("parent_task_id", task.get("parent_task_id"))
+    merged.setdefault("stage_key", task.get("stage_key"))
+    merged.setdefault("title", task.get("title"))
+    merged.setdefault("executor_kind", task.get("executor_kind"))
+    merged.setdefault("status", task.get("status"))
+    merged.setdefault("terminal_state", task.get("terminal_state"))
+    merged.setdefault("summary", task.get("summary"))
+    if task.get("artifact_id") is not None:
+        merged.setdefault("artifact_id", task.get("artifact_id"))
+    events = merged.get("events")
+    if not isinstance(events, list):
+        merged["events"] = []
+    if task.get("terminal_state") == TaskTerminalState.FAILED.value and task.get("summary"):
+        merged.setdefault("error", task.get("summary"))
+
+
 def _harvest_logger_task_outputs(run_id: str, pipeline_logger: PipelineLogger) -> None:
     for task_id, payload in pipeline_logger.task_outputs_snapshot().items():
-        if not isinstance(payload, dict):
-            continue
-        task = TASK_SESSIONS.get(task_id)
-        if task is None:
-            continue
-        merged = _merge_task_output(task_id, payload)
-        merged["run_id"] = run_id
-        merged.setdefault("task_id", task_id)
-        merged.setdefault("session_id", task.get("session_id"))
-        merged.setdefault("parent_task_id", task.get("parent_task_id"))
-        merged.setdefault("stage_key", task.get("stage_key"))
-        merged.setdefault("title", task.get("title"))
-        merged.setdefault("executor_kind", task.get("executor_kind"))
-        merged.setdefault("status", task.get("status"))
-        merged.setdefault("terminal_state", task.get("terminal_state"))
-        merged.setdefault("summary", task.get("summary"))
-        if task.get("artifact_id") is not None:
-            merged.setdefault("artifact_id", task.get("artifact_id"))
-        events = merged.get("events")
-        if not isinstance(events, list):
-            merged["events"] = []
-        if task.get("terminal_state") == TaskTerminalState.FAILED.value and task.get("summary"):
-            merged.setdefault("error", task.get("summary"))
+        _apply_task_output_snapshot(run_id, task_id, payload)
+
+
+def _task_output_listener(run_id: str):
+    def handle(task_id: str, payload: dict[str, Any]) -> None:
+        _apply_task_output_snapshot(run_id, task_id, payload)
+
+    return handle
 
 
 def _root_task_output_payload(result: dict[str, Any], error: str | None = None) -> dict[str, Any]:

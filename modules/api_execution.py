@@ -19,6 +19,7 @@ from modules.api_state import (
     _harvest_logger_task_outputs,
     _merge_task_output,
     _root_task_output_payload,
+    _task_output_listener,
     _update_task_session,
     _utc_now,
 )
@@ -102,6 +103,7 @@ async def _execute_run(
         executor_kind="local",
     )
     pipeline_logger.subscribe(_combined_listener(run_id))
+    pipeline_logger.subscribe_task_output(_task_output_listener(run_id))
     _ensure_task_output_record(
         task_id=record["root_task_id"],
         run_id=run_id,

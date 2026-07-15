@@ -260,6 +260,39 @@ class ApiDashboardTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(detail["output"]["events"][0]["state"], "started")
         self.assertEqual(detail["output"]["events"][1]["state"], "completed")
 
+    async def test_run_task_output_snapshot_can_show_live_partial_stdout(self):
+        run = api._create_run_record(run_id="run-live", source="path", file_name="sample.exe")
+        api._sync_task_from_event(
+            run_id="run-live",
+            event={
+                "stage": "claude_runner",
+                "state": "started",
+                "message": "Launching Claude Code command",
+                "timestamp": "2026-07-07T00:00:00+00:00",
+                "data": {
+                    "task_id": "task-live",
+                    "session_id": "session-live",
+                    "parent_task_id": run["root_task_id"],
+                    "executor_kind": "claude",
+                },
+            },
+        )
+        api._merge_task_output(
+            "task-live",
+            {
+                "output_kind": "claude_command",
+                "status": "processing",
+                "summary": "Launching Claude Code command",
+                "result": {"stdout": "partial output", "stderr": ""},
+            },
+        )
+
+        detail = await api.get_run_task_output("run-live", "task-live")
+
+        self.assertEqual(detail["task"]["status"], "processing")
+        self.assertEqual(detail["output"]["result"]["stdout"], "partial output")
+        self.assertEqual(detail["output"]["status"], "processing")
+
     async def test_run_tasks_projection_tracks_root_task_identity(self):
         run = api._create_run_record(run_id="run-123", source="path", file_name="sample.exe")
 

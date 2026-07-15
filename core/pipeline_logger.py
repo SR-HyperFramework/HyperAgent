@@ -8,7 +8,9 @@ from typing import Any
 
 
 PipelineEvent = dict[str, Any]
+TaskOutput = dict[str, Any]
 PipelineListener = Callable[[PipelineEvent], None]
+TaskOutputListener = Callable[[str, TaskOutput], None]
 
 _STAGE_LABELS = {
     "request": "Request",
@@ -49,6 +51,7 @@ class PipelineLogger:
     executor_kind: str | None = None
     events: list[PipelineEvent] = field(default_factory=list)
     listeners: list[PipelineListener] = field(default_factory=list)
+    task_output_listeners: list[TaskOutputListener] = field(default_factory=list)
     task_outputs: dict[str, Any] = field(default_factory=dict)
     _sequence: int = 0
 
@@ -99,6 +102,7 @@ class PipelineLogger:
             parent_task_id=parent_task_id if parent_task_id is not None else self.parent_task_id,
             executor_kind=executor_kind if executor_kind is not None else self.executor_kind,
             listeners=self.listeners,
+            task_output_listeners=self.task_output_listeners,
             task_outputs=self.task_outputs,
         )
 
@@ -126,10 +130,25 @@ class PipelineLogger:
             record["result"] = {**record["result"], **deepcopy(payload)}
         else:
             record["result"] = deepcopy(payload)
+        self._notify_task_output_listeners(scoped_task_id)
         return deepcopy(record)
 
     def task_outputs_snapshot(self) -> dict[str, Any]:
         return deepcopy(self.task_outputs)
+
+    def subscribe_task_output(self, listener: TaskOutputListener) -> None:
+        self.task_output_listeners.append(listener)
+
+    def _notify_task_output_listeners(self, task_id: str) -> None:
+        record = self.task_outputs.get(task_id)
+        if not isinstance(record, dict):
+            return
+        payload = deepcopy(record)
+        for listener in list(self.task_output_listeners):
+            try:
+                listener(task_id, payload)
+            except Exception:
+                continue
 
     def append_task_output_event(self, event: PipelineEvent, *, task_id: str | None = None) -> None:
         scoped_task_id = task_id if task_id is not None else self.task_id
@@ -152,6 +171,7 @@ class PipelineLogger:
             record = {}
             self.task_outputs[scoped_task_id] = record
         record["error"] = error
+        self._notify_task_output_listeners(scoped_task_id)
 
     def sync_task_output_status(
         self,
@@ -180,6 +200,7 @@ class PipelineLogger:
             record.setdefault("parent_task_id", self.parent_task_id)
         if self.executor_kind is not None:
             record.setdefault("executor_kind", self.executor_kind)
+        self._notify_task_output_listeners(scoped_task_id)
 
     def seed_task_output(self, *, task_id: str | None = None, **fields: Any) -> None:
         scoped_task_id = task_id if task_id is not None else self.task_id
@@ -199,6 +220,7 @@ class PipelineLogger:
             record.setdefault("parent_task_id", self.parent_task_id)
         if self.executor_kind is not None:
             record.setdefault("executor_kind", self.executor_kind)
+        self._notify_task_output_listeners(scoped_task_id)
 
     def task_output(self, *, task_id: str | None = None) -> dict[str, Any] | None:
         scoped_task_id = task_id if task_id is not None else self.task_id

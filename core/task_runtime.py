@@ -9,7 +9,7 @@ import threading
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from core.pipeline_logger import PipelineLogger
 from core.result_models import TaskSession
@@ -100,6 +100,9 @@ class TrackedCompletedProcess:
     returncode: int
     stdout: bytes
     stderr: bytes
+
+
+StreamCallback = Callable[[bytes], None]
 
 
 def create_child_task_scope(
@@ -323,10 +326,29 @@ def kill_run_processes(run_id: str, *, reason: str | None = None) -> list[dict[s
     return list_run_processes(run_id)
 
 
+async def _read_stream(
+    stream: asyncio.StreamReader | None,
+    callback: StreamCallback | None = None,
+) -> bytes:
+    if stream is None:
+        return b""
+    chunks: list[bytes] = []
+    while True:
+        chunk = await stream.read(4096)
+        if not chunk:
+            break
+        chunks.append(chunk)
+        if callback is not None:
+            callback(chunk)
+    return b"".join(chunks)
+
+
 async def run_tracked_process(
     *command: str,
     cwd: str | None = None,
     pipeline_logger: PipelineLogger | TaskScopedPipelineLogger | None = None,
+    stdout_callback: StreamCallback | None = None,
+    stderr_callback: StreamCallback | None = None,
 ) -> tuple[int, bytes | str, bytes | str]:
     process = await asyncio.create_subprocess_exec(
         *command,
@@ -335,23 +357,29 @@ async def run_tracked_process(
         stderr=asyncio.subprocess.PIPE,
     )
     process_id = _register_process(list(command), pid=process.pid, cwd=cwd, pipeline_logger=pipeline_logger)
+    stdout_task = asyncio.create_task(_read_stream(process.stdout, stdout_callback))
+    stderr_task = asyncio.create_task(_read_stream(process.stderr, stderr_callback))
     try:
-        stdout, stderr = await process.communicate()
+        returncode, stdout, stderr = await asyncio.gather(process.wait(), stdout_task, stderr_task)
     except asyncio.CancelledError:
         _terminate_process_tree(process.pid)
+        stdout_task.cancel()
+        stderr_task.cancel()
         with contextlib.suppress(Exception):
-            await process.communicate()
+            await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)
         _finalize_process(process_id, returncode=process.returncode, status="cancelled", error="Process cancelled")
         raise
     except Exception as exc:
         if process.returncode is None:
             _terminate_process_tree(process.pid)
-            with contextlib.suppress(Exception):
-                await process.communicate()
+        stdout_task.cancel()
+        stderr_task.cancel()
+        with contextlib.suppress(Exception):
+            await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)
         _finalize_process(process_id, returncode=process.returncode, status="failed", error=str(exc))
         raise
-    _finalize_process(process_id, returncode=process.returncode)
-    return process.returncode, stdout, stderr
+    _finalize_process(process_id, returncode=returncode)
+    return returncode, stdout, stderr
 
 
 def run_tracked_subprocess(
@@ -359,6 +387,8 @@ def run_tracked_subprocess(
     *,
     cwd: str | None = None,
     pipeline_logger: PipelineLogger | TaskScopedPipelineLogger | None = None,
+    stdout_callback: StreamCallback | None = None,
+    stderr_callback: StreamCallback | None = None,
 ) -> TrackedCompletedProcess:
     process = subprocess.Popen(
         command,
@@ -367,18 +397,42 @@ def run_tracked_subprocess(
         stderr=subprocess.PIPE,
     )
     process_id = _register_process(list(command), pid=process.pid, cwd=cwd, pipeline_logger=pipeline_logger)
+    stdout_chunks: list[bytes] = []
+    stderr_chunks: list[bytes] = []
+
+    def _pump(stream, chunks: list[bytes], callback: StreamCallback | None) -> None:
+        if stream is None:
+            return
+        while True:
+            chunk = stream.read(4096)
+            if not chunk:
+                break
+            chunks.append(chunk)
+            if callback is not None:
+                callback(chunk)
+
+    stdout_thread = threading.Thread(target=_pump, args=(process.stdout, stdout_chunks, stdout_callback), daemon=True)
+    stderr_thread = threading.Thread(target=_pump, args=(process.stderr, stderr_chunks, stderr_callback), daemon=True)
+    stdout_thread.start()
+    stderr_thread.start()
     try:
-        stdout, stderr = process.communicate()
+        returncode = process.wait()
+        stdout_thread.join()
+        stderr_thread.join()
     except BaseException as exc:
         _terminate_process_tree(process.pid)
         with contextlib.suppress(Exception):
-            process.communicate()
+            process.wait()
+        stdout_thread.join(timeout=0.1)
+        stderr_thread.join(timeout=0.1)
         _finalize_process(process_id, returncode=process.returncode, status="failed", error=str(exc))
         raise
-    _finalize_process(process_id, returncode=process.returncode)
+    stdout = b"".join(stdout_chunks)
+    stderr = b"".join(stderr_chunks)
+    _finalize_process(process_id, returncode=returncode)
     return TrackedCompletedProcess(
         args=list(command),
-        returncode=process.returncode,
-        stdout=stdout or b"",
-        stderr=stderr or b"",
+        returncode=returncode,
+        stdout=stdout,
+        stderr=stderr,
     )

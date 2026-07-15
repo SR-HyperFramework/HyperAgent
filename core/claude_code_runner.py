@@ -19,16 +19,25 @@ async def _run_claude_process(
     command_args: list[str],
     *,
     pipeline_logger: PipelineLogger | None = None,
+    stdout_callback=None,
+    stderr_callback=None,
 ) -> tuple[int, bytes | str, bytes | str, str]:
     argv = [*command, *command_args]
     try:
-        returncode, stdout, stderr = await run_tracked_process(*argv, pipeline_logger=pipeline_logger)
+        returncode, stdout, stderr = await run_tracked_process(
+            *argv,
+            pipeline_logger=pipeline_logger,
+            stdout_callback=stdout_callback,
+            stderr_callback=stderr_callback,
+        )
         return returncode, stdout, stderr, "asyncio_subprocess"
     except NotImplementedError:
         completed = await asyncio.to_thread(
             run_tracked_subprocess,
             argv,
             pipeline_logger=pipeline_logger,
+            stdout_callback=stdout_callback,
+            stderr_callback=stderr_callback,
         )
         return completed.returncode, completed.stdout, completed.stderr, "threaded_subprocess"
 
@@ -42,12 +51,15 @@ async def run_claude_code(
     command_args = get_claude_code_args(instruction)
 
     runner_logger = pipeline_logger
+    stdout_text = ""
+    stderr_text = ""
     if pipeline_logger:
         _, runner_logger = create_child_task_scope(
             pipeline_logger,
             stage_key="claude_runner",
             title="Launch Claude Code command",
         )
+        runner_logger.seed_output(output_kind="claude_command", result={"stdout": "", "stderr": "", "command": command})
         runner_logger.log(
             "claude_runner",
             "started",
@@ -55,10 +67,34 @@ async def run_claude_code(
             command=" ".join(command),
         )
 
+    def _record_live_output(stream_name: str, chunk: bytes) -> None:
+        nonlocal stdout_text, stderr_text
+        text = chunk.decode(errors="replace")
+        if stream_name == "stdout":
+            stdout_text += text
+        else:
+            stderr_text += text
+        bounded_stdout, stdout_truncated = _bounded_text(stdout_text)
+        bounded_stderr, stderr_truncated = _bounded_text(stderr_text)
+        if runner_logger:
+            runner_logger.record_output(
+                {
+                    "stdout": bounded_stdout,
+                    "stdout_truncated": stdout_truncated,
+                    "stderr": bounded_stderr,
+                    "stderr_truncated": stderr_truncated,
+                    "command": command,
+                },
+                output_kind="claude_command",
+                merge=True,
+            )
+
     returncode, stdout, stderr, execution_mode = await _run_claude_process(
         command,
         command_args,
         pipeline_logger=runner_logger,
+        stdout_callback=lambda chunk: _record_live_output("stdout", chunk),
+        stderr_callback=lambda chunk: _record_live_output("stderr", chunk),
     )
 
     if isinstance(stdout, bytes):

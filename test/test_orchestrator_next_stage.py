@@ -233,6 +233,51 @@ class SpecialistIntegrationHarness(unittest.IsolatedAsyncioTestCase):
         finally:
             os.unlink(file_path)
 
+    async def test_specialist_stage_closes_obfuscation_task_when_no_findings(self):
+        from core.orchestration import ArtifactGraphOrchestrator
+
+        with tempfile.NamedTemporaryFile("wb", suffix=".exe", delete=False) as temp_file:
+            temp_file.write(b"MZnative")
+            file_path = temp_file.name
+
+        try:
+            registry, store, logger = build_run_context_support()
+            die_handler = Mock()
+            die_handler.identify.return_value = ({"compiler": "msvc"}, AnalysisType.NATIVE)
+            native_agent = Mock()
+            native_agent.analyze = AsyncMock(side_effect=build_native_result_for_path(file_path))
+            engine = ArtifactGraphOrchestrator(
+                config_path="config.yaml",
+                die_handler=die_handler,
+                pipeline_logger=logger,
+                artifact_registry=registry,
+                finding_store=store,
+                agent_factory=lambda analysis_type: native_agent,
+            )
+
+            with patch(
+                "agents.obfuscation_analyzer_agent.ObfuscationAnalyzerAgent.analyze",
+                return_value=[],
+            ):
+                await engine.analyze(file_path, run_id="test-run")
+
+            obfuscation_events = [
+                event
+                for event in logger.snapshot()
+                if event["stage"] == "obfuscation_analyzer"
+            ]
+            self.assertEqual(
+                [event["state"] for event in obfuscation_events],
+                ["queued", "completed"],
+            )
+            self.assertEqual(
+                obfuscation_events[-1]["message"],
+                "Obfuscation analysis completed",
+            )
+            self.assertEqual(obfuscation_events[-1]["data"]["finding_count"], 0)
+        finally:
+            os.unlink(file_path)
+
     async def test_specialist_stage_adds_config_finding_without_changing_payload(self):
         from core.orchestration import ArtifactGraphOrchestrator
 

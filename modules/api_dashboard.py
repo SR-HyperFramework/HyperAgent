@@ -962,14 +962,22 @@ def _dashboard_html(run_id: str | None = None) -> str:
       taskOutputModalTitle.textContent = displayTitle;
       const events = Array.isArray(output && output.events) ? output.events : [];
       const rawResult = output && Object.prototype.hasOwnProperty.call(output, 'result') ? output.result : null;
+      const stdoutText = rawResult && typeof rawResult.stdout === 'string' ? rawResult.stdout : '';
+      const stderrText = rawResult && typeof rawResult.stderr === 'string' ? rawResult.stderr : '';
       const errorBlock = output && output.error
         ? `<div class="empty-state">${{escapeHtml(output.error)}}<\/div>`
+        : '';
+      const stdoutBlock = stdoutText
+        ? `<details class="details-block" open><summary>Stdout<\/summary><pre>${{escapeHtml(stdoutText)}}<\/pre><\/details>`
+        : '<div class="summary-empty">No stdout captured yet.<\/div>';
+      const stderrBlock = stderrText
+        ? `<details class="details-block"><summary>Stderr<\/summary><pre>${{escapeHtml(stderrText)}}<\/pre><\/details>`
         : '';
       const eventsBlock = events.length
         ? `<details class="details-block"><summary>Task events (${{events.length}})<\/summary><pre>${{escapeHtml(JSON.stringify(events, null, 2))}}<\/pre><\/details>`
         : '<div class="summary-empty">No task events captured yet.<\/div>';
       const resultBlock = rawResult !== null
-        ? `<details class="details-block" open><summary>Task result<\/summary><pre>${{escapeHtml(JSON.stringify(rawResult, null, 2))}}<\/pre><\/details>`
+        ? `<details class="details-block"><summary>Task result<\/summary><pre>${{escapeHtml(JSON.stringify(rawResult, null, 2))}}<\/pre><\/details>`
         : '<div class="summary-empty">No task result captured yet.<\/div>';
       taskOutput.innerHTML = `
         <div class="task-output-header">
@@ -980,6 +988,8 @@ def _dashboard_html(run_id: str | None = None) -> str:
         <\/div>
         <div class="task-output-result">
           ${{errorBlock}}
+          ${{stdoutBlock}}
+          ${{stderrBlock}}
           ${{resultBlock}}
           ${{eventsBlock}}
         <\/div>`;

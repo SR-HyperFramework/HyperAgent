@@ -245,6 +245,15 @@ class ArtifactGraphOrchestrator:
                     output_kind="findings",
                 )
                 findings.extend(step_findings)
+            else:
+                task_logger.log(
+                    stage_name,
+                    "completed",
+                    f"{title} completed",
+                    artifact_id=artifact_id,
+                    detected_type=analysis_type.name,
+                    finding_count=0,
+                )
 
         if not findings:
             return []

@@ -51,6 +51,29 @@ class ClaudeCodeRunnerTaskScopeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(output["terminal_state"], "failed")
         self.assertEqual(output["error"], "fatal error")
 
+    async def test_runner_updates_child_output_from_live_chunks_before_completion(self):
+        logger = PipelineLogger(run_id="run-1", task_id="parent-task", session_id="parent-session", executor_kind="claude")
+        seen_stdout: list[str] = []
+
+        def fake_run(*args, **kwargs):
+            stdout_callback = kwargs["stdout_callback"]
+            stderr_callback = kwargs["stderr_callback"]
+            stdout_callback(b"hello ")
+            child_task_id = logger.snapshot()[0]["data"]["task_id"]
+            seen_stdout.append(logger.task_output(task_id=child_task_id)["result"]["stdout"])
+            stderr_callback(b"warn")
+            return (0, b"hello world", b"warn")
+
+        with patch("core.claude_code_runner.run_tracked_process", new=AsyncMock(side_effect=fake_run)):
+            result = await run_claude_code("inspect binary", pipeline_logger=logger)
+
+        child_task_id = logger.snapshot()[0]["data"]["task_id"]
+        output = logger.task_output(task_id=child_task_id)
+        self.assertEqual(result, "hello world")
+        self.assertEqual(seen_stdout, ["hello "])
+        self.assertEqual(output["result"]["stdout"], "hello world")
+        self.assertEqual(output["result"]["stderr"], "warn")
+
 
 class ClaudeCodeRunnerTests(unittest.IsolatedAsyncioTestCase):
     async def test_default_command_uses_claude_prompt_flag_and_instruction(self):

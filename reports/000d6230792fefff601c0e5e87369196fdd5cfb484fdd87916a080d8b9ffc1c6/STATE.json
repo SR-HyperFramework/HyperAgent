@@ -59,8 +59,8 @@
     "08-report": {
       "skill": "hyperagent-report",
       "status": "completed",
-      "output_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6\\reports\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6\\08-report.md",
-      "progress_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6\\reports\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6\\_state\\08-report.progress.md",
+      "output_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6\\08-report.md",
+      "progress_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6\\_state\\08-report.progress.md",
       "updated_at": "2026-08-05T03:49:06Z"
     },
     "09-summary": {

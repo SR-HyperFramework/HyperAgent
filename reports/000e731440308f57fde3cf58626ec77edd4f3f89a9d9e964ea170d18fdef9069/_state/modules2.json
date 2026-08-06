@@ -1,0 +1,109 @@
+{
+ "count": 13,
+ "modules": [
+  {
+   "base": "0x0000000000400000",
+   "entry": "0x00000000004018A0",
+   "name": "sample.exe",
+   "path": "C:\\Users\\h26v\\Desktop\\sample.exe",
+   "section_count": 4,
+   "size": 778240
+  },
+  {
+   "base": "0x0000000073720000",
+   "entry": "0x000000007372DBA0",
+   "name": "cryptnet.dll",
+   "path": "C:\\Windows\\SysWOW64\\cryptnet.dll",
+   "section_count": 6,
+   "size": 155648
+  },
+  {
+   "base": "0x00000000749B0000",
+   "entry": "0x00000000749C3990",
+   "name": "desk.cpl",
+   "path": "C:\\Windows\\SysWOW64\\desk.cpl",
+   "section_count": 6,
+   "size": 200704
+  },
+  {
+   "base": "0x00000000751A0000",
+   "entry": "0x0000000075204570",
+   "name": "gdi32full.dll",
+   "path": "C:\\Windows\\SysWOW64\\gdi32full.dll",
+   "section_count": 6,
+   "size": 946176
+  },
+  {
+   "base": "0x0000000075290000",
+   "entry": "0x00000000752BBA30",
+   "name": "ucrtbase.dll",
+   "path": "C:\\Windows\\SysWOW64\\ucrtbase.dll",
+   "section_count": 5,
+   "size": 1179648
+  },
+  {
+   "base": "0x0000000075950000",
+   "entry": "0x000000007596F8E0",
+   "name": "kernel32.dll",
+   "path": "C:\\Windows\\SysWOW64\\kernel32.dll",
+   "section_count": 6,
+   "size": 983040
+  },
+  {
+   "base": "0x0000000076160000",
+   "entry": "0x0000000000000000",
+   "name": "win32u.dll",
+   "path": "C:\\Windows\\SysWOW64\\win32u.dll",
+   "section_count": 5,
+   "size": 98304
+  },
+  {
+   "base": "0x0000000076520000",
+   "entry": "0x0000000076537800",
+   "name": "msvcp_win.dll",
+   "path": "C:\\Windows\\SysWOW64\\msvcp_win.dll",
+   "section_count": 6,
+   "size": 503808
+  },
+  {
+   "base": "0x0000000076CC0000",
+   "entry": "0x0000000076DD9840",
+   "name": "kernelbase.dll",
+   "path": "C:\\Windows\\SysWOW64\\KernelBase.dll",
+   "section_count": 6,
+   "size": 2330624
+  },
+  {
+   "base": "0x0000000076F10000",
+   "entry": "0x0000000076F45AC0",
+   "name": "msvcrt.dll",
+   "path": "C:\\Windows\\SysWOW64\\msvcrt.dll",
+   "section_count": 5,
+   "size": 782336
+  },
+  {
+   "base": "0x00000000770F0000",
+   "entry": "0x00000000770F7470",
+   "name": "gdi32.dll",
+   "path": "C:\\Windows\\SysWOW64\\gdi32.dll",
+   "section_count": 6,
+   "size": 143360
+  },
+  {
+   "base": "0x0000000077120000",
+   "entry": "0x000000007715D8F0",
+   "name": "user32.dll",
+   "path": "C:\\Windows\\SysWOW64\\user32.dll",
+   "section_count": 6,
+   "size": 1691648
+  },
+  {
+   "base": "0x00000000772D0000",
+   "entry": "0x0000000000000000",
+   "name": "ntdll.dll",
+   "path": "C:\\Windows\\SysWOW64\\ntdll.dll",
+   "section_count": 8,
+   "size": 1720320
+  }
+ ]
+}

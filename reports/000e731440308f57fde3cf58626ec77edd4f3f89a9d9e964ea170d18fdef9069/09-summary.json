@@ -1,0 +1,263 @@
+{
+  "schema_version": "1.0",
+  "stage": "summary",
+  "sample": {
+    "sha256": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+    "file_name": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+    "absolute_path": "H:/Dataset/files/malware/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+    "architecture": "x86 (PE32 Intel 80386)",
+    "packing_or_protection": "Multi-layer: outer XOR-decrypting stub -> self-relocating PE loader shellcode -> PECompact2-packed second-stage PE"
+  },
+  "status": "completed",
+  "executive_summary": {
+    "verdict": "malicious",
+    "confidence": 0.85,
+    "confidence_label": "high",
+    "risk_level": "high",
+    "one_sentence_summary": "This sample is a multi-layer packed malware with a loader shellcode that performs in-place process hollowing, but the terminal payload behavior could not be observed locally.",
+    "plain_language_assessment": "The sample is confirmed malicious through a multi-layer packing scheme. The outermost layer is a PE32 stub that uses XOR decryption to reveal a self-relocating shellcode loader. That shellcode reads its own file, decodes an embedded PECompact2-packed second-stage PE, and rewrites the parent process's memory (process hollowing). The same decryption key is reused across multiple layers, confirming they are part of a single malicious chain. However, the sample never reached its entry point in our analysis environment because two import dependencies (a DisplaySaveSettings function from DESK.cpl and a DispatchMessageA function from USER32) could not be resolved. As a result, the terminal payload behavior — what the PECompact2-packed stage actually does — remains unknown from local evidence. Public sandbox reports describe C2 callback, persistence, and file writes, but these were not locally reproduced.",
+    "remaining_decision_point": "Terminal payload capability of the PECompact2-packed second stage cannot be determined without further unpacking or a bypass of the loader gate."
+  },
+  "confirmed_findings": [
+    {
+      "id": "summary.multi-layer-packing",
+      "title": "Multi-layer packing confirmed",
+      "summary": "The sample uses three layers: a XOR-decrypting PE32 stub, a self-relocating PE loader shellcode, and a PECompact2-packed second-stage PE. The same key (0x9A246A73) is reused across layers.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.rev-fin-decryptor",
+        "07-deepdive.json:finding_reviews.rev-fin-key-reuse",
+        "07-deepdive.json:finding_reviews.rev-fin-shellcode-self-loader",
+        "07-deepdive.json:finding_reviews.rev-fin-second-stage-packed"
+      ]
+    },
+    {
+      "id": "summary.process-hollowing-loader",
+      "title": "Recovered shellcode performs in-place process hollowing",
+      "summary": "The 1717-byte decrypted shellcode is a self-relocating, two-phase PE loader. Phase A resolves APIs and self-relocates. Phase B reads the parent module file, delta-decodes an embedded PE at file offset 0x50BA, and rewrites the parent's PEB/LDR entry to execute it.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.rev-fin-shellcode-self-loader",
+        "07-deepdive.json:finding_reviews.rev-fin-payload-handoff"
+      ]
+    },
+    {
+      "id": "summary.loader-gate-termination",
+      "title": "Loader-phase termination explained",
+      "summary": "The sample terminates during Windows loader initialization with STATUS_ENTRYPOINT_NOT_FOUND because two import slots cannot be resolved: DispatchMessageA (USER32) is NULL, and DESK.cpl!DisplaySaveSettings is unpatched. This is an environment-gated import dependency, not an intentional anti-debug check.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.rev-fin-loader-gate-termination",
+        "07-deepdive.json:finding_reviews.rev-fin-unresolved-iat-slots",
+        "07-deepdive.json:finding_reviews.rev-fin-early-exit-antidebug"
+      ]
+    },
+    {
+      "id": "summary.cryptnet-imports-real",
+      "title": "Cryptnet imports resolve to real addresses",
+      "summary": "The five cryptnet imports (CryptGetTimeValidObject, etc.) resolve to real cryptnet.dll addresses in the VM. They are not fabricated or garbage exports.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.rev-fin-cryptnet-imports-real",
+        "07-deepdive.json:contradictions.con-cryptnet-fabricated"
+      ]
+    },
+    {
+      "id": "summary.no-antianalysis-in-shellcode",
+      "title": "No anti-analysis measures in the recovered shellcode",
+      "summary": "The recovered shellcode contains no rdtsc, GetTickCount, IsDebuggerPresent, or other anti-debug/anti-VM logic.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.rev-fin-no-antianalysis-in-blob"
+      ]
+    },
+    {
+      "id": "summary.callchain-obfuscation",
+      "title": "50-deep wrapper call chain is pure obfuscation",
+      "summary": "The parent stub's 50-deep linear chain of wrapper functions serves only to delay and confuse analysis. The real decryptor is at the end of the chain.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.rev-fin-callchain-obfuscation"
+      ]
+    },
+    {
+      "id": "summary.pecompact2-confirmed",
+      "title": "Second-stage PE is PECompact2-packed (BitSum Technologies)",
+      "summary": "The decoded second-stage PE is packed with PECompact2 (BitSum Technologies), confirmed by local markers and VirusTotal. Its terminal capability is not statically visible.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.rev-fin-second-stage-packed",
+        "06-intel.json:pq.virustotal.file-info.artifact-pecompact"
+      ]
+    }
+  ],
+  "findings_with_caveats": [
+    {
+      "id": "summary.decryptor-destination-unknown",
+      "title": "Decryptor destination address unknown but content-independent",
+      "summary": "The shellcode decryptor's write destination (from LoadLibraryW return + 0x11C) is unknown because the process terminates before reaching the decryptor. However, the decrypted content was recovered independently of the destination address.",
+      "caveat": "The destination matters for full runtime memory layout reconstruction but does not affect the recovered shellcode logic.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.rev-fin-decryptor-dest-unknown"
+      ]
+    },
+    {
+      "id": "summary.fwprintf-hook-unconfirmed",
+      "title": "msvcrt!fwprintf detour hook present but unconfirmed at runtime",
+      "summary": "The shellcode builds a detour hook on msvcrt!fwprintf using a push/ret trampoline, gated by a config slot. The hook's enable state and redirect target are not runtime-confirmed.",
+      "caveat": "The hook may be a data-gathering or anti-forensics mechanism, but its purpose and enable state are inferred from static analysis only.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.rev-fin-fwprintf-hook"
+      ]
+    },
+    {
+      "id": "summary.bypass-attempts-blocked",
+      "title": "Bypass attempts blocked by loader commit timing",
+      "summary": "Three bypass approaches (NtTerminateProcess stub redirect, import-descriptor zeroing, IAT patching) were attempted but all executed too late relative to the loader's abort decision.",
+      "caveat": "A loader-level patch point (e.g., LdrpInitializeProcess hook) was not pursued. The ntdll code pages are PAGE_EXECUTE_READ, preventing in-place patching.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.rev-fin-bypass-readonly-gate"
+      ]
+    }
+  ],
+  "not_supported_claims": [
+    {
+      "id": "summary.claim.fakeav-family",
+      "claim": "The sample is a 'fake AV' or 'fkealrt' family member.",
+      "reason": "VT label only; not locally confirmed. Deepdive explicitly prohibits family attribution based on public labels alone.",
+      "source_refs": [
+        "07-deepdive.json:final_claim_policy.prohibited_claims"
+      ]
+    },
+    {
+      "id": "summary.claim.network-activity",
+      "claim": "The sample performs network activity, C2 communication, or exfiltration.",
+      "reason": "Not locally observed; the sample never reached its entry point. Public sandbox reports describe C2 behavior but this is external-only evidence.",
+      "source_refs": [
+        "07-deepdive.json:final_claim_policy.prohibited_claims"
+      ]
+    },
+    {
+      "id": "summary.claim.persistence",
+      "claim": "The sample establishes persistence, modifies the registry, or drops files.",
+      "reason": "Not locally observed. Public sandbox reports describe RunOnce persistence and file writes, but these are external-only and not locally confirmed.",
+      "source_refs": [
+        "07-deepdive.json:final_claim_policy.prohibited_claims"
+      ]
+    },
+    {
+      "id": "summary.claim.process-injection",
+      "claim": "The sample performs process injection, credential theft, or ransomware behavior.",
+      "reason": "Not locally observed. No evidence of any specific payload behavior was captured.",
+      "source_refs": [
+        "07-deepdive.json:final_claim_policy.prohibited_claims"
+      ]
+    },
+    {
+      "id": "summary.claim.cryptnet-fabricated",
+      "claim": "The cryptnet imports are fabricated or garbage exports.",
+      "reason": "Directly contradicted by live IAT reads showing cryptnet imports resolve to real cryptnet.dll addresses.",
+      "source_refs": [
+        "07-deepdive.json:contradictions.con-cryptnet-fabricated",
+        "07-deepdive.json:finding_reviews.rev-fin-cryptnet-imports-real"
+      ]
+    },
+    {
+      "id": "summary.claim.antidebug-termination",
+      "claim": "The pre-entry termination is an intentional anti-debug or anti-VM check.",
+      "reason": "Refined by dynamic analysis: the termination is caused by unresolvable import dependencies (DESK.cpl absent, DispatchMessageA NULL), not an intentional anti-analysis check.",
+      "source_refs": [
+        "07-deepdive.json:contradictions.con-early-exit-nature",
+        "07-deepdive.json:finding_reviews.rev-fin-early-exit-antidebug"
+      ]
+    },
+    {
+      "id": "summary.claim.specific-payload-behavior",
+      "claim": "The PECompact2-packed second stage performs any specific behavior or belongs to any known malware family.",
+      "reason": "Unpacking the PECompact2 layer is required first. The terminal capability is indeterminate.",
+      "source_refs": [
+        "07-deepdive.json:final_claim_policy.prohibited_claims"
+      ]
+    }
+  ],
+  "classification": {
+    "malware_type": "loader (multi-layer packed, process hollowing)",
+    "malware_family": null,
+    "family_status": "unconfirmed",
+    "overall_assessment": "The sample is a multi-layer packed malware with a validated malicious loader architecture. The outer stub decrypts a self-relocating shellcode that performs in-place process hollowing to execute a PECompact2-packed second stage. The terminal payload capability is indeterminate, but the loader chain is confirmed malicious. Family attribution is not supported by local evidence."
+  },
+  "confirmed_iocs": {
+    "network": [],
+    "host": [],
+    "persistence": []
+  },
+  "recommended_actions": [
+    {
+      "id": "action.unpack-pecompact2",
+      "priority": 1,
+      "target": "PECompact2-packed second stage (decoded_second_stage_pe.bin, entry RVA 0xA4D5)",
+      "action": "Unpack the PECompact2 layer to reveal the terminal payload import surface and execution path.",
+      "reason": "This is the highest-value remaining target. The terminal capability — network activity, persistence, or other behavior — is behind the PECompact2 packing.",
+      "source_refs": [
+        "07-deepdive.json:investigation_targets.tgt-unpack-pecompact2",
+        "07-deepdive.json:finding_reviews.rev-fin-second-stage-packed"
+      ]
+    },
+    {
+      "id": "action.bypass-loader-gate",
+      "priority": 2,
+      "target": "Loader gate at module entry 0x4018A0",
+      "action": "Bypass the loader gate to reach the module entry point and observe the full execution chain. Options: supply a stub DESK.cpl that exports DisplaySaveSettings, or patch IAT resolution earlier in the loader process.",
+      "reason": "A bypass would enable live validation of the recovered loader, the fwprintf hook, and the PECompact2 stage execution.",
+      "source_refs": [
+        "07-deepdive.json:investigation_targets.tgt-bypass-loader-gate"
+      ]
+    },
+    {
+      "id": "action.confirm-fwprintf-hook",
+      "priority": 3,
+      "target": "msvcrt!fwprintf hook in recovered shellcode",
+      "action": "After a loader gate bypass, breakpoint at the hook installation code and record the redirected destination address and enable state.",
+      "reason": "The hook is present in the shellcode but its purpose and enable state are unconfirmed.",
+      "source_refs": [
+        "07-deepdive.json:investigation_targets.tgt-confirm-fwprintf-hook-target",
+        "07-deepdive.json:finding_reviews.rev-fin-fwprintf-hook"
+      ]
+    },
+    {
+      "id": "action.investigate-network-behavior",
+      "priority": 4,
+      "target": "Public C2 IP 112.121.178.189 and RunOnce persistence",
+      "action": "After unpacking the PECompact2 stage and/or bypassing the loader gate, monitor for network activity, registry writes, and file creation to confirm or deny the public sandbox behavior.",
+      "reason": "Public sandbox reports describe HTTP callback to 112.121.178.189, RunOnce persistence, and file writes. These are external-only leads until locally confirmed.",
+      "source_refs": [
+        "07-deepdive.json:investigation_targets.tgt-network-observe",
+        "06-intel.json:ioc_correlation.external_only"
+      ]
+    },
+    {
+      "id": "action.resolve-dispatchmessagea",
+      "priority": 5,
+      "target": "DispatchMessageA IAT slot (0x404088)",
+      "action": "Read the raw file's OFT entry for the DispatchMessageA import slot to determine whether it is a genuine USER32 import or an obfuscated/corrupted entry.",
+      "reason": "The NULL slot may be a genuine environment issue or an intentional obfuscation. Resolving this informs the bypass strategy.",
+      "source_refs": [
+        "07-deepdive.json:investigation_targets.tgt-resolve-dispatchmessagea"
+      ]
+    }
+  ],
+  "limitations": [
+    "The sample never reached its entry point in the local analysis environment; all runtime conclusions are limited to the loader phase.",
+    "The terminal payload of the PECompact2-packed second stage is indeterminate until a further unpack round.",
+    "No network, filesystem, registry, or process-behavior observations were possible (no post-entry execution).",
+    "The decrypted shellcode's runtime destination buffer is unknown (content-independent but relevant for layout).",
+    "The msvcrt!fwprintf hook's enable state and target are unconfirmed.",
+    "Public IOCs (C2 IP 112.121.178.189, RunOnce persistence, mutexes, file paths) are external-only and not locally confirmed.",
+    "The DESK.cpl module is absent from the analysis VM, preventing import resolution bypass.",
+    "The recovered 1717-byte loader shellcode hash has no VirusTotal record (no public corroboration).",
+    "All static analysis of the shellcode and decoded PE is offline; no guest execution of the recovered artifacts occurred.",
+    "Family attribution is not supported by local evidence; VT labels are treated as unconfirmed context only."
+  ],
+  "upstream_inputs": [
+    "01-prepare-env.json",
+    "02-static-pass1.json",
+    "03-unpack.json",
+    "04-static-pass2.json",
+    "05-dynamic.json",
+    "06-intel.json",
+    "07-deepdive.json"
+  ]
+}

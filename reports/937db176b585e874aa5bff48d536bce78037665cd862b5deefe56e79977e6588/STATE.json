@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.0",
+  "timestamp_utc": "2026-08-06T13:02:08Z",
+  "sample_sha256": "937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588",
+  "input_path": "C:/Users/ADMIN/Downloads/xu-ly-van-phong-cli-v1.0/xu-ly-van-phong-cli/resources/bin/officecli.exe",
+  "report_dir": "C:\\Users\\ADMIN\\HyperAgent\\reports\\937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588",
+  "current_stage_id": "01-prepare-env",
+  "last_error": null,
+  "stages": {
+    "01-prepare-env": {
+      "skill": "hyperagent-prepare-env",
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "updated_at": null
+    },
+    "02-static-pass1": {
+      "skill": "hyperagent-static",
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "updated_at": null
+    },
+    "03-unpack": {
+      "skill": "hyperagent-unpack",
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "updated_at": null
+    },
+    "04-static-pass2": {
+      "skill": "hyperagent-static",
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "updated_at": null
+    },
+    "05-dynamic": {
+      "skill": "hyperagent-dynamic",
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "updated_at": null
+    },
+    "06-intel": {
+      "skill": "hyperagent-intel",
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "updated_at": null
+    },
+    "07-deepdive": {
+      "skill": "hyperagent-deepdive",
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "updated_at": null
+    },
+    "08-report": {
+      "skill": "hyperagent-report",
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "updated_at": null
+    },
+    "09-summary": {
+      "skill": "hyperagent-summary",
+      "status": "completed",
+      "output_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588\\09-summary.json",
+      "progress_path": null,
+      "updated_at": "2026-08-06T13:02:08Z"
+    }
+  },
+  "recommend_next_stage": {
+    "action": "run_next",
+    "stage_id": "01-prepare-env",
+    "skill": "hyperagent-prepare-env",
+    "source_stage_id": null,
+    "reason": "Run 01-prepare-env next.",
+    "progress_path": null
+  }
+}

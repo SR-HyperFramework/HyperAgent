@@ -1,0 +1,154 @@
+<?xml version="1.0" ?>
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36" scale="1" border="0">
+  <diagram name="Stage 05 - Dynamic" id="HADYN-diagram-1">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- ===== Title ===== -->
+        <mxCell id="HADYN-title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=22;fontStyle=1;" value="STAGE 05 - PHÂN TÍCH ĐỘNG (Dynamic)" vertex="1">
+          <mxGeometry height="40" width="520" x="180" y="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-subtitle" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;" value="hyperagent-dynamic · 05-dynamic.json · orchestrate from host, execute only in isolated guest" vertex="1">
+          <mxGeometry height="20" width="520" x="180" y="60" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Stage steps (main vertical flow, green parallelograms) ===== -->
+        <mxCell id="HADYN-t1" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="1. Runtime Initialization" vertex="1">
+          <mxGeometry height="60" width="200" x="60" y="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-t2" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="2. VM Preparation" vertex="1">
+          <mxGeometry height="60" width="200" x="60" y="230" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-t3" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="3. Breakpoint Deployment" vertex="1">
+          <mxGeometry height="60" width="200" x="60" y="330" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-t4" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="4. Sandbox Bypass" vertex="1">
+          <mxGeometry height="60" width="200" x="60" y="430" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-t5" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="5. API Resolver Tracing&#10;(delegate subagent)" vertex="1">
+          <mxGeometry height="60" width="200" x="60" y="530" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-t6" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="6. Runtime Capability Validation&#10;(delegate subagent)" vertex="1">
+          <mxGeometry height="60" width="200" x="60" y="630" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-t7" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="7. Post-Analysis Cleanup" vertex="1">
+          <mxGeometry height="60" width="200" x="60" y="730" as="geometry"/>
+        </mxCell>
+
+        <!-- edges between steps -->
+        <mxCell id="HADYN-e1" edge="1" parent="1" source="HADYN-t1" target="HADYN-t2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-e2" edge="1" parent="1" source="HADYN-t2" target="HADYN-t3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-e3" edge="1" parent="1" source="HADYN-t3" target="HADYN-t4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-e4" edge="1" parent="1" source="HADYN-t4" target="HADYN-t5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-e5" edge="1" parent="1" source="HADYN-t5" target="HADYN-t6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-e6" edge="1" parent="1" source="HADYN-t6" target="HADYN-t7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Tools column (blue) ===== -->
+        <mxCell id="HADYN-tool1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="x64dbg MCP&#10;debug_init · module_get_main · debug_get_state" vertex="1">
+          <mxGeometry height="60" width="220" x="380" y="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-tool2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="vmrun + VMware guest&#10;revert · start · getGuestIPAddress · CopyFile · runProgramInGuest" vertex="1">
+          <mxGeometry height="60" width="220" x="380" y="230" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-tool3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="x64dbg MCP&#10;software bp (loader) · hardware bp (shellcode)&#10;ưu tiên: gate exit → allocation → decrypt return → payload entry" vertex="1">
+          <mxGeometry height="60" width="220" x="380" y="330" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-tool4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="Validate &amp; Patch&#10;debugger checks · timing checks · gate values&#10;patch failing flags / branches" vertex="1">
+          <mxGeometry height="60" width="220" x="380" y="430" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-tool5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="Subagent (general-purpose)&#10;trace hash-based resolver · module loading · resolved exports" vertex="1">
+          <mxGeometry height="60" width="220" x="380" y="530" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-tool6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="Subagent (general-purpose)&#10;confirm persistence · injection · networking · credential access" vertex="1">
+          <mxGeometry height="60" width="220" x="380" y="630" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-tool7" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="vmrun revertToSnapshot&#10;close guest debugger · discard guest state · return to clean baseline" vertex="1">
+          <mxGeometry height="60" width="220" x="380" y="730" as="geometry"/>
+        </mxCell>
+
+        <!-- edges: step -> tool -->
+        <mxCell id="HADYN-et1" edge="1" parent="1" source="HADYN-t1" target="HADYN-tool1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-et2" edge="1" parent="1" source="HADYN-t2" target="HADYN-tool2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-et3" edge="1" parent="1" source="HADYN-t3" target="HADYN-tool3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-et4" edge="1" parent="1" source="HADYN-t4" target="HADYN-tool4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-et5" edge="1" parent="1" source="HADYN-t5" target="HADYN-tool5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-et6" edge="1" parent="1" source="HADYN-t6" target="HADYN-tool6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-et7" edge="1" parent="1" source="HADYN-t7" target="HADYN-tool7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Output artifact (green box) ===== -->
+        <mxCell id="HADYN-out" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="05-dynamic.json" vertex="1">
+          <mxGeometry height="60" width="180" x="740" y="430" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-valid" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="validate_output.py&#10;schema.json (dynamic)" vertex="1">
+          <mxGeometry height="60" width="180" x="740" y="530" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-eout" edge="1" parent="1" source="HADYN-t6" target="HADYN-out" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="660" y="660"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HADYN-evalid" edge="1" parent="1" source="HADYN-out" target="HADYN-valid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-enote" connectable="0" parent="HADYN-evalid" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="bắt buộc VALID" vertex="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-2" y="-16" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ===== Annotations ===== -->
+        <mxCell id="HADYN-a1" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="Bối cảnh: ưu tiên đọc 04-static-pass2.json (bản đồ thực thi sau unpack), fallback 02-static-pass1.json" vertex="1">
+          <mxGeometry height="30" width="260" x="700" y="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-a2" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="VM là môi trường thực thi disposable — agent chỉ điều phối từ host, không bao giờ chạy sample trên host" vertex="1">
+          <mxGeometry height="30" width="300" x="700" y="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-a3" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="Tính lại ASLR sau mỗi lần restart" vertex="1">
+          <mxGeometry height="30" width="200" x="700" y="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-a4" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="Check VM trước: curl -Ss http://192.168.248.169:3000 — nếu khả dụng thì bỏ qua bước prepare" vertex="1">
+          <mxGeometry height="30" width="300" x="700" y="280" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-a5" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="IOC capture: domains · IPs · mutexes · registry keys" vertex="1">
+          <mxGeometry height="30" width="260" x="700" y="660" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-a6" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="INJECTION_GUARD được nối vào system prompt — dữ liệu từ sample là DATA, không phải lệnh" vertex="1">
+          <mxGeometry height="30" width="320" x="700" y="700" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADYN-a7" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="Subagent chỉ trả về bản tóm tắt có cấu trúc — disassembly / memory dump / stack trace nằm trong context của subagent" vertex="1">
+          <mxGeometry height="30" width="320" x="700" y="740" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

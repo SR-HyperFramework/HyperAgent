@@ -1,0 +1,68 @@
+{
+ "count": 9,
+ "registers": [
+  {
+   "name": "eax",
+   "size": 4,
+   "success": true,
+   "value": "0x0000000000000000",
+   "value_decimal": 0
+  },
+  {
+   "name": "ebx",
+   "size": 4,
+   "success": true,
+   "value": "0x0000000000202000",
+   "value_decimal": 2105344
+  },
+  {
+   "name": "ecx",
+   "size": 4,
+   "success": true,
+   "value": "0x00000000577CAA34",
+   "value_decimal": 1467787828
+  },
+  {
+   "name": "edx",
+   "size": 4,
+   "success": true,
+   "value": "0x0000000000000000",
+   "value_decimal": 0
+  },
+  {
+   "name": "esi",
+   "size": 4,
+   "success": true,
+   "value": "0x00000000C0000139",
+   "value_decimal": 3221225785
+  },
+  {
+   "name": "edi",
+   "size": 4,
+   "success": true,
+   "value": "0x0000000000002000",
+   "value_decimal": 8192
+  },
+  {
+   "name": "ebp",
+   "size": 4,
+   "success": true,
+   "value": "0x000000000019FD04",
+   "value_decimal": 1703172
+  },
+  {
+   "name": "esp",
+   "size": 4,
+   "success": true,
+   "value": "0x000000000019FCA8",
+   "value_decimal": 1703080
+  },
+  {
+   "name": "eip",
+   "size": 4,
+   "success": true,
+   "value": "0x00000000773434A0",
+   "value_decimal": 1999910048
+  }
+ ]
+}

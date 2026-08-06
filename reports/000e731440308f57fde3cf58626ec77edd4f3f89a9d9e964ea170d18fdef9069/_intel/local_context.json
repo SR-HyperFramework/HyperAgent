@@ -1,0 +1,27 @@
+{
+  "sample_sha256": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+  "upstream_inputs": [
+    "02-static-pass1.json",
+    "03-unpack.json",
+    "04-static-pass2.json",
+    "05-dynamic.json"
+  ],
+  "local_iocs": [],
+  "claims": [
+    {
+      "id": "cc.stage2.pecompact2",
+      "claim_text": "The recovered delta-decoded second-stage PE is packed with PECompact2 (BitSum Technologies) and its terminal capability is not statically visible.",
+      "related_stage": "static-pass2",
+      "related_finding_ids": ["fin-second-stage-packed"],
+      "label_values": ["pecompact", "pecompact2"],
+      "report_use": "supporting_context"
+    },
+    {
+      "id": "cc.dyn.loader-gate-blocked",
+      "claim_text": "Local dynamic execution was blocked at the loader gate (STATUS_ENTRYPOINT_NOT_FOUND); the module entry never ran and no payload or IOC behavior was observed locally.",
+      "related_stage": "dynamic",
+      "related_finding_ids": ["fin-loader-gate-termination", "fin-entry-not-reached"],
+      "report_use": "caveat_only"
+    }
+  ]
+}

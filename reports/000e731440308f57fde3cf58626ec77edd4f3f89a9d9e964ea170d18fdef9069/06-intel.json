@@ -1,0 +1,458 @@
+{
+  "schema_version": "1.0",
+  "stage": "intel",
+  "sample_sha256": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+  "status": "completed",
+  "summary": "Public-source enrichment for the original sample: VirusTotal file_info matched (60/74 malicious, tags [peexe, spreader, corrupt], suggested label trojan.fkealrt/obfuscator, categories trojan/fakeav). The recovered delta-decoded second-stage PE also matched VT (34/46 malicious, packer PECompact 2.xx -> BitSum Technologies), corroborating the local PECompact2 finding; the recovered loader shellcode has no VT record. VT behaviour_summary describes full payload execution (C2 HTTP callback to 112.121.178.189, RunOnce persistence, file writes, child processes) from external sandboxes only - the local dynamic run was blocked at the loader gate and reproduced none of it. No locally observed IOCs could be correlated because local dynamic IOCs are empty; all public indicators stay external-only follow-up leads.",
+  "provider_queries": [
+    {
+      "id": "pq.virustotal.file-info",
+      "provider": "virustotal",
+      "query_scope": "original_sample",
+      "query_type": "sha256",
+      "query_value": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+      "result": "match",
+      "matched_identity": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069.exe",
+      "reference": "https://www.virustotal.com/api/v3/files/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+      "notes": "VirusTotal returned a file report for the queried sample."
+    },
+    {
+      "id": "pq.virustotal.behaviour-summary",
+      "provider": "virustotal",
+      "query_scope": "original_sample",
+      "query_type": "sha256",
+      "query_value": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+      "result": "match",
+      "matched_identity": "Merged behaviour summary",
+      "reference": "https://www.virustotal.com/api/v3/files/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/behaviour_summary",
+      "notes": "VirusTotal returned a merged behaviour summary across available sandboxes for the sample."
+    },
+    {
+      "id": "pq.virustotal.file-info.artifact-pecompact",
+      "provider": "virustotal",
+      "query_scope": "recovered_artifact",
+      "query_type": "sha256",
+      "query_value": "8419a4bff9b43af1f59a0f27cbf4535f4ed007bb7b3006fe77da2262cdb62f23",
+      "result": "match",
+      "matched_identity": "Decoded second-stage PE (art-decoded-second-stage-pe)",
+      "reference": "https://www.virustotal.com/api/v3/files/8419a4bff9b43af1f59a0f27cbf4535f4ed007bb7b3006fe77da2262cdb62f23",
+      "notes": "VT file_info for the offline-recovered delta-decoded second-stage PE: 34/46 malicious, tags [pecompact, peexe], packers PEiD='PECompact 2.xx --> BitSum Technologies'. Corroborates local PECompact2 identification (04-static-pass2 fin-second-stage-packed)."
+    },
+    {
+      "id": "pq.virustotal.file-info.artifact-shellcode",
+      "provider": "virustotal",
+      "query_scope": "recovered_artifact",
+      "query_type": "sha256",
+      "query_value": "537c40bc4192ce13b43891f959688f6c712b9d4bf33fb06e6dd5998f51cf32ea",
+      "result": "no_match",
+      "matched_identity": null,
+      "reference": "https://www.virustotal.com/api/v3/files/537c40bc4192ce13b43891f959688f6c712b9d4bf33fb06e6dd5998f51cf32ea",
+      "notes": "VT file_info for the recovered 1717-byte loader shellcode (art-recovered-shellcode) returned 404 NotFoundError - hash not present in VT corpus. No public corroboration possible for this artifact."
+    }
+  ],
+  "claim_checks": [
+    {
+      "id": "cc.stage2.pecompact2",
+      "claim_text": "The recovered delta-decoded second-stage PE is packed with PECompact2 (BitSum Technologies) and its terminal capability is not statically visible.",
+      "related_stage": "static-pass2",
+      "related_finding_ids": [
+        "fin-second-stage-packed"
+      ],
+      "verification_status": "corroborated",
+      "provider_query_ids": [
+        "pq.virustotal.file-info.artifact-pecompact"
+      ],
+      "analysis": "VirusTotal file_info for the recovered delta-decoded second-stage PE matches the locally recovered artifact and reports tags [pecompact, peexe] with packer PEiD='PECompact 2.xx --> BitSum Technologies' (34/46 engines malicious). This corroborates the local static-pass2 PECompact2 identification (fin-second-stage-packed) without expanding it.",
+      "report_use": "supporting_context"
+    },
+    {
+      "id": "cc.dyn.loader-gate-blocked",
+      "claim_text": "Local dynamic execution was blocked at the loader gate (STATUS_ENTRYPOINT_NOT_FOUND); the module entry never ran and no payload or IOC behavior was observed locally.",
+      "related_stage": "dynamic",
+      "related_finding_ids": [
+        "fin-loader-gate-termination",
+        "fin-entry-not-reached"
+      ],
+      "verification_status": "insufficient_input",
+      "provider_query_ids": [],
+      "analysis": "The claim mapping did not include indicator_values, label_values, or conflict match values, so no automated comparison was possible.",
+      "report_use": "caveat_only"
+    },
+    {
+      "id": "cc.public-payload-behavior",
+      "claim_text": "Public sandbox executions passed the loader gate and describe post-gate payload behavior (HTTP callback to 112.121.178.189 /api/urls and /api/stats/install, RunOnce persistence, All Users\\Application Data file writes, child-process spawn) that the locally blocked run (STATUS_ENTRYPOINT_NOT_FOUND at the loader gate) could not reproduce.",
+      "related_stage": "dynamic",
+      "related_finding_ids": [
+        "fin-loader-gate-termination",
+        "fin-entry-not-reached"
+      ],
+      "verification_status": "public_label_only",
+      "provider_query_ids": [
+        "pq.virustotal.behaviour-summary"
+      ],
+      "analysis": "VirusTotal merged behaviour_summary reports full payload execution (C2 HTTP GETs to 112.121.178.189, HKCU RunOnce persistence, files written under All Users\\Application Data, spawned child processes). This is public-source runtime context from other sandboxes, NOT proof the same behavior was locally reproduced: local dynamic analysis terminated during loader init before module entry and observed no payload behavior. Deepdive should treat these as external-only follow-up leads (already in ioc_correlation.external_only), not confirmed local IOCs.",
+      "report_use": "followup_only"
+    }
+  ],
+  "ioc_correlation": {
+    "matched_local": [],
+    "local_only_no_public_match": [],
+    "external_only": [
+      {
+        "id": "ioc.external.network.112-121-178-189",
+        "category": "network",
+        "value": "112.121.178.189",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via ip_traffic."
+      },
+      {
+        "id": "ioc.external.host.529c50ff01a6ca1b670efb3dd151fc4e",
+        "category": "host",
+        "value": "529C50FF01A6CA1B670EFB3DD151FC4E",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via mutexes_opened."
+      },
+      {
+        "id": "ioc.external.host.539d520002a7cb1c680ffc3ed252fd4f",
+        "category": "host",
+        "value": "539D520002A7CB1C680FFC3ED252FD4F",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via mutexes_opened."
+      },
+      {
+        "id": "ioc.external.network.asp-net",
+        "category": "network",
+        "value": "ASP.NET",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via http_conversations."
+      },
+      {
+        "id": "ioc.external.network.get",
+        "category": "network",
+        "value": "GET",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via http_conversations."
+      },
+      {
+        "id": "ioc.external.host.hkey-current-config-software-microsoft-windows-currentversion-internet-settings-proxyenable",
+        "category": "host",
+        "value": "HKEY_CURRENT_CONFIG\\Software\\Microsoft\\windows\\CurrentVersion\\Internet Settings\\ProxyEnable",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via registry_keys_set."
+      },
+      {
+        "id": "ioc.external.host.hkey-current-user-software-microsoft-windows-currentversion-explorer-mountpoints2-a20cd692-8e41-11e1-9999-806d6172696f-baseclass",
+        "category": "host",
+        "value": "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MountPoints2\\{a20cd692-8e41-11e1-9999-806d6172696f}\\\\BaseClass",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via registry_keys_set."
+      },
+      {
+        "id": "ioc.external.host.hkey-current-user-software-microsoft-windows-currentversion-internet-settings-zonemap-intranetname",
+        "category": "host",
+        "value": "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\\\IntranetName",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via registry_keys_set."
+      },
+      {
+        "id": "ioc.external.host.hkey-current-user-software-microsoft-windows-currentversion-internet-settings-zonemap-proxybypass",
+        "category": "host",
+        "value": "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\\\ProxyBypass",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via registry_keys_set."
+      },
+      {
+        "id": "ioc.external.host.hkey-current-user-software-microsoft-windows-currentversion-internet-settings-zonemap-uncasintranet",
+        "category": "host",
+        "value": "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\\\UNCAsIntranet",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via registry_keys_set."
+      },
+      {
+        "id": "ioc.external.persistence.hkey-current-user-software-microsoft-windows-currentversion-runonce-529c50ff01a6ca1b670efb3dd151fc4e",
+        "category": "persistence",
+        "value": "HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce\\529C50FF01A6CA1B670EFB3DD151FC4E",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via registry_keys_set."
+      },
+      {
+        "id": "ioc.external.host.hkey-users-s-1-5-21-1275210071-920026266-1060284298-1003-software-microsoft-windows-currentversion-internet-settings-connections-savedlegacysettings",
+        "category": "host",
+        "value": "HKEY_USERS\\S-1-5-21-1275210071-920026266-1060284298-1003\\Software\\Microsoft\\windows\\CurrentVersion\\Internet Settings\\Connections\\SavedLegacySettings",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via registry_keys_set."
+      },
+      {
+        "id": "ioc.external.host.hkey-users-s-1-5-21-1275210071-920026266-1060284298-1003-software-microsoft-windows-currentversion-internet-settings-migrateproxy",
+        "category": "host",
+        "value": "HKEY_USERS\\S-1-5-21-1275210071-920026266-1060284298-1003\\Software\\Microsoft\\windows\\CurrentVersion\\Internet Settings\\MigrateProxy",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via registry_keys_set."
+      },
+      {
+        "id": "ioc.external.host.hkey-users-s-1-5-21-1275210071-920026266-1060284298-1003-software-microsoft-windows-currentversion-internet-settings-proxyenable",
+        "category": "host",
+        "value": "HKEY_USERS\\S-1-5-21-1275210071-920026266-1060284298-1003\\Software\\Microsoft\\windows\\CurrentVersion\\Internet Settings\\ProxyEnable",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via registry_keys_set."
+      },
+      {
+        "id": "ioc.external.network.http-112-121-178-189-api-stats-install-ts-8b58a4b2-affid-59227-ver-3050007-group-liv",
+        "category": "network",
+        "value": "http://112.121.178.189/api/stats/install/?ts=8b58a4b2&affid=59227&ver=3050007&group=liv",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via http_conversations."
+      },
+      {
+        "id": "ioc.external.network.http-112-121-178-189-api-urls-ts-8b58a4b2-affid-59227",
+        "category": "network",
+        "value": "http://112.121.178.189/api/urls/?ts=8b58a4b2&affid=59227",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via http_conversations."
+      },
+      {
+        "id": "ioc.external.network.microsoft-iis-10-0",
+        "category": "network",
+        "value": "Microsoft-IIS/10.0",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via http_conversations."
+      },
+      {
+        "id": "ioc.external.network.mozilla-4-0-compatible-msie-7-0-windows-nt-5-1-gtb0-0-net-clr-1-1-4322",
+        "category": "network",
+        "value": "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1; GTB0.0; .NET CLR 1.1.4322)",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via http_conversations."
+      },
+      {
+        "id": "ioc.external.host.raspbfile",
+        "category": "host",
+        "value": "RasPbFile",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via mutexes_created, mutexes_opened."
+      },
+      {
+        "id": "ioc.external.host.shimcachemutex",
+        "category": "host",
+        "value": "ShimCacheMutex",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via mutexes_created."
+      },
+      {
+        "id": "ioc.external.network.tcp",
+        "category": "network",
+        "value": "TCP",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via ip_traffic."
+      },
+      {
+        "id": "ioc.external.network.wed-17-dec-2025-20-34-33-gmt",
+        "category": "network",
+        "value": "Wed, 17 Dec 2025 20:34:33 GMT",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via http_conversations."
+      }
+    ]
+  },
+  "enrichment_candidates": [
+    {
+      "id": "en.family_label.fkealrt",
+      "type": "family_label",
+      "value": "fkealrt",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.38999999999999996,
+      "usage": "needs_local_confirmation",
+      "notes": "VirusTotal popular threat name."
+    },
+    {
+      "id": "en.family_label.fkealrt-obfuscator",
+      "type": "family_label",
+      "value": "fkealrt/obfuscator",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.58,
+      "usage": "needs_local_confirmation",
+      "notes": "Derived from VirusTotal suggested_threat_label."
+    },
+    {
+      "id": "en.family_label.obfuscator",
+      "type": "family_label",
+      "value": "obfuscator",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.38999999999999996,
+      "usage": "needs_local_confirmation",
+      "notes": "VirusTotal popular threat name."
+    },
+    {
+      "id": "en.family_label.winwebsec",
+      "type": "family_label",
+      "value": "winwebsec",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.38999999999999996,
+      "usage": "needs_local_confirmation",
+      "notes": "VirusTotal popular threat name."
+    },
+    {
+      "id": "en.malware_type.fakeav",
+      "type": "malware_type",
+      "value": "fakeav",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.55,
+      "usage": "needs_local_confirmation",
+      "notes": "VirusTotal popular threat category."
+    },
+    {
+      "id": "en.malware_type.trojan",
+      "type": "malware_type",
+      "value": "trojan",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.9,
+      "usage": "needs_local_confirmation",
+      "notes": "Derived from VirusTotal suggested_threat_label. VirusTotal popular threat category."
+    },
+    {
+      "id": "en.public_report.https-www-virustotal-com-api-v3-files-000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+      "type": "public_report",
+      "value": "https://www.virustotal.com/api/v3/files/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.85,
+      "usage": "context_only",
+      "notes": "VirusTotal file report reference."
+    },
+    {
+      "id": "en.sandbox_verdict.unknown-verdict",
+      "type": "sandbox_verdict",
+      "value": "UNKNOWN_VERDICT",
+      "provider_query_ids": [
+        "pq.virustotal.behaviour-summary"
+      ],
+      "confidence": 0.6,
+      "usage": "context_only",
+      "notes": "VirusTotal merged sandbox verdict."
+    },
+    {
+      "id": "en.other.packer-pecompact",
+      "type": "other",
+      "value": "PECompact 2.xx (BitSum Technologies)",
+      "provider_query_ids": [
+        "pq.virustotal.file-info.artifact-pecompact"
+      ],
+      "confidence": 0.9,
+      "usage": "context_only",
+      "notes": "VirusTotal packers PEiD/F-PROT/Command identify the recovered decoded second-stage PE as PECompact 2.xx, corroborating local static-pass2 detection (fin-second-stage-packed / PEC2TO+PECompact2 signatures)."
+    },
+    {
+      "id": "en.behavior_tag.spreader",
+      "type": "behavior_tag",
+      "value": "spreader",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.5,
+      "usage": "context_only",
+      "notes": "VirusTotal file_info tag 'spreader' on the original sample; no local spreader behavior was observed (dynamic blocked at loader gate), so it remains public attribution only."
+    },
+    {
+      "id": "en.behavior_tag.corrupt",
+      "type": "behavior_tag",
+      "value": "corrupt",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.5,
+      "usage": "context_only",
+      "notes": "VirusTotal file_info tag 'corrupt' on the original sample; consistent with the obfuscated/overlay-packed parent image observed locally."
+    }
+  ],
+  "limitations": [
+    "Public provider data was translated as attributed external evidence only.",
+    "Recovered 1717-byte loader shellcode hash (537c40bc...) is absent from VirusTotal (404 NotFoundError); no public corroboration exists for that artifact.",
+    "VirusTotal merged behaviour_summary describes payload execution from external sandboxes only; the local dynamic run terminated at the loader gate before module entry, so public behavior is external context, not locally reproduced evidence.",
+    "External-only IOCs (C2 IP/URLs, RunOnce key, mutexes, file paths) remain unconfirmed until local analysis reproduces them."
+  ],
+  "upstream_inputs": [
+    "02-static-pass1.json",
+    "03-unpack.json",
+    "04-static-pass2.json",
+    "05-dynamic.json"
+  ]
+}

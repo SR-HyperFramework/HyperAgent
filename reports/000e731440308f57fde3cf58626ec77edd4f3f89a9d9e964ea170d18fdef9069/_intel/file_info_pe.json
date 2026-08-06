@@ -1,0 +1,593 @@
+{
+  "provider": "virustotal",
+  "resource": "file_info",
+  "docs_url": "https://docs.virustotal.com/reference/file-info",
+  "endpoint": "https://www.virustotal.com/api/v3/files/8419a4bff9b43af1f59a0f27cbf4535f4ed007bb7b3006fe77da2262cdb62f23",
+  "query": {
+    "id": "8419a4bff9b43af1f59a0f27cbf4535f4ed007bb7b3006fe77da2262cdb62f23",
+    "hash_type": "sha256"
+  },
+  "response": {
+    "data": {
+      "id": "8419a4bff9b43af1f59a0f27cbf4535f4ed007bb7b3006fe77da2262cdb62f23",
+      "type": "file",
+      "links": {
+        "self": "https://www.virustotal.com/api/v3/files/8419a4bff9b43af1f59a0f27cbf4535f4ed007bb7b3006fe77da2262cdb62f23"
+      },
+      "attributes": {
+        "pe_info": {
+          "timestamp": 1341568646,
+          "machine_type": 332,
+          "entry_point": 42197,
+          "resource_langs": {
+            "ENGLISH US": 4
+          },
+          "resource_types": {
+            "RT_ICON": 1,
+            "RT_GROUP_ICON": 1,
+            "RT_VERSION": 1,
+            "RT_MANIFEST": 1
+          },
+          "sections": [
+            {
+              "name": ".text",
+              "virtual_address": 4096,
+              "virtual_size": 757760,
+              "raw_size": 303616,
+              "entropy": 8.0,
+              "md5": "158b91f76374c39cda9ff504c725d7bf"
+            },
+            {
+              "name": ".rsrc",
+              "virtual_address": 761856,
+              "virtual_size": 12288,
+              "raw_size": 10752,
+              "entropy": 6.08,
+              "md5": "f0a9294919ef076695183cf216412d14"
+            },
+            {
+              "name": ".reloc",
+              "virtual_address": 774144,
+              "virtual_size": 512,
+              "raw_size": 512,
+              "entropy": 0.22,
+              "md5": "f3757219df7828e19abdfc678e6c36b7"
+            }
+          ],
+          "import_list": [
+            {
+              "library_name": "COMDLG32.dll",
+              "imported_functions": [
+                "GetSaveFileNameA"
+              ]
+            },
+            {
+              "library_name": "VERSION.dll",
+              "imported_functions": [
+                "GetFileVersionInfoA"
+              ]
+            },
+            {
+              "library_name": "WININET.dll",
+              "imported_functions": [
+                "InternetCloseHandle"
+              ]
+            },
+            {
+              "library_name": "GDI32.dll",
+              "imported_functions": [
+                "Rectangle"
+              ]
+            },
+            {
+              "library_name": "MSIMG32.dll",
+              "imported_functions": [
+                "AlphaBlend"
+              ]
+            },
+            {
+              "library_name": "ADVAPI32.dll",
+              "imported_functions": [
+                "ConvertStringSecurityDescriptorToSecurityDescriptorA"
+              ]
+            },
+            {
+              "library_name": "kernel32.dll",
+              "imported_functions": [
+                "VirtualFree",
+                "LoadLibraryA",
+                "VirtualAlloc",
+                "GetProcAddress"
+              ]
+            },
+            {
+              "library_name": "OLEAUT32.dll",
+              "imported_functions": [
+                "Ord(8)"
+              ]
+            },
+            {
+              "library_name": "SHELL32.dll",
+              "imported_functions": [
+                "SHGetSpecialFolderLocation"
+              ]
+            },
+            {
+              "library_name": "PSAPI.DLL",
+              "imported_functions": [
+                "GetModuleFileNameExA"
+              ]
+            },
+            {
+              "library_name": "SHLWAPI.dll",
+              "imported_functions": [
+                "SHGetValueA"
+              ]
+            },
+            {
+              "library_name": "ole32.dll",
+              "imported_functions": [
+                "CoUninitialize"
+              ]
+            },
+            {
+              "library_name": "USER32.dll",
+              "imported_functions": [
+                "GetDC"
+              ]
+            },
+            {
+              "library_name": "COMCTL32.dll",
+              "imported_functions": [
+                "ImageList_ReplaceIcon"
+              ]
+            }
+          ]
+        },
+        "last_analysis_date": 1359628612,
+        "last_analysis_stats": {
+          "malicious": 34,
+          "suspicious": 0,
+          "undetected": 12,
+          "harmless": 0,
+          "timeout": 0,
+          "confirmed-timeout": 0,
+          "failure": 0,
+          "type-unsupported": 0
+        },
+        "magic": "MS-DOS executable PE  for MS Windows (GUI) Intel 80386 32-bit, PECompact2 compressed",
+        "md5": "a3e01e90955e4a6580f59fadee41cfae",
+        "type_tag": "peexe",
+        "creation_date": 1341568646,
+        "ssdeep": "6144:V/+u/ltFtiwRUXt4J3RRl6/BVTSEKCmJumJ/g0duVi:V2miwRU9UQBVTSEmUmJ/gu",
+        "names": [
+          "a3e01e90955e4a6580f59fadee41cfae"
+        ],
+        "last_modification_date": 1748553854,
+        "times_submitted": 1,
+        "sha1": "157bdbaae0bb3161b7579db6402ba83ddefa32ce",
+        "tags": [
+          "pecompact",
+          "peexe"
+        ],
+        "type_tags": [
+          "executable",
+          "windows",
+          "win32",
+          "pe",
+          "peexe"
+        ],
+        "unique_sources": 1,
+        "vhash": "03503e7e6d10101011z11z47z101013z1011z10101bz",
+        "packers": {
+          "PEiD": "PECompact 2.xx --> BitSum Technologies",
+          "F-PROT": "PecBundle, PECompact",
+          "Command": "PecBundle, PECompact"
+        },
+        "type_description": "Win32 EXE",
+        "size": 315904,
+        "last_submission_date": 1359628612,
+        "reputation": 0,
+        "trid": [
+          {
+            "file_type": "Win32 EXE PECompact compressed (v2.x)",
+            "probability": 48.9
+          },
+          {
+            "file_type": "Win32 EXE PECompact compressed (generic)",
+            "probability": 34.4
+          },
+          {
+            "file_type": "Win32 Executable Generic",
+            "probability": 7.0
+          },
+          {
+            "file_type": "Win32 Dynamic Link Library (generic)",
+            "probability": 6.2
+          },
+          {
+            "file_type": "Generic Win/DOS Executable",
+            "probability": 1.6
+          }
+        ],
+        "total_votes": {
+          "harmless": 0,
+          "malicious": 0
+        },
+        "last_analysis_results": {
+          "MicroWorld-eScan": {
+            "method": "blacklist",
+            "engine_name": "MicroWorld-eScan",
+            "engine_version": "12.0.250.0",
+            "engine_update": "20130131",
+            "category": "undetected",
+            "result": null
+          },
+          "nProtect": {
+            "method": "blacklist",
+            "engine_name": "nProtect",
+            "engine_version": "2013-01-31.01",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Trojan.FakeAV.MTW"
+          },
+          "CAT-QuickHeal": {
+            "method": "blacklist",
+            "engine_name": "CAT-QuickHeal",
+            "engine_version": "12.00",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "TrojanRansom.Agent.hht"
+          },
+          "McAfee": {
+            "method": "blacklist",
+            "engine_name": "McAfee",
+            "engine_version": "5.400.0.1158",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Generic FakeAlert!bcg"
+          },
+          "Malwarebytes": {
+            "method": "blacklist",
+            "engine_name": "Malwarebytes",
+            "engine_version": "1.62.0.140",
+            "engine_update": "20130131",
+            "category": "undetected",
+            "result": null
+          },
+          "K7AntiVirus": {
+            "method": "blacklist",
+            "engine_name": "K7AntiVirus",
+            "engine_version": "9.160.8166",
+            "engine_update": "20130130",
+            "category": "malicious",
+            "result": "Trojan"
+          },
+          "TheHacker": {
+            "method": "blacklist",
+            "engine_name": "TheHacker",
+            "engine_version": "None",
+            "engine_update": "20130129",
+            "category": "undetected",
+            "result": null
+          },
+          "NANO-Antivirus": {
+            "method": "blacklist",
+            "engine_name": "NANO-Antivirus",
+            "engine_version": "0.22.8.49711",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Trojan.Win32.Agent2.vfvvs"
+          },
+          "F-Prot": {
+            "method": "blacklist",
+            "engine_name": "F-Prot",
+            "engine_version": "4.6.5.141",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "W32/SysVenFak.B.gen!Eldorado"
+          },
+          "Symantec": {
+            "method": "blacklist",
+            "engine_name": "Symantec",
+            "engine_version": "20121.3.0.76",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Adware.CWSIEFeats"
+          },
+          "Norman": {
+            "method": "blacklist",
+            "engine_name": "Norman",
+            "engine_version": "7.00.20",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Suspicious.C4!genr"
+          },
+          "TotalDefense": {
+            "method": "blacklist",
+            "engine_name": "TotalDefense",
+            "engine_version": "37.0.10274",
+            "engine_update": "20130131",
+            "category": "undetected",
+            "result": null
+          },
+          "TrendMicro-HouseCall": {
+            "method": "blacklist",
+            "engine_name": "TrendMicro-HouseCall",
+            "engine_version": "9.700.0.1001",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "TROJ_SPNR.15HH12"
+          },
+          "Avast": {
+            "method": "blacklist",
+            "engine_name": "Avast",
+            "engine_version": "6.0.1289.0",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Win32:FakeAV-DQI [Trj]"
+          },
+          "eSafe": {
+            "method": "blacklist",
+            "engine_name": "eSafe",
+            "engine_version": "7.0.17.0",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Suspicious File"
+          },
+          "ClamAV": {
+            "method": "blacklist",
+            "engine_name": "ClamAV",
+            "engine_version": "0.97.3.0",
+            "engine_update": "20130131",
+            "category": "undetected",
+            "result": null
+          },
+          "Kaspersky": {
+            "method": "blacklist",
+            "engine_name": "Kaspersky",
+            "engine_version": "9.0.0.837",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Trojan-Ransom.Win32.Agent.hht"
+          },
+          "BitDefender": {
+            "method": "blacklist",
+            "engine_name": "BitDefender",
+            "engine_version": "7.2",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Trojan.FakeAV.MTW"
+          },
+          "Agnitum": {
+            "method": "blacklist",
+            "engine_name": "Agnitum",
+            "engine_version": "5.5.1.3",
+            "engine_update": "20130130",
+            "category": "malicious",
+            "result": "Trojan.Agent!FgOO/U+pbJo"
+          },
+          "SUPERAntiSpyware": {
+            "method": "blacklist",
+            "engine_name": "SUPERAntiSpyware",
+            "engine_version": "5.6.0.1008",
+            "engine_update": "20130131",
+            "category": "undetected",
+            "result": null
+          },
+          "ByteHero": {
+            "method": "blacklist",
+            "engine_name": "ByteHero",
+            "engine_version": "1.0.0.1",
+            "engine_update": "20130123",
+            "category": "undetected",
+            "result": null
+          },
+          "Sophos": {
+            "method": "blacklist",
+            "engine_name": "Sophos",
+            "engine_version": "4.85.0",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Mal/Behav-024"
+          },
+          "Comodo": {
+            "method": "blacklist",
+            "engine_name": "Comodo",
+            "engine_version": "15110",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "UnclassifiedMalware"
+          },
+          "F-Secure": {
+            "method": "blacklist",
+            "engine_name": "F-Secure",
+            "engine_version": "11.0.19020.35",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Trojan.FakeAV.MTW"
+          },
+          "DrWeb": {
+            "method": "blacklist",
+            "engine_name": "DrWeb",
+            "engine_version": "7.0.4.09250",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Trojan.Fakealert.32460"
+          },
+          "VIPRE": {
+            "method": "blacklist",
+            "engine_name": "VIPRE",
+            "engine_version": "15310",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "FraudTool.Win32.WinWebSecurity.pj!1a"
+          },
+          "AntiVir": {
+            "method": "blacklist",
+            "engine_name": "AntiVir",
+            "engine_version": "7.11.59.72",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "TR/Fraud.Gen"
+          },
+          "TrendMicro": {
+            "method": "blacklist",
+            "engine_name": "TrendMicro",
+            "engine_version": "9.740.0.1011",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "TROJ_SPNR.15HH12"
+          },
+          "McAfee-GW-Edition": {
+            "method": "blacklist",
+            "engine_name": "McAfee-GW-Edition",
+            "engine_version": "2012.1",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Heuristic.LooksLike.Win32.Suspicious.C!83"
+          },
+          "Emsisoft": {
+            "method": "blacklist",
+            "engine_name": "Emsisoft",
+            "engine_version": "None",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Trojan.FakeAV.MTW (B)"
+          },
+          "Jiangmin": {
+            "method": "blacklist",
+            "engine_name": "Jiangmin",
+            "engine_version": "13.0.900",
+            "engine_update": "20121221",
+            "category": "undetected",
+            "result": null
+          },
+          "Antiy-AVL": {
+            "method": "blacklist",
+            "engine_name": "Antiy-AVL",
+            "engine_version": "2.0.3.7",
+            "engine_update": "20130131",
+            "category": "undetected",
+            "result": null
+          },
+          "Kingsoft": {
+            "method": "blacklist",
+            "engine_name": "Kingsoft",
+            "engine_version": "2013.1.8.219",
+            "engine_update": "20130131",
+            "category": "undetected",
+            "result": null
+          },
+          "Microsoft": {
+            "method": "blacklist",
+            "engine_name": "Microsoft",
+            "engine_version": "1.9103",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Rogue:Win32/Winwebsec"
+          },
+          "ViRobot": {
+            "method": "blacklist",
+            "engine_name": "ViRobot",
+            "engine_version": "2011.4.7.4223",
+            "engine_update": "20130131",
+            "category": "undetected",
+            "result": null
+          },
+          "GData": {
+            "method": "blacklist",
+            "engine_name": "GData",
+            "engine_version": "22",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Trojan.FakeAV.MTW"
+          },
+          "Commtouch": {
+            "method": "blacklist",
+            "engine_name": "Commtouch",
+            "engine_version": "5.3.2.6",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "W32/SysVenFak.B.gen!Eldorado"
+          },
+          "AhnLab-V3": {
+            "method": "blacklist",
+            "engine_name": "AhnLab-V3",
+            "engine_version": "2013.01.31.03",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Trojan/Win32.Suspicious"
+          },
+          "VBA32": {
+            "method": "blacklist",
+            "engine_name": "VBA32",
+            "engine_version": "3.12.20.0",
+            "engine_update": "20130130",
+            "category": "malicious",
+            "result": "Hoax.Agent.hhp"
+          },
+          "PCTools": {
+            "method": "blacklist",
+            "engine_name": "PCTools",
+            "engine_version": "8.0.0.5",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Adware.CWSIEFeats"
+          },
+          "ESET-NOD32": {
+            "method": "blacklist",
+            "engine_name": "ESET-NOD32",
+            "engine_version": "7952",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Win32/Adware.SystemSecurity.AL"
+          },
+          "Rising": {
+            "method": "blacklist",
+            "engine_name": "Rising",
+            "engine_version": "24.47.03.01",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Rogue.Winwebsec!48FE"
+          },
+          "Ikarus": {
+            "method": "blacklist",
+            "engine_name": "Ikarus",
+            "engine_version": "T3.1.3.5.0",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Trojan.Win32.FakeAV"
+          },
+          "Fortinet": {
+            "method": "blacklist",
+            "engine_name": "Fortinet",
+            "engine_version": "5.0.26.0",
+            "engine_update": "20130131",
+            "category": "undetected",
+            "result": null
+          },
+          "AVG": {
+            "method": "blacklist",
+            "engine_name": "AVG",
+            "engine_version": "10.0.0.1190",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "FakeAV_r.JC"
+          },
+          "Panda": {
+            "method": "blacklist",
+            "engine_name": "Panda",
+            "engine_version": "10.0.3.5",
+            "engine_update": "20130131",
+            "category": "malicious",
+            "result": "Generic Trojan"
+          }
+        },
+        "sha256": "8419a4bff9b43af1f59a0f27cbf4535f4ed007bb7b3006fe77da2262cdb62f23",
+        "type_extension": "exe",
+        "first_submission_date": 1359628612
+      }
+    }
+  }
+}

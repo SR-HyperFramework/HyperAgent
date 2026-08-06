@@ -1,0 +1,280 @@
+{
+  "schema_version": "1.0",
+  "stage": "static-pass2",
+  "sample": {
+    "original_sha256": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+    "target_path": "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/artifacts/decrypted_shellcode_1717.raw",
+    "target_sha256": "537c40bc4192ce13b43891f959688f6c712b9d4bf33fb06e6dd5998f51cf32ea"
+  },
+  "status": "completed",
+  "summary": "Pass 2 static analysis of the recovered 1717-byte x86 shellcode (hash matches 03-unpack.json handoff art-recovered-shellcode). The blob is a self-relocating, two-phase PE loader / in-place process-hollowing shellcode, NOT a terminal payload. Phase A (offset 0x0-0xAE) NOP-sled entry, resolves an 18-slot hash-based API table at config base 0x640 (LoadLibraryA, GetModuleHandleA, GetProcAddress, VirtualProtect, VirtualAlloc, VirtualFree, CloseHandle, CreateToolhelp32Snapshot, GetModuleFileNameA, CreateFileA, SetFilePointer, ReadFile, GetCurrentProcessId, Module32First/Next, GetProcessHeap, HeapAlloc, HeapFree), then VirtualAlloc's a RWX buffer and self-relocates. Phase B (0xAF+) reads the parent's own module file, delta-decodes an embedded second-stage region at parent file offset 0x50BA (0x4D200 = 315904 bytes) using key 0x9A246A73 (config slot 0x70 XOR 0x7845EA91, the same key material as the parent stub's sub_401DF8), maps it as a PE32 at imagebase 0x400000 (entry RVA 0xA4D5), rewrites the parent's own PEB/LDR entry (DllBase/EntryPoint/PEB.ImageBaseAddress), and installs an msvcrt!fwprintf detour hook. The delta-decode was replicated offline on the host: it reproduces the exact key and yields a valid PE32 (MZ + PE signature, 3 sections: .text/.rsrc/.reloc). That decoded second stage is itself PECompact2-packed (PEC2TO/PECompact2 signatures, .text entropy 7.95, raw<virtual), a requireAdministrator GUI image whose import surface shows no direct network/registry/persistence APIs (WININET imports only InternetCloseHandle). No anti-debug/anti-VM logic exists inside the blob (the pre-entry early-exit belongs to the parent stub). Decision outcome: the recovered shellcode is a loader that reveals a later-stage packed PE, so an additional unpack round is recommended for the PECompact2 second stage before terminal capability analysis.",
+  "findings": [
+    {
+      "id": "fin-shellcode-self-loader",
+      "title": "Recovered shellcode is a self-relocating two-phase PE loader / in-place process-hollower",
+      "category": "loader",
+      "status": "confirmed",
+      "confidence": 0.9,
+      "description": "The 1717-byte blob is not a terminal payload. Phase A (offset 0x0-0xAE) starts at offset 0 with a push/pop eax NOP sled, call+6 get-EIP, resolves 18 APIs into a config table, VirtualAlloc(NULL,0x6A4,0x1000,0x40), self-relocates offsets 0x10..0x6B4, and ret's into the relocated body. Phase B (0xAF+) re-derives its base, locates the loaded module base via MZ/PE scan, reads the parent's own file, delta-decodes an embedded region, maps it as a PE, rewrites the parent's PEB/LDR module entry, and hooks msvcrt!fwprintf.",
+      "reasoning": "Full capstone disassembly (CS_MODE_32, offset 0) plus offline delta-decode verification: config slot 0x64=0x50BA (SetFilePointer offset), slot 0x68=0x4D200 (ReadFile size), slot 0x70 XOR 0x7845EA91 = 0x9A246A73 (decode key, matching the parent stub). No CreateProcessW/WriteProcessMemory/NtUnmapViewOfSection anywhere, so it is self-hollowing, not RunPE.",
+      "sources": [
+        { "stage": "unpack", "artifact": "decrypted_shellcode_1717.raw", "location": "03-unpack.json static_pass2_handoff" },
+        { "stage": "static-pass2", "artifact": null, "location": "host capstone disassembly of decrypted_shellcode_1717.raw" }
+      ],
+      "evidence": [
+        { "id": "ev-phase-a", "kind": "artifact", "source": { "stage": "static-pass2", "artifact": "decrypted_shellcode_1717.raw", "location": "disasm 0x0-0xAE" }, "observation": "0x4 e8 call +6; 0x30 add dword ptr [eax],0x85612acb (decodes 'Kernel32.dll' name); 0x96 call [ebp+0x10] VirtualAlloc(NULL,0x6A4,0x1000,0x40); 0xAC f3 rep movsb 0x6A4; 0xAE c3 ret into relocated body.", "address": "0x0000", "confidence": 0.9 },
+        { "id": "ev-phase-b", "kind": "artifact", "source": { "stage": "static-pass2", "artifact": "decrypted_shellcode_1717.raw", "location": "disasm 0xAF-0x1EA" }, "observation": "0x5FB GetModuleFileNameA+CreateFileA on own module; 0xCE/0xDF SetFilePointer+ReadFile(size 0x4D200 from slot 0x68); 0x1A9-0x1EA PEB fs:[0x30] InLoadOrderModuleList walk then mov [eax+0x18],edi (DllBase) / [eax+0x1C],esi (EntryPoint) / [eax+8],edi (PEB.ImageBaseAddress); 0x1EA call [ebp+0x14] VirtualFree.", "address": "0x05fb", "confidence": 0.85 }
+      ],
+      "limitations": [
+        "Runtime image base and final mapped layout not live-confirmed because the parent process exits before entry (parent pre-entry anti-analysis)."
+      ]
+    },
+    {
+      "id": "fin-api-slot-table",
+      "title": "18-slot hash-based API resolution table at config base 0x640",
+      "category": "execution",
+      "status": "confirmed",
+      "confidence": 0.95,
+      "description": "Config/API-slot table occupies offsets 0x640-0x68F (18 dwords) plus numeric config 0x698-0x6B3, addressed via ebp (set to 0x640 by the call-0x63d get-EIP thunk). Slots resolve by hash (rol(h,13)+ror(char,7) accumulator): 0x00 LoadLibraryA, 0x04 GetModuleHandleA, 0x08 GetProcAddress, 0x0C VirtualProtect, 0x10 VirtualAlloc, 0x14 VirtualFree, 0x18 CloseHandle, 0x1C CreateToolhelp32Snapshot, 0x20 GetModuleFileNameA, 0x24 CreateFileA, 0x28 SetFilePointer, 0x2C ReadFile, 0x30 GetCurrentProcessId, 0x34 Module32First, 0x38 Module32Next, 0x3C GetProcessHeap, 0x40 HeapAlloc, 0x44 HeapFree. Numeric config: slot 0x64=0x50BA, 0x68=0x4D200, 0x6C=0x400, 0x70=0xE26180E2.",
+      "reasoning": "Every call dword ptr [ebp+X] site in the disassembly was cross-checked against argument count/constants and the hash values were matched against Windows export names.",
+      "sources": [
+        { "stage": "static-pass2", "artifact": null, "location": "host disassembly of decrypted_shellcode_1717.raw (all [ebp+X] call sites)" }
+      ],
+      "evidence": [
+        { "id": "ev-table-bytes", "kind": "artifact", "source": { "stage": "static-pass2", "artifact": "decrypted_shellcode_1717.raw", "location": "bytes 0x640-0x6B4" }, "observation": "0x640 fb d4 a2 61 (LoadLibraryA hash) ... 0x680 8d bf 5c 26 (HeapAlloc hash); 0x6A4 50 ba 00 00 = 0x50BA; 0x6A8 00 d2 04 00 = 0x4D200; 0x6B0 e2 80 61 e2 = 0xE26180E2.", "address": "0x0640", "confidence": 0.95 },
+        { "id": "ev-hash-match", "kind": "analyst", "source": { "stage": "static-pass2", "artifact": null, "location": "hash-slot cross-check" }, "observation": "All 18 slot hashes verified against Kernel32/msvcrt export names using the ror/rol accumulator; slot 0x1C = CreateToolhelp32Snapshot (not GetModuleHandleExA).", "address": null, "confidence": 0.9 }
+      ],
+      "limitations": [
+        "Slot 0x44 (HeapFree) is resolved but unused in phase B per static trace."
+      ]
+    },
+    {
+      "id": "fin-key-reuse",
+      "title": "Decode key 0x9A246A73 is reused between the parent stub and the recovered loader",
+      "category": "packing",
+      "status": "confirmed",
+      "confidence": 0.95,
+      "description": "The loader's embedded second-stage decode uses key slot 0x70 XOR 0x7845EA91 = 0xE26180E2 ^ 0x7845EA91 = 0x9A246A73, identical to the key used by the parent stub's decryptor sub_401DF8. The same key material is reused across the two packing layers.",
+      "reasoning": "Offline replication of the delta transform (out[j] = (in[j] - prev) mod 2^32 with prev seeded 0x9A246A73) against the parent file bytes at 0x50BA produced a valid PE header, proving the key and transform.",
+      "sources": [
+        { "stage": "static-pass2", "artifact": null, "location": "offline decode of parent file region 0x50BA" }
+      ],
+      "evidence": [
+        { "id": "ev-key-derive", "kind": "analyst", "source": { "stage": "static-pass2", "artifact": null, "location": "slot 0x70 ^ 0x7845EA91" }, "observation": "0xE26180E2 ^ 0x7845EA91 = 0x9A246A73, matching 03-unpack.json decryptor key 0x9A246A73.", "address": null, "confidence": 0.95 },
+        { "id": "ev-decode-mz", "kind": "artifact", "source": { "stage": "static-pass2", "artifact": "decoded_second_stage_pe.bin", "location": "delta-decode of parent 0x50BA..0x522BA" }, "observation": "Decoded head 4d 5a 90 00 03 00 00 00 ... = MZ, e_lfanew=0x108 points to 'PE\\0\\0'. Delta decode reproduces the valid second-stage PE.", "address": null, "confidence": 0.95 }
+      ],
+      "limitations": []
+    },
+    {
+      "id": "fin-embedded-second-stage-pe",
+      "title": "Parent file embeds a delta-encoded second-stage PE at file offset 0x50BA (0x4D200 bytes)",
+      "category": "packing",
+      "status": "confirmed",
+      "confidence": 0.95,
+      "description": "The loader reads 0x4D200 bytes from its own module file at SetFilePointer offset 0x50BA, delta-decodes them, and maps the result as a PE32: imagebase 0x400000, entry RVA 0xA4D5, 3 sections (.text 0x1000/0xB9000, .rsrc 0xBA000/0x3000, .reloc 0xBD000/0x200). The decoded PE was saved as artifacts/decoded_second_stage_pe.bin (SHA256 8419a4bf...).",
+      "reasoning": "Offline replication of the loader's delta transform over parent file bytes 0x50BA-0x522BA yields a header-valid PE32 (MZ, e_lfanew, PE signature, machine 0x14C, optmagic 0x10B, 3 sections).",
+      "sources": [
+        { "stage": "static-pass2", "artifact": null, "location": "offline decode + PE header parse" }
+      ],
+      "evidence": [
+        { "id": "ev-pe-header", "kind": "artifact", "source": { "stage": "static-pass2", "artifact": "decoded_second_stage_pe.bin", "location": "PE header parse" }, "observation": "machine 0x14C (i386), optmagic 0x10B (PE32), entry RVA 0xA4D5, imagebase 0x400000, sizeOfImage 0xBE000; sections .text/.rsrc/.reloc.", "address": "0x40A4D5", "confidence": 0.95 },
+        { "id": "ev-imports", "kind": "artifact", "source": { "stage": "static-pass2", "artifact": "decoded_second_stage_pe.bin", "location": "import directory walk (RVA 0xBB8BC)" }, "observation": "Imports: kernel32 (LoadLibraryA, GetProcAddress, VirtualAlloc, VirtualFree), COMCTL32 ImageList_ReplaceIcon, SHLWAPI SHGetValueA, PSAPI GetModuleFileNameExA, VERSION GetFileVersionInfoA, MSIMG32 AlphaBlend, WININET InternetCloseHandle, USER32 GetDC, GDI32 Rectangle, COMDLG32 GetSaveFileNameA, ADVAPI32 ConvertStringSecurityDescriptorToSecurityDescriptorA, SHELL32 SHGetSpecialFolderLocation, ole32 CoUninitialize, OLEAUT32 ord#8.", "address": "0x40BB8BC", "confidence": 0.9 }
+      ],
+      "limitations": [
+        "Embedded-region section attribution and exact runtime mapping base not live-verified; the parent process exits before entry."
+      ]
+    },
+    {
+      "id": "fin-second-stage-packed",
+      "title": "Decoded second-stage PE is PECompact2-packed; terminal capability not statically visible",
+      "category": "packing",
+      "status": "confirmed",
+      "confidence": 0.9,
+      "description": "The decoded PE is packed with PECompact2: section marker 'PEC2TO' at file offset 0x218 and 'PECompact2' string at 0x98ED; .text raw size 0x4A200 vs virtual 0xB9000 (raw<virtual), .text first-4K entropy 7.954; entry disassembly is obfuscated/compressed garbage. The image is a requireAdministrator GUI app (manifest at .rsrc), and its import surface exposes no direct network/registry/persistence calls (WININET imports only InternetCloseHandle), so real behavior sits behind the packer.",
+      "reasoning": "Raw-section entropy and PEC2TO/PECompact2 signatures in the decoded PE identify the packer; the import names are small and GUI-oriented, consistent with a packed installer-style or loader-style GUI stage.",
+      "sources": [
+        { "stage": "static-pass2", "artifact": "decoded_second_stage_pe.bin", "location": "section headers + strings + import walk" }
+      ],
+      "evidence": [
+        { "id": "ev-pecompact2", "kind": "artifact", "source": { "stage": "static-pass2", "artifact": "decoded_second_stage_pe.bin", "location": "strings at 0x218/0x98ED, .text header" }, "observation": "'PEC2TO' at 0x218, 'PECompact2' at 0x98ED; .text raw 0x4A200 < virtual 0xB9000; .text entropy 7.954.", "address": null, "confidence": 0.9 },
+        { "id": "ev-manifest", "kind": "artifact", "source": { "stage": "static-pass2", "artifact": "decoded_second_stage_pe.bin", "location": ".rsrc manifest at 0x4BB88" }, "observation": "manifest with requestedExecutionLevel requireAdministrator, uiAccess false; Microsoft.Windows.Common-Controls dependency.", "address": "0x40BB88", "confidence": 0.9 }
+      ],
+      "limitations": [
+        "Terminal capability is indeterminate until the PECompact2 layer is unpacked (additional unpack round recommended)."
+      ]
+    },
+    {
+      "id": "fin-fwprintf-hook",
+      "title": "msvcrt!fwprintf detour hook with push/ret trampoline, gated by config slot 0x4C",
+      "category": "execution",
+      "status": "inferred",
+      "confidence": 0.7,
+      "description": "The loader builds a detour hook on msvcrt!fwprintf: resolves fwprintf by hash, VirtualProtect's the first 7 bytes to RWX, saves the original prologue, and writes a '68 <addr> C3' (push;ret) trampoline that redirects fwprintf to a relocated routine (module enumeration at relocated 0x4DD/0x483). The hook is gated by config slot 0x4C, which is 0 in the recovered table.",
+      "reasoning": "Routine at 0x524: pushes 'msvcrt.dll', GetModuleHandleA/LoadLibraryA, GetProcAddress('fwprintf'), VirtualProtect, copies bytes, writes 0x68..0xC3. Because slot 0x4C is 0, the hook may be a disabled default whose enable state is set later (e.g. by the packed PE).",
+      "sources": [
+        { "stage": "static-pass2", "artifact": null, "location": "disasm 0x524-0x595" }
+      ],
+      "evidence": [
+        { "id": "ev-hook-build", "kind": "artifact", "source": { "stage": "static-pass2", "artifact": "decrypted_shellcode_1717.raw", "location": "disasm 0x524-0x58C" }, "observation": "push 0x6c6c; push 0x642e7472; push 0x6376736d => 'msvcrt.dll'; GetModuleHandleA/[ebp] and GetProcAddress/[ebp+8] for 'fwprintf'; VirtualProtect call [ebp+0xC]; writes al=0x68, stosd addr, al=0xC3 trampoline.", "address": "0x0524", "confidence": 0.75 },
+        { "id": "ev-hook-gate", "kind": "artifact", "source": { "stage": "static-pass2", "artifact": "decrypted_shellcode_1717.raw", "location": "config slot 0x4C at 0x68C" }, "observation": "slot 0x4C bytes 49 9c d8 6d = 0x6DD89C49; as a config gate its runtime value at hook-enable decision is unconfirmed (static value 0x6DD89C49 non-zero dword).", "address": "0x068C", "confidence": 0.6 }
+      ],
+      "limitations": [
+        "The exact redirected destination and whether the hook is actually enabled at runtime (slot 0x4C semantics) require dynamic validation."
+      ]
+    },
+    {
+      "id": "fin-entry-alignment",
+      "title": "Shellcode entry offset confirmed as 0 (priming byte 0x50)",
+      "category": "execution",
+      "status": "confirmed",
+      "confidence": 0.85,
+      "description": "The recovered blob's effective entry is offset 0: bytes 0x50 58 50 58 (push/pop NOP sled) then call +6 at 0x4. The misaligned offset-1 interpretation (0x58 0x50 ...) is also valid code but converges to the same call +6 path, so alignment matters only for attribution of the first 4 bytes.",
+      "reasoning": "The parent decryptor primes dest+0 with 0x50 and writes subsequent dwords at dest+1+4j, so the first byte of the recovered blob is the priming 0x50 and is the intended first instruction. Capstone disassembles cleanly from offset 0.",
+      "sources": [
+        { "stage": "unpack", "artifact": "decrypted_shellcode_1717.raw", "location": "03-unpack.json round 1 transform (priming byte 0x50 at dest+0)" }
+      ],
+      "evidence": [
+        { "id": "ev-offset0", "kind": "artifact", "source": { "stage": "static-pass2", "artifact": "decrypted_shellcode_1717.raw", "location": "capstone CS_MODE_32 from offset 0" }, "observation": "0x0 50 push eax; 0x1 58 pop eax; 0x4 e8 call 0xf; resolves cleanly; 705 instructions total.", "address": "0x0000", "confidence": 0.85 }
+      ],
+      "limitations": [
+        "Caller-side live confirmation is blocked by the parent's pre-entry early-exit anti-analysis."
+      ]
+    },
+    {
+      "id": "fin-no-antianalysis-in-blob",
+      "title": "No anti-debug/anti-VM/timing logic inside the recovered shellcode",
+      "category": "anti_analysis",
+      "status": "not_observed",
+      "confidence": 0.8,
+      "description": "No rdtsc/GetTickCount timing, IsDebuggerPresent, int 0x2D, PEB.BeingDebugged, or VM checks appear in the 705-instruction disassembly of the recovered shellcode. The early-exit termination that killed free-running execution of the parent belongs to the parent stub's loader-phase code, not to this blob.",
+      "reasoning": "Full instruction-level review of the saved disassembly found no anti-analysis primitives; the parent stub's early exit was already attributed to loader-phase code in 03-unpack.json (fin-early-exit-antidebug).",
+      "sources": [
+        { "stage": "static-pass2", "artifact": null, "location": "full capstone disassembly of decrypted_shellcode_1717.raw" }
+      ],
+      "evidence": [
+        { "id": "ev-no-antidebug", "kind": "artifact", "source": { "stage": "static-pass2", "artifact": "decrypted_shellcode_1717.raw", "location": "instruction scan 0x0-0x6B4" }, "observation": "No rdtsc, GetTickCount, IsDebuggerPresent, int 0x2D, PEB.BeingDebugged, or VM-detection instructions present; only fs:[0x30]/fs:[0x18] PEB/TEB reads for module-list walking and ThreadEnvironmentBlock (0x4B3/0x4DB).", "address": null, "confidence": 0.8 }
+      ],
+      "limitations": []
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "art-original-sample",
+      "path": "H:/Dataset/files/malware/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+      "sha256": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+      "type": "pe32-executable",
+      "validation_status": "validated",
+      "context": "Original submitted sample (Pass 1 target). PE32 GUI, 4 sections, imagebase 0x400000, entry 0x4018A0; retains the encrypted second-stage shellcode ciphertext at VA 0x402A47 and the delta-encoded second-stage PE at file offset 0x50BA."
+    },
+    {
+      "id": "art-recovered-shellcode",
+      "path": "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/artifacts/decrypted_shellcode_1717.raw",
+      "sha256": "537c40bc4192ce13b43891f959688f6c712b9d4bf33fb06e6dd5998f51cf32ea",
+      "type": "x86-shellcode",
+      "validation_status": "validated",
+      "context": "Recovered 1717-byte position-independent x86 shellcode from 03-unpack. Pass 2 target. Self-relocating two-phase PE loader with an 18-slot API table at config base 0x640; handoff from the parent stub's sub_401DF8 decryptor (entry offset 0)."
+    },
+    {
+      "id": "art-decoded-second-stage-pe",
+      "path": "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/artifacts/decoded_second_stage_pe.bin",
+      "sha256": "8419a4bff9b43af1f59a0f27cbf4535f4ed007bb7b3006fe77da2262cdb62f23",
+      "type": "pe32-executable",
+      "validation_status": "validated",
+      "context": "Delta-decoded second-stage PE produced offline in Pass 2 from parent file bytes 0x50BA-0x522BA (key 0x9A246A73). PE32, imagebase 0x400000, entry RVA 0xA4D5, 3 sections (.text/.rsrc/.reloc), requireAdministrator manifest. PECompact2-packed; terminal capability requires a further unpack round."
+    }
+  ],
+  "investigation_targets": [
+    {
+      "id": "tgt-unpack-pecompact2",
+      "priority": 1,
+      "target": "Unpack the PECompact2 second stage (decoded_second_stage_pe.bin, entry RVA 0xA4D5, .text entropy 7.954)",
+      "reason": "Terminal capability is behind the PECompact2 layer; imports show no direct network/registry/persistence and the GUI-oriented surface is likely an installer/loader shell.",
+      "recommended_action": "Run a further unpack/recovery round on decoded_second_stage_pe.bin (dedicated PECompact2 unpacker or runtime dump); then re-fingerprint and map the exposed execution path.",
+      "success_criteria": "Decompressed .text; real import surface and capability findings with evidence."
+    },
+    {
+      "id": "tgt-bypass-early-exit",
+      "priority": 2,
+      "target": "Identify and bypass the parent stub's loader-phase early-exit anti-analysis",
+      "reason": "The parent process terminates before entry 0x4018A0 under free-running execution, blocking all live validation of the recovered loader and its runtime destination/hook state.",
+      "recommended_action": "Instrument loader-phase ntdll (LdrpInitializeProcess path) or run under a kernel tracer to catch the termination site; then live-validate the loader chain (read file -> delta-decode -> map -> PEB relink -> fwprintf hook).",
+      "success_criteria": "Process reaches the loader entry; delta-decode, mapping, and hook sites observed with evidence."
+    },
+    {
+      "id": "tgt-confirm-fwprintf-hook-target",
+      "priority": 3,
+      "target": "Confirm the msvcrt!fwprintf detour hook's runtime target and enable state",
+      "reason": "Static trace shows the hook is built (0x524) but the redirected destination and slot 0x4C gate semantics are unconfirmed.",
+      "recommended_action": "After a bypass, breakpoint at the trampoline write (0x57E-0x58C) and at fwprintf to record the redirected destination; check whether config slot 0x4C is set before hook installation.",
+      "success_criteria": "Concrete hook destination address and enable decision recorded."
+    },
+    {
+      "id": "tgt-resolve-dest-base",
+      "priority": 4,
+      "target": "Confirm the decryptor runtime destination buffer (LoadLibraryW-return + 0x11C) for full process-level reconstruction",
+      "reason": "Carried from Pass 1 (fin-decryptor-dest-unknown); content-independent for the shellcode but needed to locate the live shellcode image base.",
+      "recommended_action": "After a bypass, breakpoint 0x401E42 and record [eax+0x11C]; map it to the recovered shellcode.",
+      "success_criteria": "Concrete destination base recorded and correlated with the recovered blob."
+    },
+    {
+      "id": "tgt-network-observe",
+      "priority": 5,
+      "target": "Determine whether the packed second stage or later layers perform network/registry/persistence activity",
+      "reason": "Neither the recovered loader nor the decoded PE imports show direct network/registry/persistence APIs; real behavior may be resolved dynamically after the packer runs.",
+      "recommended_action": "In dynamic validation, hook GetProcAddress/LoadLibraryA and monitor for URLDownloadToFile, WinHttp/WinInet, Reg*, or persistence APIs once the PECompact2 layer is unpacked.",
+      "success_criteria": "Network/registry/persistence capability either confirmed with evidence or explicitly ruled out."
+    }
+  ],
+  "limitations": [
+    "The parent process exits during loader initialization before entry under free-running execution (03-unpack.json fin-early-exit-antidebug); live validation of the recovered loader's runtime destination, mapping base, and fwprintf hook state was not possible in this pass.",
+    "The decoded second-stage PE is PECompact2-packed; its terminal capability is indeterminate until a further unpack round on decoded_second_stage_pe.bin.",
+    "The fwprintf hook target and config-slot-0x4C gate semantics are inferred, not runtime-confirmed.",
+    "The embedded-region section attribution in the parent file and the exact runtime image base of the mapped PE were derived offline, not confirmed live.",
+    "All conclusions are from static/offline analysis of the recovered artifact and the parent file; no execution of the sample or recovered artifacts occurred on the host."
+  ],
+  "upstream_inputs": [
+    "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/01-prepare-env.json",
+    "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/02-static-pass1.json",
+    "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/03-unpack.json"
+  ],
+  "handoff_validation": {
+    "artifact_matches": true,
+    "candidate_entry_validity": "confirmed",
+    "artifact_quality": "analyzable",
+    "issues": [
+      "Artifact is a loader, not a terminal payload: it reveals a later-stage PECompact2-packed PE (decoded_second_stage_pe.bin).",
+      "Candidate entry offset 0 confirmed (priming byte 0x50; converges at call+6); the misaligned offset-1 reading is a NOP-sled that lands on the same path.",
+      "Runtime destination base and fwprintf hook target were not live-confirmed due to the parent's pre-entry anti-analysis."
+    ]
+  },
+  "comparison": {
+    "new_capabilities": [
+      "Self-relocating two-phase PE loader / in-place process-hollower (no RunPE: no CreateProcessW/WriteProcessMemory/NtUnmapViewOfSection)",
+      "18-slot hash-based API resolution table at config base 0x640 (VirtualProtect, VirtualAlloc, CreateFileA, ReadFile, CreateToolhelp32Snapshot, Module32First/Next, GetModuleFileNameA, SetFilePointer, GetProcessHeap, HeapAlloc/HeapFree, etc.)",
+      "Self-module-file read + delta-decode of an embedded second-stage PE (parent file offset 0x50BA, 0x4D200 bytes)",
+      "PEB/LDR self-rewrite (DllBase, EntryPoint, PEB.ImageBaseAddress) — in-place hollowing of the parent's own module entry",
+      "msvcrt!fwprintf detour hook (push/ret trampoline)",
+      "Identification of a second packing layer: the decoded second stage is PECompact2-packed (requireAdministrator GUI image)"
+    ],
+    "confirmed_pass1": [
+      "fin-decryptor (confirmed: the decrypted blob is the intended second stage and its plaintext is the recovered shellcode)",
+      "fin-callchain-obfuscation (confirmed: the 50-deep decoy chain exists purely to reach sub_401DF8; the real handoff is the decrypted shellcode)",
+      "fin-load-cmp (confirmed: the devenum.dll/LoadLibraryW scratch-context mechanism is part of the stub that produces the shellcode handoff)"
+    ],
+    "refined_pass1": [
+      "fin-decryptor-dest-unknown (refined: destination is content-independent; the recovered plaintext was derived offline without it)",
+      "fin-payload-handoff (refined: handoff is not a jump into ciphertext but a decrypt-and-ret into the recovered shellcode; effective entry offset 0 confirmed)"
+    ],
+    "rejected_pass1": [
+      "fin-rdata-decoy (not directly revisited; the embedded second stage lives at parent file offset 0x50BA, a trailing region, consistent with Pass 1's decoy/rdata interpretation but not verified sectionally)"
+    ],
+    "still_unresolved": [
+      "Terminal capability of the PECompact2-packed second stage (requires another unpack round)",
+      "Parent stub's loader-phase early-exit anti-analysis mechanism and termination site",
+      "fwprintf hook runtime target and enable state (config slot 0x4C)",
+      "Decryptor runtime destination base (LoadLibraryW-return + 0x11C)",
+      "Whether later stages perform network/registry/persistence activity"
+    ]
+  },
+  "outcome": "recovered_loader_requires_another_unpack_round"
+}

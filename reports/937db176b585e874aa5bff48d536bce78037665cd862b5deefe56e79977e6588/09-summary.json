@@ -1,0 +1,156 @@
+{
+  "schema_version": "1.0",
+  "stage": "summary",
+  "sample": {
+    "sha256": "937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588",
+    "file_name": "officecli.exe",
+    "absolute_path": "C:/Users/ADMIN/Downloads/xu-ly-van-phong-cli-v1.0/xu-ly-van-phong-cli/resources/bin/officecli.exe",
+    "architecture": "64-bit Windows PE (PE32+)",
+    "packing_or_protection": "No custom native unpacking requirement established; no unpacked native artifact produced"
+  },
+  "status": "completed",
+  "executive_summary": {
+    "verdict": "inconclusive",
+    "confidence": 0.72,
+    "confidence_label": "medium",
+    "risk_level": "unknown",
+    "one_sentence_summary": "officecli.exe is a 64-bit .NET apphost-style native launcher with standard CRT startup, but the managed application payload after host handoff was not examined, leaving the verdict inconclusive.",
+    "plain_language_assessment": "The file behaves like a native launcher for a bundled .NET application. Static analysis and debugger-controlled execution both show the program entering normal Windows C runtime startup code and handing off to the .NET hosting layer. However, the actual managed application behavior after the .NET host handoff was not analyzed. Because that is where the meaningful application logic likely resides, the current evidence does not prove the sample is malicious or benign.",
+    "remaining_decision_point": "The managed application payload behavior after hostfxr/apphost handoff remains unexamined and blocks a malware-versus-benign verdict."
+  },
+  "confirmed_findings": [
+    {
+      "id": "sample-identity-apphost",
+      "title": "Sample identity and .NET apphost classification",
+      "summary": "officecli.exe hashes to the expected SHA256 and is a 64-bit Windows PE consistent with a .NET apphost/self-contained runtime carrier.",
+      "source_refs": ["06-deepdive.json:review-sample-identity-apphost", "02-static-pass1.json:sample-identity-001", "01-prepare-env.json", "03-unpack.json:sample.identity"]
+    },
+    {
+      "id": "native-loader-path",
+      "title": "Native startup follows standard CRT/apphost/hostfxr path",
+      "summary": "Static and dynamic evidence confirmed the native startup path through standard CRT entry, main, and exe_start/hostfxr handoff.",
+      "source_refs": ["06-deepdive.json:review-native-loader-path", "02-static-pass1.json:loader-hostfxr-001", "05-dynamic.json:runtime-loader-path-001"]
+    }
+  ],
+  "findings_with_caveats": [
+    {
+      "id": "packing-no-unpacker",
+      "title": "No native unpacking requirement established",
+      "summary": "No custom native unpacker was found, and no unpacked native artifact was produced. The managed payload may still need separate extraction.",
+      "caveat": "Moderately high section entropy or managed bundle embedding may still conceal managed content; the absence of a 04-static-pass2 artifact reflects no native recovered artifact, not completion of managed-code review.",
+      "source_refs": ["06-deepdive.json:review-packing-unpack", "03-unpack.json:packing.not-indicated", "02-static-pass1.json:packing-indicators-001"]
+    },
+    {
+      "id": "runtime-behavior-not-observed",
+      "title": "Malicious behaviors not observed in the limited runtime window",
+      "summary": "No persistence, injection, credential-access, network, mutex, registry, or host IOC behavior was observed during the debugger-controlled startup run.",
+      "caveat": "The observation window ended shortly after host startup, and the run lacked Procmon, packet capture, filesystem monitor, registry monitor, or memory dump artifacts. These non-observations do not prove the behaviors are absent overall.",
+      "source_refs": ["06-deepdive.json:review-malicious-runtime-behavior", "05-dynamic.json:runtime-capabilities-001"]
+    },
+    {
+      "id": "anti-analysis-native-only",
+      "title": "No native startup anti-analysis gate blocked execution",
+      "summary": "No failing debugger, timing, or gate-value check was encountered before hostfxr/apphost handoff.",
+      "caveat": "Managed-stage anti-analysis checks after hostfxr startup were not instrumented and remain untested.",
+      "source_refs": ["06-deepdive.json:review-anti-analysis", "05-dynamic.json:runtime-anti-analysis-001"]
+    }
+  ],
+  "not_supported_claims": [
+    {
+      "id": "unsup-ransomware",
+      "claim": "Ransomware behavior, destructive impact, encryption, wipers, or data destruction.",
+      "reason": "No evidence of destructive behavior was observed or documented in any analysis stage.",
+      "source_refs": ["06-deepdive.json:final_claim_policy.prohibited_claims"]
+    },
+    {
+      "id": "unsup-persistence-injection-etc",
+      "claim": "Persistence, injection, credential theft, collection, exfiltration, or command-and-control as observed behavior.",
+      "reason": "The limited runtime window did not observe these behaviors, and no telemetry was collected to confirm or reject them.",
+      "source_refs": ["06-deepdive.json:final_claim_policy.prohibited_claims"]
+    },
+    {
+      "id": "unsup-family-attribution",
+      "claim": "Malware family or campaign attribution from current evidence.",
+      "reason": "No evidence links this sample to a known malware family or campaign.",
+      "source_refs": ["06-deepdive.json:final_claim_policy.prohibited_claims"]
+    },
+    {
+      "id": "unsup-payload-beyond-handoff",
+      "claim": "Payload execution beyond native apphost/hostfxr startup handoff.",
+      "reason": "Managed payload behavior after hostfxr startup was not analyzed, and no evidence supports claims about post-handoff execution.",
+      "source_refs": ["06-deepdive.json:final_claim_policy.prohibited_claims"]
+    },
+    {
+      "id": "unsup-benign-classification",
+      "claim": "The sample is benign solely because native startup appears standard or because no behavior was observed in the short run.",
+      "reason": "The managed application payload was not examined, so a benign conclusion cannot be drawn from the available evidence.",
+      "source_refs": ["06-deepdive.json:final_claim_policy.prohibited_claims"]
+    },
+    {
+      "id": "unsup-imports-as-malicious",
+      "claim": "Imported APIs, strings, or runtime components as evidence of executed malicious actions.",
+      "reason": "Sensitive imports are present but are plausibly inherited from the .NET runtime/apphost rather than used directly by malicious logic.",
+      "source_refs": ["06-deepdive.json:final_claim_policy.prohibited_claims", "06-deepdive.json:contradiction-native-capability-imports-vs-runtime-absence"]
+    }
+  ],
+  "classification": {
+    "malware_type": null,
+    "malware_family": null,
+    "family_status": "unconfirmed",
+    "overall_assessment": "The native binary is consistent with a .NET apphost-style launcher, not a malware type. No family attribution is supported by current evidence. The managed payload behavior remains unexamined, preventing a malware or benign classification."
+  },
+  "confirmed_iocs": {
+    "network": [],
+    "host": [],
+    "persistence": []
+  },
+  "recommended_actions": [
+    {
+      "id": "action-managed-extraction",
+      "priority": 5,
+      "target": "Bundled managed assemblies, especially officecli.dll",
+      "action": "Extract the bundled .NET assemblies or locate them via apphost bundle tooling, then perform managed static analysis of entry points, configuration, and external interactions.",
+      "reason": "This blocks verdict and payload-stage classification; native apphost behavior is now well reconciled but managed behavior is unknown.",
+      "source_refs": ["06-deepdive.json:investigation_targets.target-managed-extraction"]
+    },
+    {
+      "id": "action-full-telemetry",
+      "priority": 4,
+      "target": "Full isolated runtime with filesystem, registry, process, and network telemetry",
+      "action": "Run the sample in the guest with Procmon/ETW/network capture and breakpoints for process, registry, injection, and network APIs through process exit.",
+      "reason": "Current dynamic evidence cannot exclude behaviors after hostfxr startup.",
+      "source_refs": ["06-deepdive.json:investigation_targets.target-full-runtime-telemetry"]
+    },
+    {
+      "id": "action-exit-reason",
+      "priority": 3,
+      "target": "Process termination shortly after host handoff",
+      "action": "Capture stdout/stderr, exit code, command-line requirements, module loads, and exception/exit breakpoints during isolated execution.",
+      "reason": "Understanding stop cause may unlock full behavior and distinguish normal CLI exit from missing prerequisites or anti-analysis.",
+      "source_refs": ["06-deepdive.json:investigation_targets.target-exit-reason"]
+    },
+    {
+      "id": "action-managed-config-iocs",
+      "priority": 3,
+      "target": "Managed configuration, resources, and strings",
+      "action": "Inspect recovered managed resources/configuration for URLs, file paths, command names, update endpoints, and sensitive operations.",
+      "reason": "May provide detection value or clarify application purpose without relying on unsupported behavior claims.",
+      "source_refs": ["06-deepdive.json:investigation_targets.target-managed-config-iocs"]
+    }
+  ],
+  "limitations": [
+    "No 04-static-pass2.json is present because no native recovered artifact was produced.",
+    "No explicitly supplied external-intelligence JSON was available for reconciliation.",
+    "Dynamic analysis was limited to x64dbg MCP startup tracing and did not include packet capture, Procmon/ETW, filesystem monitor, registry monitor, or memory dump artifacts.",
+    "Managed-code internals and application-level behavior after hostfxr/apphost handoff were not analyzed.",
+    "Prepare-env reported the specific /ida-pro:idapython skill unavailable, though later static analysis completed through available tooling."
+  ],
+  "upstream_inputs": [
+    "reports/937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588/01-prepare-env.json",
+    "reports/937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588/02-static-pass1.json",
+    "reports/937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588/03-unpack.json",
+    "reports/937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588/05-dynamic.json",
+    "reports/937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588/06-deepdive.json",
+    "reports/937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588/07-report.md"
+  ]
+}

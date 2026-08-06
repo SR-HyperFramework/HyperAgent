@@ -1,0 +1,57 @@
+{
+ "count": 4,
+ "threads": [
+  {
+   "entry": "0x00000000004018A0",
+   "handle": 1644,
+   "id": 1988,
+   "is_current": false,
+   "is_suspended": true,
+   "name": "Thread 1988",
+   "priority": 0,
+   "rbp": "0x000000000019E9D8",
+   "rip": "0x00000000773431B0",
+   "rsp": "0x000000000019E9C0",
+   "teb": "0x0000000000202000"
+  },
+  {
+   "entry": "0x0000000077305A40",
+   "handle": 1856,
+   "id": 8632,
+   "is_current": false,
+   "is_suspended": true,
+   "name": "Thread 8632",
+   "priority": 0,
+   "rbp": "0x00000000009CFF70",
+   "rip": "0x0000000077344F3C",
+   "rsp": "0x00000000009CFDB4",
+   "teb": "0x0000000000208000"
+  },
+  {
+   "entry": "0x0000000077305A40",
+   "handle": 1756,
+   "id": 8528,
+   "is_current": true,
+   "is_suspended": true,
+   "name": "Thread 8528",
+   "priority": 0,
+   "rbp": "0x00000000006EFC6C",
+   "rip": "0x0000000077376431",
+   "rsp": "0x00000000006EFB08",
+   "teb": "0x0000000000205000"
+  },
+  {
+   "entry": "0x0000000077305A40",
+   "handle": 1896,
+   "id": 8580,
+   "is_current": false,
+   "is_suspended": true,
+   "name": "Thread 8580",
+   "priority": 0,
+   "rbp": "0x0000000000000000",
+   "rip": "0x00000000773457C0",
+   "rsp": "0x0000000000ACFFF0",
+   "teb": "0x000000000020B000"
+  }
+ ]
+}

@@ -1,0 +1,6 @@
+{
+ "rip": "0x00000000773434A0",
+ "state": "paused",
+ "stop_reason": "breakpoint_or_exception",
+ "success": true
+}

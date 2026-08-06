@@ -1,0 +1,240 @@
+{
+ "count": 39,
+ "imports": [
+  {
+   "iat_rva": "0x0000000000004000",
+   "iat_va": "0x0000000000404000",
+   "name": "SetEvent",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004004",
+   "iat_va": "0x0000000000404004",
+   "name": "LoadLibraryW",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004008",
+   "iat_va": "0x0000000000404008",
+   "name": "HeapCreate",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x000000000000400C",
+   "iat_va": "0x000000000040400C",
+   "name": "FindAtomA",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004010",
+   "iat_va": "0x0000000000404010",
+   "name": "CreateFileA",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004014",
+   "iat_va": "0x0000000000404014",
+   "name": "GetComputerNameA",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004018",
+   "iat_va": "0x0000000000404018",
+   "name": "GetDriveTypeW",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x000000000000401C",
+   "iat_va": "0x000000000040401C",
+   "name": "ReleaseMutex",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004020",
+   "iat_va": "0x0000000000404020",
+   "name": "SetLastError",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004024",
+   "iat_va": "0x0000000000404024",
+   "name": "GetSystemTime",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004028",
+   "iat_va": "0x0000000000404028",
+   "name": "CreateThread",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x000000000000402C",
+   "iat_va": "0x000000000040402C",
+   "name": "GetTickCount",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004030",
+   "iat_va": "0x0000000000404030",
+   "name": "LocalFree",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004034",
+   "iat_va": "0x0000000000404034",
+   "name": "lstrcatW",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004038",
+   "iat_va": "0x0000000000404038",
+   "name": "LoadLibraryA",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x000000000000403C",
+   "iat_va": "0x000000000040403C",
+   "name": "CloseHandle",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004040",
+   "iat_va": "0x0000000000404040",
+   "name": "GetFileAttributesA",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004044",
+   "iat_va": "0x0000000000404044",
+   "name": "ReleaseMutex",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004048",
+   "iat_va": "0x0000000000404048",
+   "name": "GetDiskFreeSpaceW",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x000000000000404C",
+   "iat_va": "0x000000000040404C",
+   "name": "GetCommandLineA",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004054",
+   "iat_va": "0x0000000000404054",
+   "name": "CallWindowProcA",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004058",
+   "iat_va": "0x0000000000404058",
+   "name": "GetKeyState",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x000000000000405C",
+   "iat_va": "0x000000000040405C",
+   "name": "FillRect",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004060",
+   "iat_va": "0x0000000000404060",
+   "name": "CreateWindowExA",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004064",
+   "iat_va": "0x0000000000404064",
+   "name": "GetDlgItem",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004068",
+   "iat_va": "0x0000000000404068",
+   "name": "GetClipCursor",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x000000000000406C",
+   "iat_va": "0x000000000040406C",
+   "name": "DrawStateA",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004070",
+   "iat_va": "0x0000000000404070",
+   "name": "DestroyCaret",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004074",
+   "iat_va": "0x0000000000404074",
+   "name": "GetClassInfoA",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004078",
+   "iat_va": "0x0000000000404078",
+   "name": "GetComboBoxInfo",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x000000000000407C",
+   "iat_va": "0x000000000040407C",
+   "name": "CloseWindow",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004080",
+   "iat_va": "0x0000000000404080",
+   "name": "SetFocus",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004084",
+   "iat_va": "0x0000000000404084",
+   "name": "DispatchMessageA",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x000000000000408C",
+   "iat_va": "0x000000000040408C",
+   "name": "CryptGetTimeValidObject",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004090",
+   "iat_va": "0x0000000000404090",
+   "name": "CertDllVerifyCTLUsage",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004094",
+   "iat_va": "0x0000000000404094",
+   "name": "CryptUninstallCancelRetrieval",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x0000000000004098",
+   "iat_va": "0x0000000000404098",
+   "name": "CryptGetObjectUrl",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x000000000000409C",
+   "iat_va": "0x000000000040409C",
+   "name": "CryptCancelAsyncRetrieval",
+   "ordinal": 4294967295
+  },
+  {
+   "iat_rva": "0x00000000000040A4",
+   "iat_va": "0x00000000004040A4",
+   "name": "DisplaySaveSettings",
+   "ordinal": 4294967295
+  }
+ ],
+ "module": "sample.exe"
+}

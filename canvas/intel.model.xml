@@ -1,0 +1,171 @@
+<?xml version="1.0" ?>
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36" scale="1" border="0">
+  <diagram name="Stage 06 - Intel" id="HAINT-diagram-1">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- ===== Title ===== -->
+        <mxCell id="HAINT-title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=22;fontStyle=1;" value="STAGE 06 - RÀ SOÁT TRÍ TUỆ CÔNG KHAI (Intel)" vertex="1">
+          <mxGeometry height="40" width="560" x="180" y="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-subtitle" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;" value="hyperagent-intel · 06-intel.json · verification &amp; enrichment — không phải verdict stage" vertex="1">
+          <mxGeometry height="20" width="560" x="180" y="60" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Upstream inputs ===== -->
+        <mxCell id="HAINT-in-label" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;" value="Đầu vào (cùng SHA256)" vertex="1">
+          <mxGeometry height="20" width="160" x="40" y="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-in1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="02-static-pass1.json" vertex="1">
+          <mxGeometry height="36" width="160" x="40" y="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-in2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="03-unpack.json" vertex="1">
+          <mxGeometry height="36" width="160" x="40" y="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-in3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="04-static-pass2.json" vertex="1">
+          <mxGeometry height="36" width="160" x="40" y="250" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-in4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="05-dynamic.json" vertex="1">
+          <mxGeometry height="36" width="160" x="40" y="300" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-in5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="01-prepare-env.json&#10;(tùy chọn, chỉ để xử lý mơ hồ)" vertex="1">
+          <mxGeometry height="36" width="160" x="40" y="350" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Stage steps (main flow, green) ===== -->
+        <mxCell id="HAINT-s1" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="1. Input Boundary &amp; Identity Validation" vertex="1">
+          <mxGeometry height="60" width="240" x="330" y="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-s2" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="2. Helper-script workflow (ưu tiên)" vertex="1">
+          <mxGeometry height="60" width="240" x="330" y="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-s3" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="3. Safe Public-Lookup Policy" vertex="1">
+          <mxGeometry height="60" width="240" x="330" y="340" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-s4" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="4. Provider Query Recording" vertex="1">
+          <mxGeometry height="60" width="240" x="330" y="440" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-s5" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="5. Claim Verification &amp; Conflict Capture" vertex="1">
+          <mxGeometry height="60" width="240" x="330" y="540" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-s6" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="6. IOC Correlation (3 buckets)" vertex="1">
+          <mxGeometry height="60" width="240" x="330" y="640" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-s7" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="7. Enrichment Candidates" vertex="1">
+          <mxGeometry height="60" width="240" x="330" y="740" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-s8" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="8. Completion &amp; Status Selection" vertex="1">
+          <mxGeometry height="60" width="240" x="330" y="840" as="geometry"/>
+        </mxCell>
+
+        <!-- edges between steps -->
+        <mxCell id="HAINT-e1" edge="1" parent="1" source="HAINT-s1" target="HAINT-s2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-e2" edge="1" parent="1" source="HAINT-s2" target="HAINT-s3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-e3" edge="1" parent="1" source="HAINT-s3" target="HAINT-s4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-e4" edge="1" parent="1" source="HAINT-s4" target="HAINT-s5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-e5" edge="1" parent="1" source="HAINT-s5" target="HAINT-s6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-e6" edge="1" parent="1" source="HAINT-s6" target="HAINT-s7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-e7" edge="1" parent="1" source="HAINT-s7" target="HAINT-s8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Provider / helper column (blue) ===== -->
+        <mxCell id="HAINT-p1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="VirusTotal helpers&#10;fetch_vt_file_report.py&#10;normalize_vt_to_intel.py" vertex="1">
+          <mxGeometry height="60" width="240" x="680" y="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-p2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="Endpoints&#10;file_info · behaviour_summary" vertex="1">
+          <mxGeometry height="60" width="240" x="680" y="340" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-p3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="Lookup ưu tiên (least invasive)&#10;1. SHA256 sample · 2. SHA256 artifact&#10;3. IOC chính xác · 4. report đã khớp" vertex="1">
+          <mxGeometry height="60" width="240" x="680" y="440" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-p4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="Provider queries:&#10;provider · scope · type · value · status · ref URL" vertex="1">
+          <mxGeometry height="60" width="240" x="680" y="540" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-p5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="IOC buckets&#10;matched_local · local_only_no_public_match · external_only" vertex="1">
+          <mxGeometry height="60" width="240" x="680" y="640" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-p6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="Enrichment: family labels · tags ·&#10;related hashes · sandbox verdicts" vertex="1">
+          <mxGeometry height="60" width="240" x="680" y="740" as="geometry"/>
+        </mxCell>
+
+        <!-- edges step -> provider -->
+        <mxCell id="HAINT-ep1" edge="1" parent="1" source="HAINT-s2" target="HAINT-p1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-ep2" edge="1" parent="1" source="HAINT-s3" target="HAINT-p2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-ep3" edge="1" parent="1" source="HAINT-s4" target="HAINT-p3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-ep4" edge="1" parent="1" source="HAINT-s5" target="HAINT-p4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-ep5" edge="1" parent="1" source="HAINT-s6" target="HAINT-p5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-ep6" edge="1" parent="1" source="HAINT-s7" target="HAINT-p6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Output artifact ===== -->
+        <mxCell id="HAINT-out" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="06-intel.json" vertex="1">
+          <mxGeometry height="60" width="200" x="1000" y="540" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-valid" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="validate_output.py&#10;schema.json (intel)" vertex="1">
+          <mxGeometry height="60" width="200" x="1000" y="640" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-ework" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="workspace: reports/&lt;sha256&gt;/_intel/&#10;file_info.json · behaviour_summary.json · local_context.json" vertex="1">
+          <mxGeometry height="40" width="220" x="1000" y="760" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-eout" edge="1" parent="1" source="HAINT-s6" target="HAINT-out" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="900" y="670"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HAINT-evalid" edge="1" parent="1" source="HAINT-out" target="HAINT-valid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-enote" connectable="0" parent="HAINT-evalid" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="bắt buộc VALID" vertex="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-2" y="-16" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ===== Annotations ===== -->
+        <mxCell id="HAINT-a1" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="Chỉ build lookup từ bằng chứng đã có upstream — không bịa hash/IOC/family" vertex="1">
+          <mxGeometry height="30" width="300" x="40" y="420" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-a2" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="Không upload binary mặc định — ưu tiên hash &amp; exact-IOC lookup" vertex="1">
+          <mxGeometry height="30" width="300" x="40" y="460" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-a3" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="Thiếu VT_API_KEY → trả blocked, không bịa evidence công khai" vertex="1">
+          <mxGeometry height="30" width="300" x="40" y="500" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-a4" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="public_label_only ≠ corroboration thật — label công khai không phải quan sát local" vertex="1">
+          <mxGeometry height="30" width="320" x="680" y="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAINT-a5" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="behaviour_summary = context runtime công khai, không phải bằng chứng đã tái hiện local" vertex="1">
+          <mxGeometry height="30" width="340" x="680" y="200" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

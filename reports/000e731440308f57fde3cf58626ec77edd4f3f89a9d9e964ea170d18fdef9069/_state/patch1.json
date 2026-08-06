@@ -1,0 +1,7 @@
+{
+ "address": "0x00000000773434A0",
+ "bytes": "31C0",
+ "instruction": "xor eax, eax",
+ "size": 2,
+ "written": false
+}

@@ -1,0 +1,8 @@
+{
+ "base": "0x0000000000404000",
+ "info": "sample",
+ "protection": "PAGE_READWRITE",
+ "queried_address": "0x4040AC",
+ "size": 421888,
+ "type": "MEM_COMMIT"
+}

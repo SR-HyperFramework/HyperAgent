@@ -1,0 +1,128 @@
+<?xml version="1.0" ?>
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36" scale="1" border="0">
+  <diagram name="Stage 08 - Report" id="HAREP-diagram-1">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- ===== Title ===== -->
+        <mxCell id="HAREP-title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=22;fontStyle=1;" value="STAGE 08 - TẠO BÁO CÁO MARKDOWN (Report)" vertex="1">
+          <mxGeometry height="40" width="540" x="200" y="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-subtitle" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;" value="hyperagent-report · 08-report.md · presentation layer — không gọi tool phân tích, không thêm finding" vertex="1">
+          <mxGeometry height="20" width="560" x="200" y="60" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Upstream inputs ===== -->
+        <mxCell id="HAREP-in-label" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;" value="Đầu vào (cùng SHA256)" vertex="1">
+          <mxGeometry height="20" width="160" x="30" y="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-in1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="01-prepare-env.json" vertex="1">
+          <mxGeometry height="30" width="150" x="30" y="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-in2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="02-static-pass1.json" vertex="1">
+          <mxGeometry height="30" width="150" x="30" y="195" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-in3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="03-unpack.json" vertex="1">
+          <mxGeometry height="30" width="150" x="30" y="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-in4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="04-static-pass2.json" vertex="1">
+          <mxGeometry height="30" width="150" x="30" y="285" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-in5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="05-dynamic.json" vertex="1">
+          <mxGeometry height="30" width="150" x="30" y="330" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-in6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" value="07-deepdive.json&#10;(bắt buộc + authoritative)" vertex="1">
+          <mxGeometry height="30" width="150" x="30" y="375" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-in7" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="06-intel.json đã được Deepdive đối chiếu; JSON lỗi → flag rõ, không vẽ thay" vertex="1">
+          <mxGeometry height="40" width="220" x="30" y="420" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Stage steps ===== -->
+        <mxCell id="HAREP-s1" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="1. Pipeline Validation Gate" vertex="1">
+          <mxGeometry height="60" width="240" x="360" y="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-s2" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="2. Áp dụng Claim Precedence" vertex="1">
+          <mxGeometry height="60" width="240" x="360" y="270" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-s3" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="3. Render theo template.md" vertex="1">
+          <mxGeometry height="60" width="240" x="360" y="390" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-s4" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="4. Kiểm soát ranh giới claim" vertex="1">
+          <mxGeometry height="60" width="240" x="360" y="510" as="geometry"/>
+        </mxCell>
+
+        <!-- edges between steps -->
+        <mxCell id="HAREP-e1" edge="1" parent="1" source="HAREP-s1" target="HAREP-s2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-e2" edge="1" parent="1" source="HAREP-s2" target="HAREP-s3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-e3" edge="1" parent="1" source="HAREP-s3" target="HAREP-s4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Detail boxes (blue) ===== -->
+        <mxCell id="HAREP-d1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="validate_pipeline.py reports/&lt;sha256&gt;&#10;không render từ JSON không hợp lệ" vertex="1">
+          <mxGeometry height="60" width="280" x="700" y="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-d2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="1. Deepdive resolution &amp; claim policy&#10;2. Dynamic trực tiếp · 3. Artifact/Pass2 · 4. Pass1 · 5. Public (đã được Deepdive đối chiếu)" vertex="1">
+          <mxGeometry height="60" width="280" x="700" y="270" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-d3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="Identity · verdict · behavior · unpack · IOCs · detections · mitigations · limitations · next actions" vertex="1">
+          <mxGeometry height="60" width="280" x="700" y="390" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-d4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="prohibited_claims → không xuất hiện dạng kết luận&#10;caveated_claims → giữ nguyên caveat" vertex="1">
+          <mxGeometry height="60" width="280" x="700" y="510" as="geometry"/>
+        </mxCell>
+
+        <!-- edges step -> detail -->
+        <mxCell id="HAREP-ed1" edge="1" parent="1" source="HAREP-s1" target="HAREP-d1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-ed2" edge="1" parent="1" source="HAREP-s2" target="HAREP-d2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-ed3" edge="1" parent="1" source="HAREP-s3" target="HAREP-d3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-ed4" edge="1" parent="1" source="HAREP-s4" target="HAREP-d4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Output artifact ===== -->
+        <mxCell id="HAREP-out" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="08-report.md" vertex="1">
+          <mxGeometry height="60" width="200" x="700" y="680" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-note" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Chỉ stage này được phép viết Markdown phân tích" vertex="1">
+          <mxGeometry height="20" width="260" x="670" y="740" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-eout" edge="1" parent="1" source="HAREP-s3" target="HAREP-out" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="640" y="450"/>
+              <mxPoint x="640" y="710"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ===== Annotations ===== -->
+        <mxCell id="HAREP-a1" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="Không bịa fact/IOC/family/confidence/causal explanation" vertex="1">
+          <mxGeometry height="30" width="300" x="30" y="500" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-a2" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="Không nâng 'not observed' thành 'absent' — imported API ≠ behavior đã chạy" vertex="1">
+          <mxGeometry height="30" width="320" x="30" y="540" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-a3" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="Stage mới hơn không tự override bằng chứng mạnh hơn — theo Deepdive resolution" vertex="1">
+          <mxGeometry height="30" width="340" x="30" y="580" as="geometry"/>
+        </mxCell>
+        <mxCell id="HAREP-a4" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="Deepdive thiếu/lỗi → viết incomplete-report notice, không ra verdict" vertex="1">
+          <mxGeometry height="30" width="300" x="30" y="620" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

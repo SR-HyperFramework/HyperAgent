@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.0",
+  "timestamp_utc": "2026-08-06T13:01:01Z",
+  "sample_sha256": "00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963",
+  "input_path": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+  "report_dir": "C:\\Users\\ADMIN\\HyperAgent\\reports\\00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963",
+  "current_stage_id": "02-static-pass1",
+  "last_error": null,
+  "stages": {
+    "01-prepare-env": {
+      "skill": "hyperagent-prepare-env",
+      "status": "completed",
+      "output_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963\\01-prepare-env.json",
+      "progress_path": null,
+      "updated_at": "2026-08-06T12:50:03Z"
+    },
+    "02-static-pass1": {
+      "skill": "hyperagent-static",
+      "status": "completed",
+      "output_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963\\02-static-pass1.json",
+      "progress_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963\\_state\\02-static-pass1.progress.md",
+      "updated_at": "2026-08-06T13:01:01Z"
+    },
+    "03-unpack": {
+      "skill": "hyperagent-unpack",
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "updated_at": null
+    },
+    "04-static-pass2": {
+      "skill": "hyperagent-static",
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "updated_at": null
+    },
+    "05-dynamic": {
+      "skill": "hyperagent-dynamic",
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "updated_at": null
+    },
+    "06-intel": {
+      "skill": "hyperagent-intel",
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "updated_at": null
+    },
+    "07-deepdive": {
+      "skill": "hyperagent-deepdive",
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "updated_at": null
+    },
+    "08-report": {
+      "skill": "hyperagent-report",
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "updated_at": null
+    },
+    "09-summary": {
+      "skill": "hyperagent-summary",
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "updated_at": null
+    }
+  },
+  "recommend_next_stage": {
+    "action": "run_next",
+    "stage_id": "03-unpack",
+    "skill": "hyperagent-unpack",
+    "source_stage_id": "02-static-pass1",
+    "reason": "Pass 1 static triage is recorded; run 03-unpack next to confirm whether a recovered artifact is needed.",
+    "progress_path": null
+  }
+}

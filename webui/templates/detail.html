@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+{% from "_macros.html" import donut, source_refs, stamp %}
+{% block title %}{{ run.short_sha }} &middot; HyperAgent{% endblock %}
+
+{% macro ioc_group(title, items) %}
+<section class="ioc-col">
+  <h3>{{ title }} <span class="pip">{{ items|length }}</span></h3>
+  {% if not items %}
+    <p class="dim">Not observed in this run.</p>
+  {% else %}
+  <ul class="ioc-list">
+    {% for item in items %}
+    <li>
+      <div class="ioc-head">
+        <code translate="no">{{ item.value }}</code>
+        <button class="copy" type="button" data-copy="{{ item.value }}"
+                aria-label="Copy indicator to clipboard">Copy</button>
+      </div>
+      {% if item.label %}<p class="ioc-label">{{ item.label }}</p>{% endif %}
+      {% if item.note %}<p class="ioc-note">{{ item.note }}</p>{% endif %}
+      {{ source_refs(item.source_refs) }}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% endmacro %}
+
+{% block content %}
+<nav class="crumbs" aria-label="Breadcrumb">
+  <a href="{{ url_for('index') }}">Reports</a>
+  <span aria-hidden="true">/</span>
+  <code translate="no">{{ run.short_sha }}</code>
+</nav>
+
+{% if not run.ok %}
+<section class="card card-flag">
+  <h1>Summary Unreadable</h1>
+  <p>This report's summary file could not be parsed, so nothing below can be shown.</p>
+  <p><code translate="no">{{ run.error }}</code></p>
+  <p class="dim">File: <code class="brk" translate="no">{{ run.summary_path }}</code></p>
+</section>
+{% else %}
+
+{% set es = run.executive_summary %}
+{% set classification = run.classification %}
+{% set counts = run.finding_counts %}
+
+<div class="report-head sev-{{ run.verdict }}">
+  <aside class="verdict-panel">
+    {{ donut(run) }}
+    <p class="verdict-word">{{ run.verdict }}</p>
+    <p class="verdict-cap">Deepdive verdict</p>
+  </aside>
+
+  <section class="report-main">
+    <div class="report-banner">
+      <span class="banner-icon" aria-hidden="true">
+        {% if run.verdict in ('malicious', 'suspicious') %}
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5"/><path d="M12 16.4v.1"/>
+        </svg>
+        {% elif run.verdict == 'benign' %}
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/><path d="m8 12.2 2.7 2.7L16 9.6"/>
+        </svg>
+        {% else %}
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 2.9 2.9v1.4"/><path d="M12.5 16.4v.1"/>
+        </svg>
+        {% endif %}
+      </span>
+      <p class="banner-text">{{ es.one_sentence_summary or 'No one-sentence summary was recorded for this run.' }}</p>
+      <a class="banner-action" href="{{ url_for('api_run', sha256=run.sha256) }}">Raw JSON</a>
+    </div>
+
+    <div class="report-body">
+      <div class="report-ident">
+        <p class="report-sha">
+          <code translate="no">{{ run.sample.sha256 or run.sha256 }}</code>
+          <button class="copy" type="button" data-copy="{{ run.sample.sha256 or run.sha256 }}"
+                  aria-label="Copy SHA256 to clipboard">Copy</button>
+        </p>
+        <p class="report-file">
+          {% if run.display_name %}<span translate="no">{{ run.display_name }}</span>{% else %}<span class="unnamed">unnamed sample</span>{% endif %}
+        </p>
+        <div class="tags">
+          {% if run.sample.architecture %}<span class="tag" translate="no">{{ run.sample.architecture }}</span>{% endif %}
+          {% if classification.malware_type %}<span class="tag tag-wide">{{ classification.malware_type }}</span>{% endif %}
+          <span class="tag {{ 'tag-flag' if classification.family_status in ('unconfirmed', 'caveated') }}">
+            family: {{ classification.malware_family or 'unknown' }}{% if classification.family_status %} ({{ classification.family_status }}){% endif %}
+          </span>
+          {% if run.status != 'completed' %}<span class="tag tag-flag">stage {{ run.status }}</span>{% endif %}
+        </div>
+      </div>
+
+      <dl class="report-meta">
+        <div><dt>Risk</dt><dd><span class="risk risk-{{ run.risk_level }}">{{ run.risk_level }}</span></dd></div>
+        <div><dt>Confidence</dt><dd>{{ run.confidence_percent }}% <span class="soft">{{ run.confidence_label }}</span></dd></div>
+        <div><dt>Analysed</dt><dd>{{ stamp(run.modified_at) }}</dd></div>
+      </dl>
+    </div>
+  </section>
+</div>
+
+<div class="tabwrap">
+  <nav class="tabs" role="tablist" aria-label="Report sections">
+    <button class="tab" role="tab" data-panel="detection">Detection<span class="pip">{{ counts.confirmed + counts.caveated + counts.not_supported }}</span></button>
+    <button class="tab" role="tab" data-panel="details">Details</button>
+    <button class="tab" role="tab" data-panel="indicators">Indicators<span class="pip">{{ run.ioc_count }}</span></button>
+    <button class="tab" role="tab" data-panel="actions">Actions<span class="pip">{{ counts.actions }}</span></button>
+    <button class="tab" role="tab" data-panel="limits">Limits<span class="pip">{{ run.limitations|length }}</span></button>
+  </nav>
+
+  <section class="tabpanel" id="detection" role="tabpanel" aria-label="Detection">
+    <div class="card">
+      <h2>Assessment</h2>
+      <p class="prose">{{ es.plain_language_assessment or 'No plain-language assessment was recorded.' }}</p>
+      {% if es.remaining_decision_point %}
+      <div class="note">
+        <h3>Still Open</h3>
+        <p>{{ es.remaining_decision_point }}</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Confirmed <span class="pip">{{ run.confirmed_findings|length }}</span></h2>
+      {% if not run.confirmed_findings %}
+        <p class="dim">Nothing reached confirmed status in this run.</p>
+      {% else %}
+      <ul class="claims">
+        {% for item in run.confirmed_findings %}
+        <li class="claim is-confirmed">
+          <span class="claim-mark" aria-hidden="true"></span>
+          <div class="claim-body">
+            <h3>{{ item.title }}</h3>
+            <p>{{ item.summary }}</p>
+            {{ source_refs(item.source_refs) }}
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Caveated <span class="pip">{{ run.findings_with_caveats|length }}</span></h2>
+      {% if not run.findings_with_caveats %}
+        <p class="dim">No finding needed a caveat.</p>
+      {% else %}
+      <ul class="claims">
+        {% for item in run.findings_with_caveats %}
+        <li class="claim is-caveated">
+          <span class="claim-mark" aria-hidden="true"></span>
+          <div class="claim-body">
+            <h3>{{ item.title }}</h3>
+            <p>{{ item.summary }}</p>
+            <p class="caveat"><span class="key">Caveat</span>{{ item.caveat }}</p>
+            {{ source_refs(item.source_refs) }}
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Not Supported by Evidence <span class="pip">{{ run.not_supported_claims|length }}</span></h2>
+      {% if not run.not_supported_claims %}
+        <p class="dim">No claim was rejected.</p>
+      {% else %}
+      <ul class="claims">
+        {% for item in run.not_supported_claims %}
+        <li class="claim is-rejected">
+          <span class="claim-mark" aria-hidden="true"></span>
+          <div class="claim-body">
+            <h3>{{ item.claim }}</h3>
+            <p><span class="key">Why Not</span>{{ item.reason }}</p>
+            {{ source_refs(item.source_refs) }}
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="tabpanel" id="details" role="tabpanel" aria-label="Details">
+    <div class="card">
+      <h2>Basic Properties</h2>
+      <dl class="kv">
+        <div><dt>SHA256</dt><dd><code class="brk" translate="no">{{ run.sample.sha256 or run.sha256 }}</code></dd></div>
+        <div><dt>File Name</dt><dd>{{ run.sample.file_name or '—' }}</dd></div>
+        <div><dt>Path</dt><dd><code class="brk" translate="no">{{ run.sample.absolute_path or '—' }}</code></dd></div>
+        <div><dt>Architecture</dt><dd>{{ run.sample.architecture or '—' }}</dd></div>
+        <div><dt>Packing</dt><dd>{{ run.sample.packing_or_protection or '—' }}</dd></div>
+      </dl>
+    </div>
+
+    <div class="card">
+      <h2>Classification</h2>
+      <dl class="kv">
+        <div><dt>Malware Type</dt><dd>{{ classification.malware_type or '—' }}</dd></div>
+        <div>
+          <dt>Family</dt>
+          <dd>{{ classification.malware_family or 'Unknown' }}
+            {% if classification.family_status %}<span class="tag {{ 'tag-flag' if classification.family_status in ('unconfirmed', 'caveated') }}">{{ classification.family_status }}</span>{% endif %}
+          </dd>
+        </div>
+        <div><dt>Verdict</dt><dd><b class="sev-{{ run.verdict }} hue">{{ run.verdict }}</b> at {{ run.confidence_percent }}% ({{ run.confidence_label }})</dd></div>
+        <div><dt>Risk</dt><dd><span class="risk risk-{{ run.risk_level }}">{{ run.risk_level }}</span></dd></div>
+      </dl>
+      {% if classification.overall_assessment %}
+      <p class="prose">{{ classification.overall_assessment }}</p>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Provenance</h2>
+      <dl class="kv">
+        <div><dt>Summary File</dt><dd><code class="brk" translate="no">{{ run.summary_path }}</code></dd></div>
+        <div><dt>Last Modified</dt><dd>{{ stamp(run.modified_at) }}</dd></div>
+        <div><dt>Stage Status</dt><dd>{{ run.status }}</dd></div>
+      </dl>
+      {% if run.upstream_inputs %}
+      <h3 class="sub">Upstream Stage Inputs</h3>
+      <ul class="refs refs-block">
+        {% for item in run.upstream_inputs %}<li><code translate="no">{{ item }}</code></li>{% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="tabpanel" id="indicators" role="tabpanel" aria-label="Indicators">
+    <div class="card">
+      <h2>Confirmed Indicators <span class="pip">{{ run.ioc_count }}</span></h2>
+      <p class="dim">Locally observed or Deepdive-approved only. Public-source-only leads are excluded upstream by design.</p>
+      <div class="ioc-cols">
+        {{ ioc_group('Network', run.iocs.network) }}
+        {{ ioc_group('Host', run.iocs.host) }}
+        {{ ioc_group('Persistence', run.iocs.persistence) }}
+      </div>
+    </div>
+  </section>
+
+  <section class="tabpanel" id="actions" role="tabpanel" aria-label="Actions">
+    <div class="card">
+      <h2>Recommended Actions <span class="pip">{{ run.recommended_actions|length }}</span></h2>
+      {% if not run.recommended_actions %}
+        <p class="dim">No follow-up action was recorded.</p>
+      {% else %}
+      <ol class="steps">
+        {% for item in run.recommended_actions %}
+        <li class="step p{{ item.priority }}">
+          <span class="pri" title="Priority {{ item.priority }} of 5">P{{ item.priority }}</span>
+          <div class="step-body">
+            {% if item.target %}<h3>{{ item.target }}</h3>{% endif %}
+            <p>{{ item.action }}</p>
+            <p class="dim">{{ item.reason }}</p>
+            {{ source_refs(item.source_refs) }}
+          </div>
+        </li>
+        {% endfor %}
+      </ol>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="tabpanel" id="limits" role="tabpanel" aria-label="Limits">
+    <div class="card">
+      <h2>What This Run Could Not Establish <span class="pip">{{ run.limitations|length }}</span></h2>
+      {% if not run.limitations %}
+        <p class="dim">No limitation was recorded.</p>
+      {% else %}
+      <ul class="bullets">
+        {% for item in run.limitations %}<li>{{ item }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+  </section>
+</div>
+
+{% endif %}
+{% endblock %}

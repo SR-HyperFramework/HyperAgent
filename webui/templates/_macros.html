@@ -1,0 +1,40 @@
+{# The detection donut is the report page's signature element. pathLength="100"
+   lets the dash array be the raw percentage, so no circumference arithmetic is
+   needed. Only ever drawn large — an arc at list size reads as a spinner, so
+   lists use the numeric ratio instead. #}
+{% macro donut(run) -%}
+<div class="donut sev-{{ run.verdict }}">
+  <svg viewBox="0 0 120 120" width="120" height="120" aria-hidden="true">
+    <circle class="donut-track" cx="60" cy="60" r="52" fill="none" stroke-width="11"/>
+    <circle class="donut-arc" cx="60" cy="60" r="52" fill="none" stroke-width="11"
+            pathLength="100" stroke-dasharray="{{ run.confidence_percent }} 100"
+            transform="rotate(-90 60 60)"/>
+  </svg>
+  <p class="donut-face">
+    <span class="donut-num">{{ run.confidence_percent }}<span class="donut-pct">%</span></span>
+    <span class="donut-cap">confidence</span>
+  </p>
+</div>
+{%- endmacro %}
+
+{% macro ratio(run) -%}
+<span class="ratio sev-{{ run.verdict }}">
+  <span class="ratio-num">{{ run.confidence_percent }}%</span>
+  <span class="ratio-word">{{ run.verdict }}</span>
+</span>
+{%- endmacro %}
+
+{% macro source_refs(refs) -%}
+  {% if refs %}
+  <ul class="refs">
+    {% for ref in refs %}<li><code translate="no">{{ ref }}</code></li>{% endfor %}
+  </ul>
+  {% endif %}
+{%- endmacro %}
+
+{# Server renders an unambiguous ISO date; app.js upgrades it to the viewer's
+   locale via Intl.DateTimeFormat, which Python cannot know server-side. #}
+{% macro stamp(moment) -%}
+<time datetime="{{ moment.isoformat() }}" data-stamp
+      title="{{ moment.strftime('%Y-%m-%d %H:%M:%S UTC') }}">{{ moment.strftime('%Y-%m-%d') }}</time>
+{%- endmacro %}

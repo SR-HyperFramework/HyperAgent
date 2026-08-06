@@ -1,0 +1,268 @@
+{
+  "schema_version": "1.0",
+  "stage": "summary",
+  "sample": {
+    "sha256": "000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+    "file_name": "000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+    "absolute_path": "H:\\Dataset\\files\\malware\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+    "architecture": "x86 (32-bit)",
+    "packing_or_protection": "Custom in-place self-decoding packer (toolchain unidentified); obfuscated entry gate, import-table self-modification, GlobalFlags anti-debug checks, custom XOR+add+byteswap decode loop"
+  },
+  "status": "completed",
+  "executive_summary": {
+    "verdict": "malicious",
+    "confidence": 0.9,
+    "confidence_label": "high",
+    "risk_level": "high",
+    "one_sentence_summary": "This file is a malicious, custom-packed loader that decrypts shellcode in memory to load a second program, but that second program never executed in this analysis, so its final behavior remains unknown.",
+    "plain_language_assessment": "The file is a packer that hides its real work. When run, it passes an obfuscated entry check, decrypts a 1,728-byte block of hand-written shellcode, and hands control to that shellcode, which is a small loader built to map and run a second, larger program in memory. The second program never actually executed during this analysis, so what it would have done (such as contacting a command-and-control server or installing itself for persistence) is not established from this run. VirusTotal detects the file as malicious with 64 engines, but the public labels (rogue/fraudtool, 'spreader') and external indicators are from other sandboxes, not from this analysis. Treat the file as a loader whose real payload is yet to be confirmed.",
+    "remaining_decision_point": "The actual capabilities of the final loaded payload (C2 endpoints, persistence mechanism, family identity) are not locally established; the role of decoded_stage2_raw.bin (a re-encode of the original sample's own data vs an independent embedded payload) remains open until a reproducible decode produces a loadable PE."
+  },
+  "confirmed_findings": [
+    {
+      "id": "summary.verdict.malicious-loader",
+      "title": "Malicious custom-packed loader",
+      "summary": "The sample is a PE32 GUI binary (entry 0x401510) that is a malicious custom-packed loader, detected as malicious by 64 VirusTotal engines.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.fr-001",
+        "07-deepdive.json:final_claim_policy.allowed_claims"
+      ]
+    },
+    {
+      "id": "summary.packer.obfuscated-gate",
+      "title": "Obfuscated entry gate and anti-debug checks confirmed at runtime",
+      "summary": "The packer uses an obfuscated entry gate (ROR-based, with a conditional crash path) that passed live into a chain of about 49 wrapper functions, and GlobalFlags/BeingDebugged anti-debug checks that detect a debugger but do not block execution.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.fr-003",
+        "07-deepdive.json:final_claim_policy.allowed_claims"
+      ]
+    },
+    {
+      "id": "summary.stage1.validated-shellcode",
+      "title": "Stage-1 shellcode recovered and validated",
+      "summary": "A custom decode loop (key 0x22CC456A, XOR+add+byteswap) produces a validated 1,728-byte first-stage shellcode (decoded_payload.bin, sha256 9f8e4794...), independently hash-verified.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.fr-002",
+        "07-deepdive.json:final_claim_policy.allowed_claims"
+      ]
+    },
+    {
+      "id": "summary.stage1.pe-loader",
+      "title": "Stage-1 shellcode is a hand-written PE loader",
+      "summary": "The shellcode finds kernel32.dll in memory, resolves Windows functions through a custom rolling hash, allocates executable memory, and is built to manually load a second program in memory. It contains no anti-VM, anti-debug, or timing checks.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.fr-002",
+        "07-deepdive.json:final_claim_policy.allowed_claims"
+      ]
+    }
+  ],
+  "findings_with_caveats": [
+    {
+      "id": "summary.stage2.raw-not-loadable",
+      "title": "Recovered second-stage blob is real but not a valid loadable program",
+      "summary": "A 335,872-byte blob (decoded_stage2_raw.bin, sha256 0ec0a946...) exists and contains a parseable program header, but it is not a valid loadable PE and the documented attempt log records failures, so its origin could not be reproduced and no capabilities can be attributed from it.",
+      "caveat": "Do not treat decoded_stage2_raw.bin as a confirmed, recovered second-stage payload; its contents are unverified.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.fr-005",
+        "07-deepdive.json:final_claim_policy.caveated_claims"
+      ]
+    },
+    {
+      "id": "summary.stage2.self-reload-hypothesis",
+      "title": "Second stage is likely derived from the original file itself (self-reloading loader)",
+      "summary": "The stage-1 shellcode resolves file-mapping functions and the recovered second-stage header matches the original file's memory layout, suggesting the second stage is the original program mapped from disk rather than a separate embedded payload. This is a hypothesis, not a validated conclusion.",
+      "caveat": "This remains a hypothesis pending a reproducible decode of the original file region into a loadable program.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.fr-006",
+        "07-deepdive.json:final_claim_policy.caveated_claims"
+      ]
+    },
+    {
+      "id": "summary.family.caveated",
+      "title": "Family attribution is not confirmed locally",
+      "summary": "Public labels (trojan.rogue/fraudtool, fakeav) and the 'spreader' tag come from VirusTotal; none establish a family identity and all require local confirmation in the never-loaded second stage.",
+      "caveat": "Treat the family labels and 'spreader' tag as follow-up context only, not confirmed identity.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.fr-008",
+        "07-deepdive.json:final_claim_policy.caveated_claims"
+      ]
+    },
+    {
+      "id": "summary.stage1.api-hashes-unmapped",
+      "title": "Stage-1 function hashes only partially identified",
+      "summary": "The shellcode resolves Windows functions by rolling hash; the hash algorithm and 16-entry table are confirmed, but the individual hash-to-name mapping was not computed, so the exact function list is partially inferred.",
+      "caveat": "Treat the resolved-function list as inferred, not definitive.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.fr-007",
+        "07-deepdive.json:final_claim_policy.caveated_claims"
+      ]
+    }
+  ],
+  "not_supported_claims": [
+    {
+      "id": "summary.stage2.embedded-pe-rejected",
+      "claim": "The shellcode contains a distinct 0x6AC-byte second-stage PE embedded at offset 0x15.",
+      "reason": "Deepdive rejected this claim as structurally impossible: it cannot fit in the 1,728-byte shellcode, and the bytes there are the shellcode's own code and data.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.fr-004",
+        "07-deepdive.json:contradictions.ct-001",
+        "07-deepdive.json:final_claim_policy.prohibited_claims"
+      ]
+    },
+    {
+      "id": "summary.c2.locally-observed",
+      "claim": "Command-and-control (C2) communication was locally observed.",
+      "reason": "No C2, network, persistence, or credential behavior was observed locally; the public C2 endpoint is an external-only lead from VirusTotal sandboxes, not local evidence.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.fr-008",
+        "07-deepdive.json:final_claim_policy.prohibited_claims"
+      ]
+    },
+    {
+      "id": "summary.persistence.locally-observed",
+      "claim": "Persistence behavior (RunOnce, AppData copy, IFEO, SafeBoot/Safer registry operations) was locally observed.",
+      "reason": "Persistence was never locally observed; the RunOnce key and related registry activity are external-only VirusTotal sandbox observations and must be labeled as follow-up leads.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.fr-008",
+        "07-deepdive.json:final_claim_policy.prohibited_claims"
+      ]
+    },
+    {
+      "id": "summary.payload.executed",
+      "claim": "A distinct second-stage payload executed locally.",
+      "reason": "The second-stage PE never executed locally; no payload behavior beyond the stage-1 loader can be claimed.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.fr-008",
+        "07-deepdive.json:final_claim_policy.prohibited_claims"
+      ]
+    },
+    {
+      "id": "summary.family.confirmed",
+      "claim": "The sample's family is confirmed as rogue/fraudtool or fakeav (with a 'spreader' behavior).",
+      "reason": "Family identity and the 'spreader' tag are public attribution hints only and were not confirmed locally.",
+      "source_refs": [
+        "07-deepdive.json:finding_reviews.fr-008",
+        "07-deepdive.json:final_claim_policy.prohibited_claims"
+      ]
+    }
+  ],
+  "classification": {
+    "malware_type": "packed loader / dropper (decodes a stage-1 shellcode that manually loads a second PE in memory)",
+    "malware_family": null,
+    "family_status": "unconfirmed",
+    "overall_assessment": "The sample is a malicious custom-packed loader. Its first-stage shellcode (a hand-written PE loader) is validated, but the second-stage payload never executed locally, so its final capabilities (C2, persistence, family) remain unconfirmed; public labels are attribution hints only."
+  },
+  "confirmed_iocs": {
+    "network": [],
+    "host": [
+      {
+        "value": "000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+        "label": "Original packed loader sample hash",
+        "note": "Locally established sample identity; publicly detected as malicious by 64 engines.",
+        "source_refs": [
+          "06-intel.json:ioc_correlation.matched_local.ioc.orig-sample-sha256",
+          "07-deepdive.json:finding_reviews.fr-001"
+        ]
+      },
+      {
+        "value": "9f8e47944d294db5888d3cab9dd35f43f212b8b7dff92ae4439fe5358d7303e3",
+        "label": "Stage-1 shellcode hash (decoded_payload.bin)",
+        "note": "Locally recovered and independently hash-verified 1,728-byte first-stage PE loader.",
+        "source_refs": [
+          "06-intel.json:ioc_correlation.local_only_no_public_match.ioc.stage1-shellcode-sha256",
+          "07-deepdive.json:finding_reviews.fr-002"
+        ]
+      },
+      {
+        "value": "0ec0a9464ed57a3b0451b1527006c2177fc183b760049c7a87322d6cca50e012",
+        "label": "Stage-2 raw blob hash (decoded_stage2_raw.bin)",
+        "note": "Locally recovered but NOT a validated payload: not a loadable PE and provenance unreproducible. Capabilities unknown.",
+        "source_refs": [
+          "06-intel.json:ioc_correlation.local_only_no_public_match.ioc.stage2-raw-sha256",
+          "07-deepdive.json:finding_reviews.fr-005"
+        ]
+      }
+    ],
+    "persistence": []
+  },
+  "recommended_actions": [
+    {
+      "id": "action.reproduce-stage2-decode",
+      "priority": 5,
+      "target": "Second-stage decode provenance",
+      "action": "Reverse the exact decode semantics (config pe_offset/size, key 0x22CC456A) and decode candidate regions of the original file; compare to decoded_stage2_raw.bin to determine whether a loadable second-stage PE can be reconstructed.",
+      "reason": "This is the highest-value remaining decision point: it would establish the final payload's role and capabilities.",
+      "source_refs": [
+        "07-deepdive.json:investigation_targets.tgt-001",
+        "07-deepdive.json:executive_assessment.remaining_decision_point"
+      ]
+    },
+    {
+      "id": "action.reconstruct-stage2-header",
+      "priority": 5,
+      "target": "decoded_stage2_raw.bin",
+      "action": "Reconstruct a valid loadable PE header (correct DOS header and file-consistent section table) so the recovered stage-2 data can be statically analyzed for C2 config, persistence, and family.",
+      "reason": "The actual malware logic is expected to live in this stage; it currently cannot be loaded or analyzed.",
+      "source_refs": [
+        "07-deepdive.json:investigation_targets.tgt-002"
+      ]
+    },
+    {
+      "id": "action.map-shellcode-api-hashes",
+      "priority": 5,
+      "target": "Stage-1 shellcode API hash table (offset 0x64A)",
+      "action": "Reimplement the rolling hash and map all 16 entries to kernel32 function names to complete the loader's capability list.",
+      "reason": "Completes the stage-1 loader capability enumeration with little follow-up cost.",
+      "source_refs": [
+        "07-deepdive.json:investigation_targets.tgt-003"
+      ]
+    },
+    {
+      "id": "action.clean-guest-rerun",
+      "priority": 4,
+      "target": "Isolated guest VM (VMRunV4)",
+      "action": "Re-run the sample letting its own exception handler commit the decode destination (no debugger exception-skipping), then dump the mapped second stage at load completion.",
+      "reason": "A clean run should materialize the second stage in memory and allow local observation of the payload's real behavior.",
+      "source_refs": [
+        "07-deepdive.json:investigation_targets.tgt-004"
+      ]
+    },
+    {
+      "id": "action.validate-external-iocs",
+      "priority": 3,
+      "target": "External-only VirusTotal IOCs (C2 175.41.28.156; RunOnce GUID 6F638C1208E9B91B55DDEB0F7B07D287)",
+      "action": "During a clean guest run, monitor for the public C2 requests (/api/urls/, /api/stats/install/), RunOnce writes, mutex open, and IFEO key before treating any of them as confirmed indicators.",
+      "reason": "These are follow-up leads only and become confirmed IOCs only if locally reproduced.",
+      "source_refs": [
+        "07-deepdive.json:investigation_targets.tgt-005"
+      ]
+    },
+    {
+      "id": "action.identify-packer-family",
+      "priority": 2,
+      "target": "Packer toolchain / family identity",
+      "action": "Compare the wrapper-chain packer style and shared decode key against known packers and public samples once a stage-2 hash is available.",
+      "reason": "A concrete packer or family identification would materially improve detection guidance.",
+      "source_refs": [
+        "07-deepdive.json:investigation_targets.tgt-006"
+      ]
+    }
+  ],
+  "limitations": [
+    "The second-stage PE never executed locally; all final-payload behavior (C2, persistence, family) is unknown, and absence during one run is not proof of nonexistence.",
+    "decoded_stage2_raw.bin's production is not reproducible from documented inputs and it is not a valid loadable PE, so no capabilities can be asserted from it.",
+    "The stage-1 shellcode was decoded analytically, not executed in-process, and its 16 API hashes are not fully mapped to function names.",
+    "The packer's anti-debug was observed only under one debugger; other environments were not stress-tested.",
+    "The external IOCs (C2 endpoint, RunOnce persistence) come from VirusTotal public sandboxes and are follow-up leads, not local observations.",
+    "The exact config-block semantics (pe_offset=0xB20400, size=0x40000) exceed the original file size on their face and are not yet explained."
+  ],
+  "upstream_inputs": [
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/01-prepare-env.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/02-static-pass1.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/03-unpack.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/04-static-pass2.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/05-dynamic.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/06-intel.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/07-deepdive.json"
+  ]
+}

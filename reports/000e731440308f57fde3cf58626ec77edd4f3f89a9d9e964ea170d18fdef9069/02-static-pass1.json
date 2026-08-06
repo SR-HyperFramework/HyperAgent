@@ -1,0 +1,277 @@
+{
+  "schema_version": "1.0",
+  "stage": "static-pass1",
+  "sample": {
+    "original_sha256": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+    "target_path": "H:/Dataset/files/malware/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+    "target_sha256": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069"
+  },
+  "status": "completed",
+  "summary": "Pass 1 static triage of the original sample (PE32 GUI, 4 sections, imagebase 0x400000, entry 0x4018A0) identifies a heavily obfuscated runtime-decrypting loader stub. The visible stub loads devenum.dll via a byte-reconstructed WCHAR name, validates the loaded module is PE32, and walks a 50-deep linear daisy-chain of decoy wrapper functions before reaching a single XOR decryptor (sub_401DF8). The decryptor materializes a 1716-byte (0x6B4) executable blob into a runtime-dependent buffer. Ciphertext is present in the file at .text VA 0x402A47. The oversized writable .rdata (0x66f58) is zero-filled at rest and is a decoy/reserved region, not the payload. No network, injection, registry, or persistence APIs are reachable in the visible stub; real capabilities reside entirely in the decrypted blob and are indeterminate at this pass. Unpack/recovery is required; the next recovery target is the 1716-byte decrypted stub at 0x402A47 (OEP = its first decrypted dword), key 0x9A246A73, XOR transform with a runtime-dependent destination.",
+  "findings": [
+    {
+      "id": "fin-load-cmp",
+      "title": "Obfuscated dynamic module loading of devenum.dll (DirectShow EnumMoniker)",
+      "category": "loader",
+      "status": "confirmed",
+      "confidence": 0.9,
+      "description": "The entry point 0x4018A0 reconstructs the WCHAR module name 'devenum.dll' byte-by-byte in .data at 0x46B100 ('devenum*dll' with the '*' mutated 0x2A -> 0x2E via 'add byte ptr [ecx],4'), then calls LoadLibraryW (0x4018C8) to obtain a loaded base used as a scratch context for subsequent wrapper dword-offset reads.",
+      "reasoning": "Direct disassembly of start (0x4018A0): lstrcatW(0,0) and CryptUninstallCancelRetrieval thunk are decoys; the WCHAR mutation and LoadLibraryW call are reachable from entry. The returned base is validated by reading OptionalHeader.Magic via e_lfanew and compared to PE32 magic (cmp al,10h), with an infinite loop at 0x4018E6 if the check fails.",
+      "sources": [
+        { "stage": "prepare-env", "artifact": "01-prepare-env.json", "location": "static_environment: ready" }
+      ],
+      "evidence": [
+        { "id": "ev-start-decompile", "kind": "static", "source": { "stage": "static-pass1", "artifact": null, "location": "IDA decompile 0x4018A0" }, "observation": "start: lstrcatW(0,0) decoy; BYTE1(v2)=((unsigned __int16)&unk_46B200>>8)-1; *((_BYTE*)v2+14)+=4; LoadLibraryW(v2); *(base+e_lfanwen+28) compared to 0x10; else infinite loop; then sub_401090().", "address": "0x4018A0", "confidence": 0.95 },
+        { "id": "ev-name-mutation", "kind": "static", "source": { "stage": "static-pass1", "artifact": null, "location": "IDA disasm 0x4018B9-0x4018C4" }, "observation": "WCHAR buffer at 0x46B100 contains 'd','e','v','e','n','u','m','*','d','l','l'; byte 14 (0x2A) incremented by 4 to 0x2E ('.') giving devenum.dll.", "address": "0x46B100", "confidence": 0.9 }
+      ],
+      "limitations": []
+    },
+    {
+      "id": "fin-pe-magic-gate",
+      "title": "PE32 integrity / magic gate with anti-tamper infinite loop",
+      "category": "anti_analysis",
+      "status": "observed",
+      "confidence": 0.8,
+      "description": "After LoadLibraryW the stub reads OptionalHeader.Magic (via e_lfanew at +60 and +28) and branches: if the magic is not 0x10B (PE32) it enters an infinite loop at 0x4018E6. Reachable from entry.",
+      "reasoning": "Disassembly 0x4018D0-0x4018E6 shows mov cl,3Ch; mov ecx,[ecx]; mov ecx,[eax+ecx+1Ch]; cmp al,10h; jnz to an empty infinite loop.",
+      "sources": [
+        { "stage": "prepare-env", "artifact": "01-prepare-env.json", "location": "static_environment: ready" }
+      ],
+      "evidence": [
+        { "id": "ev-magic-cmp", "kind": "static", "source": { "stage": "static-pass1", "artifact": null, "location": "IDA disasm 0x4018D0-0x4018E6" }, "observation": "PE optional header magic compared to 0x10; failure path is an infinite while(1) loop at 0x4018E6.", "address": "0x4018D0", "confidence": 0.9 }
+      ],
+      "limitations": []
+    },
+    {
+      "id": "fin-callchain-obfuscation",
+      "title": "50-deep linear wrapper call chain obfuscation",
+      "category": "anti_analysis",
+      "status": "confirmed",
+      "confidence": 0.85,
+      "description": "From sub_401090 the stub calls 50 small wrapper functions in a linear daisy chain, each calling the next with dword-offset reads off the loaded module base and punctuated by decoy API calls and LoadLibraryA pointer walk-back loops. The real logic (sub_401DF8) is reached only after the chain.",
+      "reasoning": "Callgraph analysis of the 51-function image plus disassembly shows a linear chain terminating at sub_401DF8; several wrappers contain self-recursion/pointer-walk decoy loops that terminate when LoadLibraryA returns NULL.",
+      "sources": [
+        { "stage": "prepare-env", "artifact": "01-prepare-env.json", "location": "static_environment: ready" }
+      ],
+      "evidence": [
+        { "id": "ev-chain", "kind": "static", "source": { "stage": "static-pass1", "artifact": null, "location": "IDA callgraph from 0x401090" }, "observation": "Linear chain of ~50 wrapper functions from 0x401090 terminating at sub_401DF8; decoy self-loop edges present in 4019CC/4014AC/401580/401780/401A54/402068/402240/402368/4021F4.", "address": "0x401090", "confidence": 0.85 }
+      ],
+      "limitations": []
+    },
+    {
+      "id": "fin-decryptor",
+      "title": "Single XOR decryptor sub_401DF8 materializes a 1716-byte executable stub",
+      "category": "packing",
+      "status": "confirmed",
+      "confidence": 0.85,
+      "description": "sub_401DF8 (0x401DF8) is the only real code reached by the wrapper chain. It runs a 0x6B4 (1716)-byte loop with XOR key 0x9A246A73, reading a source buffer and writing the decoded stub to a runtime-dependent destination pointer derived from a LoadLibraryW return value. The 1716 bytes of ciphertext are present in the file at .text VA 0x402A47.",
+      "reasoning": "Direct disassembly of 0x401DF8 shows: push 6B4h; key constant 9A246A73h; loop loc_401E5A with 'xor ecx,[edx]' then 'pop dword ptr [ebx+ecx*2]'; counter compared to 6B4h. The write destination is computed from [LoadLibraryW_return + 0x11C], i.e. runtime-dependent and unresolved statically. get_bytes at 0x402A47 returned 2a 3a 7c 72 8a 95 db 65 ... confirming ciphertext in the file.",
+      "sources": [
+        { "stage": "prepare-env", "artifact": "01-prepare-env.json", "location": "static_environment: ready" }
+      ],
+      "evidence": [
+        { "id": "ev-dec-disasm", "kind": "static", "source": { "stage": "static-pass1", "artifact": null, "location": "IDA disasm 0x401DF8" }, "observation": "push 6B4h; mov esi,9A246A73h; loop: xor ecx,[edx]; pop [ebx+ecx*2]; add edi,4; cmp edi,6B4h; jnz. Reads source buffer and writes decoded output via runtime pointer.", "address": "0x401DF8", "confidence": 0.9 },
+        { "id": "ev-ciphertext-bytes", "kind": "static", "source": { "stage": "static-pass1", "artifact": null, "location": "IDA get_bytes 0x402A47" }, "observation": "Bytes at 0x402A47: 2a 3a 7c 72 8a 95 db 65 71 1d 7d cc 03 d0 82 4e ... (ciphertext present in file, not zeros).", "address": "0x402A47", "confidence": 0.9 }
+      ],
+      "limitations": [
+        "The exact plaintext transform (src^key, (src^key)-1, alternating key negation) and the decryption destination are runtime-dependent because the write pointer derives from a LoadLibraryW return value (see fin-decryptor-dest-unknown). Static decryption of the raw file bytes with simple candidate transforms did not produce clean ASCII, indicating a stateful/runtime key schedule or destination. This is the primary unresolved item for the unpack stage."
+      ]
+    },
+    {
+      "id": "fin-decryptor-dest-unknown",
+      "title": "Decryptor destination address is runtime-dependent (unresolved)",
+      "category": "packing",
+      "status": "unknown",
+      "confidence": 0.5,
+      "description": "sub_401DF8 computes its plaintext write destination from the return value of LoadLibraryW and an offset 0x11C, which is NULL in the file-loaded state. The true buffer base can only be determined at runtime (or after memory forensics), so the post-decrypt payload location is not statically knowable.",
+      "reasoning": "Disassembly of 0x401E31-0x401E3C: call [LoadLibraryW]; xchg eax,[...]; pop [eax+11Ch]; mov edi,[eax+11Ch]. Since LoadLibraryW returns NULL for the invalid name used, the destination pointer cannot be resolved statically.",
+      "sources": [
+        { "stage": "prepare-env", "artifact": "01-prepare-env.json", "location": "static_environment: ready" }
+      ],
+      "evidence": [
+        { "id": "ev-dest-ptr", "kind": "static", "source": { "stage": "static-pass1", "artifact": null, "location": "IDA disasm 0x401E31-0x401E3C" }, "observation": "Write destination = [LoadLibraryW_return + 0x11C]; return is NULL for the invalid module name in the file, so the address is unresolved statically.", "address": "0x401E36", "confidence": 0.7 }
+      ],
+      "limitations": [
+        "Resolution requires dynamic tracing or memory dump; not determinable from static analysis alone."
+      ]
+    },
+    {
+      "id": "fin-rdata-decoy",
+      "title": "Oversized writable .rdata is zero-filled decoy/reserved region, not payload",
+      "category": "packing",
+      "status": "inferred",
+      "confidence": 0.7,
+      "description": "The .rdata section spans 0x4040A8-0x46B000 (~0x66f58 bytes) and is marked writable, but at rest it is almost entirely zero-filled (raw size 0x600). It is not an embedded payload buffer; it is likely reserved 'room' for a later-stage heap/blob or deliberate decoy volume to mislead analysts.",
+      "reasoning": "get_bytes/section analysis shows the .rdata raw data is only 0x600 bytes of actual content and the rest is zeros. No embedded MZ/PE or file signatures are present anywhere in the image.",
+      "sources": [
+        { "stage": "prepare-env", "artifact": "01-prepare-env.json", "location": "static_environment: ready" }
+      ],
+      "evidence": [
+        { "id": "ev-rdata-zero", "kind": "static", "source": { "stage": "static-pass1", "artifact": null, "location": "IDA segments + get_bytes .rdata" }, "observation": ".rdata 0x4040A8-0x46B000 marked rw, raw size 0x600, remainder zero-filled at rest.", "address": "0x4040A8", "confidence": 0.7 }
+      ],
+      "limitations": [
+        "The runtime write into .rdata cannot be excluded from static analysis alone; a dynamic pass is required to confirm."
+      ]
+    },
+    {
+      "id": "fin-decoy-imports",
+      "title": "Import surface is largely decoy; no network/injection/registry/persistence APIs reachable",
+      "category": "execution",
+      "status": "inferred",
+      "confidence": 0.8,
+      "description": "The 42-entry import table is dominated by USER32, KERNEL32 utility, CRYPTNET, and DESK. No VirtualAlloc, CreateRemoteThread, Reg*, URL/network, WriteProcessMemory, or shell-execution APIs are imported. Many imported APIs (SetEvent, ReleaseMutex, FindAtomA, GetKeyState, GetClipCursor, timing APIs) are called only with NULL/0 args as decoy noise.",
+      "reasoning": "imports_query returned exactly 42 entries; find_regex for network/injection/registry/shell signatures returned 0 matches; decompilation of the wrapper chain shows decoy calls with NULL args. Real capability therefore resides in the decrypted blob and is not visible in the stub.",
+      "sources": [
+        { "stage": "prepare-env", "artifact": "01-prepare-env.json", "location": "static_environment: ready" }
+      ],
+      "evidence": [
+        { "id": "ev-imports", "kind": "static", "source": { "stage": "static-pass1", "artifact": null, "location": "IDA imports_query" }, "observation": "42 IAT entries across KERNEL32 (20), USER32 (13), CRYPTNET (5), DESK (1); no VirtualAlloc/CreateRemoteThread/Reg*/URL/WriteProcessMemory.", "address": "0x404000", "confidence": 0.95 },
+        { "id": "ev-nostrings", "kind": "static", "source": { "stage": "static-pass1", "artifact": null, "location": "IDA find_regex" }, "observation": "Regex for URLs/VirtualAlloc/CreateRemoteThread/Reg*/URLDownloadToFile/WriteProcessMemory returned 0 matches; all 47 strings are import/section names.", "address": null, "confidence": 0.9 }
+      ],
+      "limitations": [
+        "Capability inference is limited to the visible stub; the decrypted blob may resolve and use these capabilities dynamically."
+      ]
+    },
+    {
+      "id": "fin-payload-handoff",
+      "title": "Payload handoff occurs inside the decrypted blob; OEP is its first decrypted dword",
+      "category": "execution",
+      "status": "hypothesized",
+      "confidence": 0.5,
+      "description": "No direct jump/call/ret into the ciphertext region exists in the visible stub; control transfers into the decrypted stub live in the decrypted bytes themselves. The effective payload entry (OEP) is the first decrypted dword of the 1716-byte blob at 0x402A47.",
+      "reasoning": "The wrapper chain ends at sub_401DF8 and returns through the chain; there is no static transfer into 0x402A47-0x4030FA in the visible code. The blob's nature (position-independent shellcode vs another image) is undetermined until decrypted.",
+      "sources": [
+        { "stage": "prepare-env", "artifact": "01-prepare-env.json", "location": "static_environment: ready" }
+      ],
+      "evidence": [
+        { "id": "ev-nohandoff", "kind": "static", "source": { "stage": "static-pass1", "artifact": null, "location": "IDA xrefs to 0x402A47" }, "observation": "No code/data cross-reference into the ciphertext region from the visible stub; transfer target lives in decrypted bytes.", "address": "0x402A47", "confidence": 0.5 }
+      ],
+      "limitations": [
+        "Post-decrypt control flow is not statically observable; requires the unpack stage or dynamic tracing to confirm."
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "art-original-sample",
+      "path": "H:/Dataset/files/malware/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+      "sha256": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+      "type": "pe32-executable",
+      "validation_status": "validated",
+      "context": "Original submitted sample; Pass 1 target. PE32 GUI, 4 sections, imagebase 0x400000, entry 0x4018A0. Verified by sha256sum and IDA metadata."
+    },
+    {
+      "id": "art-ciphertext-blob",
+      "path": null,
+      "sha256": null,
+      "type": "ciphertext-region",
+      "validation_status": "not_validated",
+      "context": "1716-byte encrypted stub embedded at .text VA 0x402A47 (file offset 0x1E47) in the original sample. Not yet decrypted; recovery target for 03-unpack."
+    }
+  ],
+  "investigation_targets": [
+    {
+      "id": "tgt-recover-stub",
+      "priority": 1,
+      "target": "Decrypt the 1716-byte blob at 0x402A47 (0x6B4 bytes) via runtime capture or validated decoder; recover the decrypted executable stub.",
+      "reason": "The decrypted blob contains the real execution logic and all capabilities; it is the primary recovery target for the unpack stage.",
+      "recommended_action": "In the unpack stage, breakpoint after sub_401DF8 completes, dump the decoded buffer, and record its address (destination is runtime-dependent).",
+      "success_criteria": "Decrypted bytes saved; first decrypted dword identified as payload entry/OEP; artifact hash recorded."
+    },
+    {
+      "id": "tgt-resolve-dest",
+      "priority": 2,
+      "target": "Resolve the decryptor write destination (LoadLibraryW-return-based buffer).",
+      "reason": "The destination pointer is runtime-dependent and currently unresolved (fin-decryptor-dest-unknown).",
+      "recommended_action": "Trace sub_401DF8 in a debugger; record eax/[eax+0x11C] and the first write address.",
+      "success_criteria": "Concrete destination address confirmed and mapped to the recovered payload."
+    },
+    {
+      "id": "tgt-classify-blob",
+      "priority": 3,
+      "target": "Classify the decrypted blob (position-independent shellcode, another PE image, or data).",
+      "reason": "The blob's format determines the recovery strategy (raw shellcode dump vs PE reconstruction vs next unpack round).",
+      "recommended_action": "Analyze decrypted bytes for MZ/PE signatures, position-independent code patterns, or further encryption.",
+      "success_criteria": "Blob type confirmed; next-stage analysis path chosen."
+    },
+    {
+      "id": "tgt-capability-map",
+      "priority": 4,
+      "target": "Map capabilities of the decrypted stub (file/registry/network/injection/persistence).",
+      "reason": "The visible stub imports are decoys; real capability is only observable post-decryption.",
+      "recommended_action": "After recovery, repeat fingerprint + execution-graph mapping on the decrypted blob.",
+      "success_criteria": "Capability findings recorded with evidence, or marked indeterminate with reasons."
+    }
+  ],
+  "limitations": [
+    "The decryptor write destination is runtime-dependent and unresolved statically (sub_401DF8 derives it from a LoadLibraryW return value).",
+    "Static candidate decryption of the raw ciphertext bytes with simple XOR transforms did not yield clean ASCII, implying a stateful/runtime key schedule or a non-file-resident source; plaintext recovery requires the dynamic unpack stage.",
+    "Post-decrypt control flow and the blob format are not observable statically; the handoff target (OEP) is inferred, not confirmed.",
+    "All capability conclusions are limited to the visible stub; the decrypted blob may resolve imports dynamically and its behavior is indeterminate at this pass.",
+    "The oversized .rdata is inferred to be a decoy/reserved region; a dynamic pass is needed to confirm no runtime writes target it."
+  ],
+  "upstream_inputs": [
+    "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/01-prepare-env.json"
+  ],
+  "binary_profile": {
+    "format": "PE32",
+    "architecture": "x86-32",
+    "entry_point": "0x4018A0",
+    "image_base": "0x400000",
+    "packer": null,
+    "packed_confidence": 0.9
+  },
+  "unpack_decision": {
+    "required": true,
+    "confidence": 0.9,
+    "reasons": [
+      "The stub is a runtime-decrypting loader: real logic and all capabilities live in a 1716-byte blob decrypted at runtime by sub_401DF8.",
+      "The visible import surface and strings are decoys with no real network/injection/registry capability.",
+      "Ciphertext is present in the file at .text 0x402A47, confirming an embedded encrypted payload stage.",
+      "Post-decrypt handoff (OEP) is only resolvable after the blob is materialized."
+    ],
+    "strategy": "in_place_dynamic",
+    "breakpoint_plan": [
+      {
+        "id": "bp-dec-entry",
+        "priority": 1,
+        "target": "0x401DF8 (sub_401DF8 entry)",
+        "reason": "Decryptor entry; verify the LoadLibraryW-based destination resolution and record the intended write base.",
+        "recommended_action": "Set breakpoint; on hit, step to 0x401E31-0x401E3C and record eax / [eax+0x11C] to resolve the write destination.",
+        "success_criteria": "Concrete destination address identified for the decrypted stub."
+      },
+      {
+        "id": "bp-dec-loop",
+        "priority": 2,
+        "target": "0x401E5A (loc_401E5A, decrypt loop)",
+        "reason": "Loop body with XOR transform and key 0x9A246A73; dump plaintext as it is written.",
+        "recommended_action": "Set memory write breakpoint on the resolved destination; dump 1716 bytes after loop completes.",
+        "success_criteria": "Full 1716-byte plaintext stub captured."
+      },
+      {
+        "id": "bp-loadlibw",
+        "priority": 3,
+        "target": "0x4018C8 (LoadLibraryW call)",
+        "reason": "Records the devenum.dll base used as scratch context by the wrapper chain; also exercises the PE magic gate.",
+        "recommended_action": "Set breakpoint; record returned base and verify magic=0x10B path taken.",
+        "success_criteria": "Context base recorded; PE32 gate confirmed."
+      },
+      {
+        "id": "bp-payload-handoff",
+        "priority": 4,
+        "target": "0x402A47-0x4030FA (decrypted blob region)",
+        "reason": "First write/transfer into the decrypted stub marks the payload handoff; execute/write memory breakpoint catches it.",
+        "recommended_action": "Set hardware execute/write memory breakpoint on the blob range; record RIP at first access.",
+        "success_criteria": "Handoff address captured; payload entry confirmed."
+      },
+      {
+        "id": "bp-gate-fail",
+        "priority": 5,
+        "target": "0x4018E6 (anti-tamper infinite loop)",
+        "reason": "Catch PE-magic gate failure if the environment causes the check to fail.",
+        "recommended_action": "Conditional/log breakpoint on 0x4018E6 to detect infinite-loop path.",
+        "success_criteria": "Distinguish healthy execution from anti-tamper trip."
+      }
+    ]
+  }
+}

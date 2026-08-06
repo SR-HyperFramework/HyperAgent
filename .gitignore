@@ -24,7 +24,7 @@ __pycache__/
 .playwright-mcp/
 .claude/
 bin/
-
+.vscode/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "stage": "prepare-env",
+  "sample": {
+    "file_name": "sample.exe",
+    "absolute_path": "C:/analysis/sample.exe",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "workspace": {
+    "report_directory": "reports/0000000000000000000000000000000000000000000000000000000000000000",
+    "artifact_directory": "reports/0000000000000000000000000000000000000000000000000000000000000000/artifacts"
+  },
+  "static_environment": {
+    "status": "ready",
+    "components": []
+  },
+  "dynamic_environment": {
+    "status": "ready",
+    "components": []
+  },
+  "readiness": {
+    "static": "ready",
+    "dynamic": "ready",
+    "overall": "ready"
+  },
+  "blockers": [],
+  "provenance": []
+}

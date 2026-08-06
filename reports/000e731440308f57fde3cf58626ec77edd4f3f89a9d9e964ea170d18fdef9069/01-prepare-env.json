@@ -1,0 +1,100 @@
+{
+  "schema_version": "1.0",
+  "stage": "prepare-env",
+  "sample": {
+    "file_name": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+    "absolute_path": "H:/Dataset/files/malware/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+    "sha256": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069"
+  },
+  "workspace": {
+    "report_directory": "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+    "artifact_directory": "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/artifacts"
+  },
+  "static_environment": {
+    "status": "ready",
+    "components": [
+      {
+        "name": "ida-pro MCP server (idalib)",
+        "status": "available",
+        "detail": "server_health responds; no IDB bound yet (expected until 02-static-pass1 opens the sample)"
+      },
+      {
+        "name": "ida-pro:idapython skill",
+        "status": "available",
+        "detail": "plugin listed and invokable in this session"
+      },
+      {
+        "name": "sample path (host, static)",
+        "status": "available",
+        "detail": "exists at H:/Dataset/files/malware/000e73...9069; sha256 verified; PE32 GUI Intel 80386, 4 sections"
+      }
+    ]
+  },
+  "dynamic_environment": {
+    "status": "ready",
+    "components": [
+      {
+        "name": "VMware execution path (vmrun)",
+        "status": "available",
+        "detail": "vmrun at /e/Program/VMware Workstation 17/vmrun; VMX H:/VMware/WinVM/Windows 10 - RunSmt.vmx present"
+      },
+      {
+        "name": "guest VM state",
+        "status": "available",
+        "detail": "reverted to snapshot VMRunV4, started headless, guest ready at IP 192.168.248.169"
+      },
+      {
+        "name": "guest credentials",
+        "status": "available",
+        "detail": "vmrun -gu h26v -gp 123456 accepted for guest operations"
+      },
+      {
+        "name": "sample copied into guest",
+        "status": "available",
+        "detail": "copied to C:\\Users\\h26v\\Desktop\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069"
+      },
+      {
+        "name": "guest debugger path (x64dbg)",
+        "status": "available",
+        "detail": "launched C:\\Users\\h26v\\Downloads\\x64dbg\\release\\x96dbg.exe with the sample path via runProgramInGuest -noWait"
+      },
+      {
+        "name": "x64dbg-mcp service",
+        "status": "available",
+        "detail": "curl http://192.168.248.169:3000 returned {\"status\":\"ok\",\"service\":\"x64dbg-mcp\"}"
+      }
+    ]
+  },
+  "readiness": {
+    "static": "ready",
+    "dynamic": "ready",
+    "overall": "ready"
+  },
+  "blockers": [],
+  "provenance": [
+    {
+      "type": "file",
+      "location": "H:/Dataset/files/malware/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069"
+    },
+    {
+      "type": "command",
+      "location": "sha256sum <sample> -> 000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069"
+    },
+    {
+      "type": "command",
+      "location": "file <sample> -> PE32 executable (GUI) Intel 80386, for MS Windows, 4 sections"
+    },
+    {
+      "type": "command",
+      "location": "vmrun -T ws listSnapshots / revertToSnapshot / start / getGuestIPAddress / CopyFileFromHostToGuest / runProgramInGuest"
+    },
+    {
+      "type": "command",
+      "location": "curl -Ss http://192.168.248.169:3000 -> {\"status\":\"ok\",\"service\":\"x64dbg-mcp\"}"
+    },
+    {
+      "type": "tool",
+      "location": "ida-pro MCP server health probe"
+    }
+  ]
+}

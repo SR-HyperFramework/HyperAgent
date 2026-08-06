@@ -1,0 +1,80 @@
+{
+  "schema_version": "1.0",
+  "stage": "dynamic",
+  "sample": {
+    "original_sha256": "937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588",
+    "target_path": "C:\\Users\\ADMIN\\Downloads\\xu-ly-van-phong-cli-v1.0\\xu-ly-van-phong-cli\\resources\\bin\\officecli.exe",
+    "target_sha256": "937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588"
+  },
+  "status": "completed",
+  "summary": "Runtime analysis was performed only through the approved isolated guest VM/x64dbg MCP workflow. The x64dbg MCP service was already reachable, so VM preparation was skipped per workflow. The sample loaded from C:\\Users\\h26v\\Desktop\\officecli.exe with ASLR base 0x00007FF7AA020000 and executed through the expected PE entry, CRT startup, TLS initialization gate, main, trace-writer assignment, and exe_start/hostfxr handoff breakpoints. Execution then stopped shortly after managed host startup. No persistence, injection, credential access, command-and-control domains, IPs, mutexes, or registry modifications were observed within the available observation window. Guest state was reverted to the clean VMRunV4 snapshot after analysis.",
+  "findings": [
+    {
+      "id": "runtime-loader-path-001",
+      "title": "Runtime confirms standard apphost startup path",
+      "category": "execution",
+      "status": "confirmed",
+      "confidence": 0.94,
+      "description": "The live process hit the ASLR-adjusted entry, CRT, TLS gate, main, diagnostics writer setup, and exe_start addresses identified by static pass 1.",
+      "reasoning": "The observed breakpoint sequence matches the upstream static map and supports normal .NET apphost startup rather than a native unpacking shellcode path.",
+      "sources": [
+        {"stage": "dynamic", "artifact": "x64dbg-mcp", "location": "debug_init, module_get_main, breakpoint hits"},
+        {"stage": "static-pass1", "artifact": "reports/937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588/02-static-pass1.json", "location": "investigation_targets"}
+      ],
+      "evidence": [
+        {"id": "ev-dyn-loader-1", "kind": "tool_output", "source": {"stage": "dynamic", "artifact": "x64dbg-mcp", "location": "module_get_main"}, "observation": "module_get_main returned name officecli.exe, path C:\\Users\\h26v\\Desktop\\officecli.exe, base 0x00007FF7AA020000, entry 0x00007FF7AA5E6230, section_count 9, size 10080256.", "address": "0x00007FF7AA020000", "confidence": 0.98},
+        {"id": "ev-dyn-loader-2", "kind": "dynamic", "source": {"stage": "dynamic", "artifact": "x64dbg-mcp", "location": "breakpoint sequence"}, "observation": "Breakpoints were installed and hit at 0x00007FF7AA5E6230 (entry), 0x00007FF7AA5E6239 (CRT after cookie), 0x00007FF7AA5E6159 (TLS initialization gate), 0x00007FF7AA059D90 (main), 0x00007FF7AA059EC3 (trace writer assignment), and 0x00007FF7AA059070 (exe_start).", "address": "0x00007FF7AA5E6230", "confidence": 0.95}
+      ],
+      "limitations": ["The run observed native startup and immediate host handoff only; managed-code internals were not instrumented in depth."]
+    },
+    {
+      "id": "runtime-anti-analysis-001",
+      "title": "No runtime anti-analysis gate blocked startup",
+      "category": "anti_analysis",
+      "status": "not_observed",
+      "confidence": 0.73,
+      "description": "No failing debugger, timing, or gate-value check was encountered before the hostfxr/apphost handoff.",
+      "reasoning": "The sample progressed through all planned startup breakpoints without requiring branch or flag patching.",
+      "sources": [{"stage": "dynamic", "artifact": "x64dbg-mcp", "location": "debug_run and breakpoint observations"}],
+      "evidence": [{"id": "ev-dyn-anti-1", "kind": "dynamic", "source": {"stage": "dynamic", "artifact": "x64dbg-mcp", "location": "debug_run results"}, "observation": "debug_run advanced through the planned gate/startup breakpoints to exe_start and then into external runtime code without analyst patches to flags, branches, or gate values.", "address": null, "confidence": 0.73}],
+      "limitations": ["Absence of an observed gate in the native startup window does not rule out managed-code anti-analysis checks after hostfxr startup."]
+    },
+    {
+      "id": "runtime-capabilities-001",
+      "title": "No malicious runtime capabilities observed during window",
+      "category": "other",
+      "status": "not_observed",
+      "confidence": 0.62,
+      "description": "Persistence, injection, networking, and credential access were not observed during the available isolated debugger run.",
+      "reasoning": "The run focused on startup validation and did not surface API-resolver behavior, injected executable regions, network indicators, mutexes, or persistence artifacts before the process stopped.",
+      "sources": [{"stage": "dynamic", "artifact": "x64dbg-mcp", "location": "debug state and module/thread queries after run"}],
+      "evidence": [
+        {"id": "ev-dyn-cap-1", "kind": "tool_output", "source": {"stage": "dynamic", "artifact": "x64dbg-mcp", "location": "debug_get_state after observation"}, "observation": "After the startup breakpoint sequence, debug_get_state returned state stopped; subsequent module_list returned an empty module list because the debugger was no longer attached to a running debuggee.", "address": null, "confidence": 0.7},
+        {"id": "ev-dyn-cap-2", "kind": "analyst", "source": {"stage": "dynamic", "artifact": "analyst notes", "location": "capability validation"}, "observation": "No domains, IP addresses, mutex names, registry keys, persistence locations, injection targets, or credential-access artifacts were observed during the debugger-controlled run.", "address": null, "confidence": 0.6}
+      ],
+      "limitations": ["No guest EDR/Procmon/packet-capture artifact was collected; findings are limited to x64dbg MCP observations and the short execution window."]
+    }
+  ],
+  "artifacts": [{"id": "artifact-original-sample", "path": "C:\\Users\\ADMIN\\Downloads\\xu-ly-van-phong-cli-v1.0\\xu-ly-van-phong-cli\\resources\\bin\\officecli.exe", "sha256": "937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588", "type": "original-sample-pe64", "validation_status": "validated", "context": "Sample hash recalculated on host; execution occurred only from copied guest path C:\\Users\\h26v\\Desktop\\officecli.exe."}],
+  "investigation_targets": [
+    {"id": "next-managed-entry-001", "priority": 1, "target": "Managed officecli.dll entry after hostfxr_main_bundle_startupinfo", "reason": "The native startup path was confirmed, but behavior of the managed payload remains the primary unknown.", "recommended_action": "Instrument managed assembly loading or extract/analyze the bundled officecli.dll, then repeat runtime checks around managed entry points.", "success_criteria": "Resolve managed entry method and observe application-level filesystem, network, persistence, process, and credential-access behavior."},
+    {"id": "next-api-monitoring-001", "priority": 2, "target": "Guest API and system telemetry during full managed execution", "reason": "x64dbg startup tracing did not produce host or network IOCs.", "recommended_action": "Run the sample in the isolated guest with Procmon/ETW/network capture or debugger breakpoints on CreateProcessW, RegSetValue*, VirtualAlloc/VirtualProtect, WriteProcessMemory/CreateRemoteThread, WinINet/WinHTTP/Winsock APIs.", "success_criteria": "Confirm whether runtime uses persistence, injection, networking, or credential access APIs and collect concrete IOCs if present."}
+  ],
+  "limitations": [
+    "No 04-static-pass2.json existed, so 02-static-pass1.json was used as upstream context.",
+    "x64dbg MCP service was already available at http://192.168.248.169:3000, so VM preparation steps before analysis were skipped as instructed.",
+    "Observation was limited to the startup/native host path; managed payload behavior was not exhaustively traced.",
+    "No network packet capture, registry monitor, filesystem monitor, or memory dump artifact was produced in this stage."
+  ],
+  "upstream_inputs": ["reports/937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588/02-static-pass1.json"],
+  "runtime": {"executed": true, "guest_only": true, "aslr_base": "0x00007FF7AA020000", "stop_reason": "process stopped after startup/host handoff observation", "observation_window": "Debugger-controlled startup sequence through entry, CRT, TLS gate, main, trace-writer setup, exe_start, and short post-handoff run"},
+  "behaviors": [
+    {"id": "beh-loader-startup", "type": "loader/startup", "status": "observed", "confidence": 0.94, "description": "ASLR-adjusted startup and apphost handoff breakpoints executed in the expected order.", "evidence_ids": ["ev-dyn-loader-1", "ev-dyn-loader-2"]},
+    {"id": "beh-anti-analysis", "type": "anti-analysis", "status": "not_observed", "confidence": 0.73, "description": "No debugger/timing/gate check blocked the native startup path or required patching.", "evidence_ids": ["ev-dyn-anti-1"]},
+    {"id": "beh-persistence", "type": "persistence", "status": "not_observed", "confidence": 0.55, "description": "No persistence artifact was observed during the available runtime window.", "evidence_ids": ["ev-dyn-cap-2"]},
+    {"id": "beh-injection", "type": "injection", "status": "not_observed", "confidence": 0.55, "description": "No process injection artifact was observed during the available runtime window.", "evidence_ids": ["ev-dyn-cap-2"]},
+    {"id": "beh-networking", "type": "networking", "status": "not_observed", "confidence": 0.55, "description": "No network domain or IP indicator was observed during the available runtime window.", "evidence_ids": ["ev-dyn-cap-2"]},
+    {"id": "beh-credential-access", "type": "credential-access", "status": "not_observed", "confidence": 0.55, "description": "No credential-access artifact was observed during the available runtime window.", "evidence_ids": ["ev-dyn-cap-2"]}
+  ],
+  "iocs": {"network": [], "host": [], "persistence": []}
+}

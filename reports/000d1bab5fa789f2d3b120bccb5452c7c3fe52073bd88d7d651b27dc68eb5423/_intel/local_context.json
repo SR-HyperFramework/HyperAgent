@@ -1,0 +1,26 @@
+{
+  "sample_sha256": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+  "upstream_inputs": [
+    "02-static-pass1.json",
+    "03-unpack.json",
+    "05-dynamic.json"
+  ],
+  "local_iocs": [],
+  "claims": [
+    {
+      "id": "cc.family-mediyes-barys",
+      "claim_text": "The sample is a malicious Windows service DLL (trojan) whose family/type labels are associated with the mediyes/barys cluster on VirusTotal.",
+      "related_stage": "static-pass1",
+      "related_finding_ids": [
+        "sample-identity-service-dll-001",
+        "loader-wkssvc-forwarder-001"
+      ],
+      "label_values": [
+        "trojan",
+        "mediyes",
+        "barys"
+      ],
+      "report_use": "followup_only"
+    }
+  ]
+}

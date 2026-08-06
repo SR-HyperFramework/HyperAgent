@@ -1,0 +1,363 @@
+{
+  "target_guest_path": "C:\\Users\\h26v\\Desktop\\000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+  "loader_breakpoints": {
+    "kernel32.LoadLibraryW": {
+      "resolved": {
+        "address": "0x0000000075971960",
+        "module": "",
+        "symbol": "kernel32.LoadLibraryW",
+        "type": "Export"
+      },
+      "address": "0x75971960"
+    },
+    "kernel32.LoadLibraryExW": {
+      "resolved": {
+        "address": "0x000000007596F640",
+        "module": "",
+        "symbol": "kernel32.LoadLibraryExW",
+        "type": "Export"
+      },
+      "address": "0x7596F640"
+    },
+    "kernel32.GetProcAddress": {
+      "resolved": {
+        "address": "0x000000007596F7F0",
+        "module": "",
+        "symbol": "kernel32.GetProcAddress",
+        "type": "Export"
+      },
+      "address": "0x7596F7F0"
+    },
+    "kernel32.GetModuleFileNameW": {
+      "resolved": {},
+      "address": null
+    },
+    "kernel32.CreateMutexW": {
+      "resolved": {},
+      "address": null
+    },
+    "kernel32.WaitForSingleObject": {
+      "resolved": {},
+      "address": null
+    },
+    "kernel32.CreateProcessW": {
+      "resolved": {},
+      "address": null
+    },
+    "ws2_32.inet_addr": {
+      "resolved": {},
+      "address": null
+    }
+  },
+  "sample_module": null,
+  "sample_breakpoints": {},
+  "events": [
+    {
+      "tag": "loader-1",
+      "run_result": {
+        "rip": "0x0000000077381B53",
+        "state": "paused",
+        "stop_reason": "breakpoint_or_exception",
+        "success": true
+      },
+      "state": {
+        "rip": "0x0000000077381B53",
+        "state": "paused"
+      },
+      "rip": "0x77381B53",
+      "symbol": "ntdll.dll+0xB1B53",
+      "main_module": {
+        "base": "0x0000000000260000",
+        "entry": "0x00000000002613C9",
+        "name": "dllloader32_29d4.exe",
+        "path": "C:\\Users\\h26v\\Desktop\\DLLLoader32_29D4.exe",
+        "section_count": 6,
+        "size": 139264
+      },
+      "sample_module": null,
+      "details": {}
+    },
+    {
+      "tag": "loader-2",
+      "run_result": {
+        "rip": "0x000000007596F640",
+        "state": "paused",
+        "stop_reason": "breakpoint_or_exception",
+        "success": true
+      },
+      "state": {
+        "rip": "0x000000007596F640",
+        "state": "paused"
+      },
+      "rip": "0x7596F640",
+      "symbol": "+0x7596F640",
+      "main_module": {
+        "base": "0x0000000000260000",
+        "entry": "0x00000000002613C9",
+        "name": "dllloader32_29d4.exe",
+        "path": "C:\\Users\\h26v\\Desktop\\DLLLoader32_29D4.exe",
+        "section_count": 6,
+        "size": 139264
+      },
+      "sample_module": null,
+      "details": {
+        "matched_loader_breakpoint": "kernel32.LoadLibraryExW"
+      }
+    },
+    {
+      "tag": "loader-3",
+      "run_result": {
+        "rip": "0x000000007596F640",
+        "state": "paused",
+        "stop_reason": "breakpoint_or_exception",
+        "success": true
+      },
+      "state": {
+        "rip": "0x000000007596F640",
+        "state": "paused"
+      },
+      "rip": "0x7596F640",
+      "symbol": "+0x7596F640",
+      "main_module": {
+        "base": "0x0000000000260000",
+        "entry": "0x00000000002613C9",
+        "name": "dllloader32_29d4.exe",
+        "path": "C:\\Users\\h26v\\Desktop\\DLLLoader32_29D4.exe",
+        "section_count": 6,
+        "size": 139264
+      },
+      "sample_module": null,
+      "details": {
+        "matched_loader_breakpoint": "kernel32.LoadLibraryExW"
+      }
+    },
+    {
+      "tag": "loader-4",
+      "run_result": {
+        "rip": "0x000000007596F640",
+        "state": "paused",
+        "stop_reason": "breakpoint_or_exception",
+        "success": true
+      },
+      "state": {
+        "rip": "0x000000007596F640",
+        "state": "paused"
+      },
+      "rip": "0x7596F640",
+      "symbol": "+0x7596F640",
+      "main_module": {
+        "base": "0x0000000000260000",
+        "entry": "0x00000000002613C9",
+        "name": "dllloader32_29d4.exe",
+        "path": "C:\\Users\\h26v\\Desktop\\DLLLoader32_29D4.exe",
+        "section_count": 6,
+        "size": 139264
+      },
+      "sample_module": null,
+      "details": {
+        "matched_loader_breakpoint": "kernel32.LoadLibraryExW"
+      }
+    },
+    {
+      "tag": "loader-5",
+      "run_result": {
+        "rip": "0x000000007596F640",
+        "state": "paused",
+        "stop_reason": "breakpoint_or_exception",
+        "success": true
+      },
+      "state": {
+        "rip": "0x000000007596F640",
+        "state": "paused"
+      },
+      "rip": "0x7596F640",
+      "symbol": "+0x7596F640",
+      "main_module": {
+        "base": "0x0000000000260000",
+        "entry": "0x00000000002613C9",
+        "name": "dllloader32_29d4.exe",
+        "path": "C:\\Users\\h26v\\Desktop\\DLLLoader32_29D4.exe",
+        "section_count": 6,
+        "size": 139264
+      },
+      "sample_module": null,
+      "details": {
+        "matched_loader_breakpoint": "kernel32.LoadLibraryExW"
+      }
+    },
+    {
+      "tag": "loader-6",
+      "run_result": {
+        "rip": "0x000000007596F640",
+        "state": "paused",
+        "stop_reason": "breakpoint_or_exception",
+        "success": true
+      },
+      "state": {
+        "rip": "0x000000007596F640",
+        "state": "paused"
+      },
+      "rip": "0x7596F640",
+      "symbol": "+0x7596F640",
+      "main_module": {
+        "base": "0x0000000000260000",
+        "entry": "0x00000000002613C9",
+        "name": "dllloader32_29d4.exe",
+        "path": "C:\\Users\\h26v\\Desktop\\DLLLoader32_29D4.exe",
+        "section_count": 6,
+        "size": 139264
+      },
+      "sample_module": null,
+      "details": {
+        "matched_loader_breakpoint": "kernel32.LoadLibraryExW"
+      }
+    },
+    {
+      "tag": "loader-7",
+      "run_result": {
+        "rip": "0x0000000075971960",
+        "state": "paused",
+        "stop_reason": "breakpoint_or_exception",
+        "success": true
+      },
+      "state": {
+        "rip": "0x0000000075971960",
+        "state": "paused"
+      },
+      "rip": "0x75971960",
+      "symbol": "+0x75971960",
+      "main_module": {
+        "base": "0x0000000000260000",
+        "entry": "0x00000000002613C9",
+        "name": "dllloader32_29d4.exe",
+        "path": "C:\\Users\\h26v\\Desktop\\DLLLoader32_29D4.exe",
+        "section_count": 6,
+        "size": 139264
+      },
+      "sample_module": null,
+      "details": {
+        "matched_loader_breakpoint": "kernel32.LoadLibraryW"
+      }
+    },
+    {
+      "tag": "loader-8",
+      "run_result": {
+        "state": "running",
+        "success": true
+      },
+      "state": {
+        "rip": "0x000000007734346C",
+        "state": "running"
+      },
+      "rip": "0x7734346C",
+      "symbol": "ntdll.dll+0x7346C",
+      "main_module": {
+        "base": "0x0000000000260000",
+        "entry": "0x00000000002613C9",
+        "name": "dllloader32_29d4.exe",
+        "path": "C:\\Users\\h26v\\Desktop\\DLLLoader32_29D4.exe",
+        "section_count": 6,
+        "size": 139264
+      },
+      "sample_module": null,
+      "details": {}
+    },
+    {
+      "tag": "loader-9",
+      "run_result": {
+        "state": "running",
+        "success": true
+      },
+      "state": {
+        "rip": "0x0000000076163AEC",
+        "state": "running"
+      },
+      "rip": "0x76163AEC",
+      "symbol": "win32u.dll+0x3AEC",
+      "main_module": {
+        "base": "0x0000000000260000",
+        "entry": "0x00000000002613C9",
+        "name": "dllloader32_29d4.exe",
+        "path": "C:\\Users\\h26v\\Desktop\\DLLLoader32_29D4.exe",
+        "section_count": 6,
+        "size": 139264
+      },
+      "sample_module": null,
+      "details": {}
+    },
+    {
+      "tag": "loader-10",
+      "run_result": {
+        "state": "running",
+        "success": true
+      },
+      "state": {
+        "rip": "0x00000000761610CC",
+        "state": "running"
+      },
+      "rip": "0x761610CC",
+      "symbol": "win32u.dll+0x10CC",
+      "main_module": {
+        "base": "0x0000000000260000",
+        "entry": "0x00000000002613C9",
+        "name": "dllloader32_29d4.exe",
+        "path": "C:\\Users\\h26v\\Desktop\\DLLLoader32_29D4.exe",
+        "section_count": 6,
+        "size": 139264
+      },
+      "sample_module": null,
+      "details": {}
+    }
+  ],
+  "errors": [],
+  "initialize": {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+      "protocolVersion": "2024-11-05",
+      "capabilities": {
+        "tools": {},
+        "resources": {},
+        "prompts": {}
+      },
+      "serverInfo": {
+        "name": "x64dbg-mcp",
+        "version": "1.0.7"
+      }
+    }
+  },
+  "debug_init": {
+    "path": "C:\\Users\\h26v\\Desktop\\000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+    "success": true
+  },
+  "state_after_init": {
+    "rip": "0x0000000077381B53",
+    "state": "paused"
+  },
+  "main_after_init": {
+    "base": "0x0000000000730000",
+    "entry": "0x00000000007313C9",
+    "name": "dllloader32_5c18.exe",
+    "path": "C:\\Users\\h26v\\Desktop\\DLLLoader32_5C18.exe",
+    "section_count": 6,
+    "size": 139264
+  },
+  "threads_after_init": {
+    "count": 1,
+    "threads": [
+      {
+        "entry": "0x00000000007313C9",
+        "handle": 1684,
+        "id": 2260,
+        "is_current": true,
+        "is_suspended": false,
+        "name": "Thread 2260",
+        "priority": 0,
+        "rbp": "0x000000000061F538",
+        "rip": "0x0000000077381B53",
+        "rsp": "0x000000000061F50C",
+        "teb": "0x00000000008F7000"
+      }
+    ]
+  }
+}

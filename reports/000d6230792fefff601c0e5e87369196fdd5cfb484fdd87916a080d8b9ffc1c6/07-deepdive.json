@@ -1,0 +1,803 @@
+{
+  "schema_version": "1.0",
+  "stage": "deepdive",
+  "sample_sha256": "000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+  "status": "completed",
+  "executive_assessment": {
+    "verdict": "malicious",
+    "confidence": 0.9,
+    "technical_summary": "000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6 is a custom-packed PE32 GUI (I386, ImageBase 0x400000, entry 0x1510) whose obfuscated entry gate (ROR-based, conditional __halt) passes to a 49-wrapper loader chain. A custom XOR+add+byteswap decode loop (sub_401B84, key 0x22CC456A) decrypts a 1728-byte position-independent first-stage shellcode (decoded_payload.bin, sha256 9f8e4794...). The shellcode PEB-walks to kernel32.dll, resolves 16 APIs via a custom ror/rol/add rolling hash, allocates a RWX buffer, and manually loads a second PE (section mapping, relocation, import resolution, initterm). Decode key, entry-gate behavior, and non-blocking GlobalFlags anti-debug were confirmed live in the guest VM. Local dynamic analysis never reached the loaded second stage (decode destination sat in an uncommitted MEM_RESERVE region; a debugger-divergence at the disguised HeapCreate int3 hotpatch blocked the unpack live path). VirusTotal reports 64 malicious engine detections with public labels trojan.rogue/fraudtool and the 'spreader' tag. The claimed '0x6AC-byte second-stage PE embedded at shellcode offset 0x15' is structurally impossible (0x15+0x6AC exceeds the 1728-byte shellcode) and the recorded stage-2 decode attempts in the progress log document failures that contradict the final dynamic narrative. The second-stage artifact decoded_stage2_raw.bin (0x52000 bytes) exists and its header parses at 0xB30C, but it is not a valid loadable PE and its production mechanism is not reproducible from documented inputs. The final payload's capabilities (C2, persistence, family) remain unverified locally; the strongest public signal is a loader/dropper (spreader) character.",
+    "highest_value_resolution": "Reconciled the stage-2 recovery contradiction: the 'embedded 0x6AC PE' model is rejected on structural grounds (cannot fit in the shellcode; the rep movsb at 0xAA copies the shellcode's own body + config block, not a separate PE). The second-stage source is more plausibly the original PE file mapped from disk (GetModuleFileNameA/CreateFileA/CreateFileMappingA/MapViewOfFile path, fin-p2-005; SizeOfImage 0xC9000 matches the original). The stage-2 decode key is resolved to 0x22CC456A (config dword LE @0x6B9 = 0x5A89AFFB XOR 0x7845EA91, verified by direct byte read; the progress-log value 0x7845B018 was a misaligned read). decoded_stage2_raw.bin is real but unvalidated: not a loadable PE, provenance not reproducible, capabilities unknown.",
+    "remaining_decision_point": "The actual capabilities of the final loaded payload (C2 endpoints, persistence mechanism, family identity) are not locally established. Whether decoded_stage2_raw.bin is a decode of the original sample's own data (self-reloading dropper) or an independent embedded payload remains open until a reproducible decode over the mapped original is performed and a loadable PE is reconstructed."
+  },
+  "finding_reviews": [
+    {
+      "id": "fr-001",
+      "title": "Verdict: malicious packed loader",
+      "original_claims": [
+        {
+          "stage": "static-pass1",
+          "finding_id": "fin-001",
+          "claim": "PE32 GUI I386 sample, entry 0x401510, sha256 matches submitted file",
+          "confidence": 1.0
+        },
+        {
+          "stage": "static-pass1",
+          "finding_id": "fin-002",
+          "claim": "Anomalous 407KB rw .rdata section in an 8KB-code binary indicates packing",
+          "confidence": 0.9
+        },
+        {
+          "stage": "intel",
+          "finding_id": null,
+          "claim": "VirusTotal 64 malicious / 0 suspicious / 8 undetected; labels trojan.rogue/fraudtool, tag spreader",
+          "confidence": 0.85
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.9,
+      "evidence_chain": [
+        {
+          "id": "ev-001",
+          "kind": "tool_output",
+          "source": { "stage": "static-pass1", "artifact": null, "location": "idalib survey_binary" },
+          "observation": "PE32 GUI I386, base 0x400000, entry 0x401510; SHA256 matches target.",
+          "address": "0x401510",
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-dyn-001",
+          "kind": "dynamic",
+          "source": { "stage": "dynamic", "artifact": "05-dynamic.json", "location": "x64dbg register_get" },
+          "observation": "Entry gate passed: ECX=0xE6, sub cl,ah->0x96, CF=0, jb NOT taken; execution proceeds to loader chain.",
+          "address": "0x40152E",
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-p2-001",
+          "kind": "static",
+          "source": { "stage": "static-pass2", "artifact": "decoded_payload.bin", "location": "capstone disassembly" },
+          "observation": "Stage-1 shellcode: PEB walk, 16-entry API hash table, VirtualAlloc RWX, rep movsb, manual PE loader.",
+          "address": "0x0",
+          "confidence": 0.95
+        },
+        {
+          "id": "ev-dd-001",
+          "kind": "external",
+          "source": { "stage": "deepdive", "artifact": "06-intel.json", "location": "ioc_correlation.matched_local ioc.orig-sample-sha256" },
+          "observation": "VirusTotal file_info: 64 malicious / 0 suspicious / 8 undetected / 4 type-unsupported; labels trojan.rogue/fraudtool; tag spreader.",
+          "address": null,
+          "confidence": 0.85
+        }
+      ],
+      "reasoning": "Maliciousness is established independently of any single capability: (a) the packed/obfuscated loader structure (obfuscated entry gate, import-table self-modification, 49-wrapper chain, custom decode) is confirmed at runtime; (b) the decoded stage-1 shellcode is a PE loader that allocates RWX and manually maps a second PE; (c) VirusTotal reports 64-engine detection. The verdict 'malicious' is safe. What is NOT established is the final payload's behavior — the evidence chain terminates at the stage-1 loader; no second-stage execution, C2, persistence, or family identity was locally observed. The public labels are enrichment only and do not upgrade the family/behavior claims.",
+      "confidence_change": {
+        "direction": "increased",
+        "previous_max": 1.0,
+        "new": 0.9,
+        "justification": "Identity and packer were confirmed at 1.0; the verdict is consolidated to 0.9 because it is well supported but the final payload's behavior (the thing that determines impact severity) is unverified, capping the overall assessment below certainty."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": [
+        "Final payload execution not observed locally.",
+        "Public family labels are enrichment-only, not locally confirmed."
+      ]
+    },
+    {
+      "id": "fr-002",
+      "title": "Stage-1 shellcode recovery (decoded_payload.bin) is validated",
+      "original_claims": [
+        {
+          "stage": "unpack",
+          "finding_id": "fin-004",
+          "claim": "Decoded payload is a PEB-walking API-resolution x86 shellcode stub; seed key 0x22CC456A; size 0x6BC",
+          "confidence": 0.85
+        },
+        {
+          "stage": "static-pass2",
+          "finding_id": "fin-p2-001",
+          "claim": "Shellcode is a first-stage PE loader (PEB walk, 16 API hashes, VirtualAlloc RWX, manual PE load, initterm)",
+          "confidence": 0.95
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.92,
+      "evidence_chain": [
+        {
+          "id": "ev-003",
+          "kind": "dynamic",
+          "source": { "stage": "unpack", "artifact": null, "location": "x64dbg disassembly_at 0x401BF6" },
+          "observation": "Decode loop: xor eax,[edx]; add eax,1; mov [ebx],eax; bswap edi; seed 0x22CC456A at 0x401BE1.",
+          "address": "0x401B84",
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-004",
+          "kind": "artifact",
+          "source": { "stage": "unpack", "artifact": "decoded_payload.bin", "location": "objdump + manual hex map" },
+          "observation": "0x1B6 mov eax,fs:[0x30]; 0x5C3 dx=0x5A4D; 0x5E2 'PE'; 0x9A VirtualAlloc(0,0x6AC,0x1000,0x40); 'Kernel32.dll' wide string.",
+          "address": "0x1B6",
+          "confidence": 0.85
+        },
+        {
+          "id": "ev-p2-001",
+          "kind": "static",
+          "source": { "stage": "static-pass2", "artifact": "decoded_payload.bin", "location": "capstone disassembly" },
+          "observation": "716 instructions, 0 int3; API hash resolution loop (16 iterations), rep movsb 0x6AC bytes, XOR+bswap decode, PE section mapping, initterm thunk.",
+          "address": "0x0",
+          "confidence": 0.95
+        },
+        {
+          "id": "ev-dyn-004",
+          "kind": "artifact",
+          "source": { "stage": "dynamic", "artifact": "05-dynamic.json", "location": "decoded_payload.bin" },
+          "observation": "1728 bytes, SHA256 9f8e47944d294db5888d3cab9dd35f43f212b8b7dff92ae4439fe5358d7303e3; first 32 bytes 0fc896b9fdfc0fc8...",
+          "address": "0x000",
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-dd-002",
+          "kind": "tool_output",
+          "source": { "stage": "deepdive", "artifact": "decoded_payload.bin", "location": "sha256 verification (host)" },
+          "observation": "Independent host-side SHA256 of decoded_payload.bin = 9f8e47944d294db5888d3cab9dd35f43f212b8b7dff92ae4439fe5358d7303e3 (1728 bytes), matching the recorded artifact hash.",
+          "address": null,
+          "confidence": 1.0
+        }
+      ],
+      "reasoning": "The stage-1 shellcode recovery is the best-supported result in the whole chain: the decode algorithm was confirmed by live disassembly (ev-003), the artifact hash is independently verified (ev-dd-002), and static-pass2's full loader-stub reading is corroborated by dynamic fin-dyn-006. The minor residual uncertainty is that the shellcode was not executed in-process (offline/analytic decode), so the 16 resolved API identities remain hash-level rather than name-level.",
+      "confidence_change": {
+        "direction": "increased",
+        "previous_max": 0.95,
+        "new": 0.92,
+        "justification": "Static-pass2 had already reached 0.95; deepdive independent hash verification and cross-stage corroboration sustain that. Small cap because the 16 APIs are unresolved by name and the shellcode was never executed."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": [
+        "Shellcode decoded analytically, not executed in-process.",
+        "16 API hashes not mapped to specific function names."
+      ]
+    },
+    {
+      "id": "fr-003",
+      "title": "Packer: obfuscated gate, import self-modification, non-blocking anti-debug",
+      "original_claims": [
+        {
+          "stage": "static-pass1",
+          "finding_id": "fin-003",
+          "claim": "Obfuscated entry point control flow (ROR gate, conditional __halt/JUMPOUT)",
+          "confidence": 0.9
+        },
+        {
+          "stage": "static-pass1",
+          "finding_id": "fin-005",
+          "claim": "GlobalFlags(NULL) anti-debug checks at six sites",
+          "confidence": 0.7
+        },
+        {
+          "stage": "static-pass1",
+          "finding_id": "fin-006",
+          "claim": "Import table self-modification and import-address arithmetic for dynamic API resolution",
+          "confidence": 0.8
+        },
+        {
+          "stage": "unpack",
+          "finding_id": "fin-002",
+          "claim": "GlobalFlags returns 0x8000 under debugger; does not block the payload path",
+          "confidence": 0.8
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.88,
+      "evidence_chain": [
+        {
+          "id": "ev-dyn-001",
+          "kind": "dynamic",
+          "source": { "stage": "dynamic", "artifact": "05-dynamic.json", "location": "x64dbg register_get" },
+          "observation": "Entry gate: ROR gate computes 0x96, CF=0, jb not taken, control flows to loader chain (no __halt).",
+          "address": "0x40152E",
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-002",
+          "kind": "dynamic",
+          "source": { "stage": "unpack", "artifact": null, "location": "x64dbg memory_read + register_get_batch" },
+          "observation": "[0x403010]=0x75968560; after GlobalFlags call EAX=0x8000; execution proceeds into sub_401B84.",
+          "address": "0x40104D",
+          "confidence": 0.8
+        },
+        {
+          "id": "ev-dyn-005",
+          "kind": "dynamic",
+          "source": { "stage": "dynamic", "artifact": "05-dynamic.json", "location": "x64dbg execution trace" },
+          "observation": "GlobalFlags/BeingDebugged checks at 0x4010D0/0x4010FF/0x401346 return 0x8000; no alternative path taken; execution continues linearly.",
+          "address": "0x4010D0",
+          "confidence": 0.95
+        }
+      ],
+      "reasoning": "The packer's obfuscation and anti-debug are confirmed live: the gate passes (CF=0), GlobalFlags returns 0x8000 under the debugger yet the sample continues (status checks, not evasive branches). The anti-debug is real but non-blocking in the observed run, so it does not by itself justify an 'evasive' characterization beyond what was directly seen.",
+      "confidence_change": {
+        "direction": "increased",
+        "previous_max": 0.8,
+        "new": 0.88,
+        "justification": "Runtime confirmation of gate passage and GlobalFlags 0x8000 across two independent dynamic runs (unpack + dynamic) raises the combined confidence above the individual static estimates."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": [
+        "GlobalFlags interpretation is heuristic; API identity of the 0x75968560 import target not symbol-resolved.",
+        "Anti-debug was observed under x64dbg only; behavior under other debugger states untested."
+      ]
+    },
+    {
+      "id": "fr-004",
+      "title": "'Embedded 0x6AC-byte second-stage PE at shellcode offset 0x15' is structurally impossible",
+      "original_claims": [
+        {
+          "stage": "static-pass2",
+          "finding_id": "fin-p2-002",
+          "claim": "The shellcode contains an encoded 0x6AC-byte second-stage PE embedded at offset 0x15",
+          "confidence": 0.9
+        },
+        {
+          "stage": "dynamic",
+          "finding_id": "fin-dyn-007",
+          "claim": "Second-stage PE decoded offline from the embedded 0x6AC-byte encoded payload",
+          "confidence": 0.8
+        }
+      ],
+      "final_status": "contradicted",
+      "final_confidence": 0.1,
+      "evidence_chain": [
+        {
+          "id": "ev-p2-001",
+          "kind": "static",
+          "source": { "stage": "static-pass2", "artifact": "decoded_payload.bin", "location": "capstone disassembly" },
+          "observation": "rep movsb at 0xAA-0xB5 with ecx=0x6AC, esi=0x12 (per fin-p2-002/ev-p2-002); decode loop at 0x4DA.",
+          "address": "0xAA",
+          "confidence": 0.95
+        },
+        {
+          "id": "ev-dd-003",
+          "kind": "tool_output",
+          "source": { "stage": "deepdive", "artifact": "decoded_payload.bin", "location": "host byte-range analysis" },
+          "observation": "decoded_payload.bin size = 1728 bytes (0x6C0). Claimed embedded PE at offset 0x15 of size 0x6AC spans 0x15..0x6C1, i.e. 0x6C1 = 1729 bytes — one byte past the end of the shellcode. The embedded-PE claim cannot fit in the artifact.",
+          "address": "0x15",
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-dd-004",
+          "kind": "tool_output",
+          "source": { "stage": "deepdive", "artifact": "decoded_payload.bin", "location": "host byte-range analysis" },
+          "observation": "Region 0x15..0x6A5 is the shellcode's own code/data (GetPC prologue, 'Kernel32.dll' wide string at 0x23, API hash table at 0x64A, config block at 0x6A5), not an encoded PE image. A rep movsb with esi=0x12/ecx=0x6AC copies bytes 0x12..0x6BD — the shellcode body plus config block, consistent with a copy of the loader's own working region into the RWX buffer.",
+          "address": "0x15",
+          "confidence": 0.9
+        }
+      ],
+      "reasoning": "The arithmetic is decisive: 0x15 + 0x6AC = 0x6C1 > 0x6C0 (shellcode length 1728). A 0x6AC-byte PE cannot be embedded starting at offset 0x15 of a 1728-byte shellcode. Moreover, a 0x6AC-byte encoded source cannot decode to a 0x52000-byte output (decoded_stage2_raw.bin) under a size-preserving XOR+bswap loop. The 'embedded PE' reading is a misreading of the rep movsb, which actually copies the shellcode's own body + config block. The decode_stage2.progress.md note ('The decode function operates on the mapped view of the original PE file, NOT on the 0x6AC-byte buffer') independently reached the same conclusion. This claim is rejected; the second-stage source must be elsewhere (original file mapping per fr-006/H-01).",
+      "confidence_change": {
+        "direction": "rejected",
+        "previous_max": 0.9,
+        "new": 0.1,
+        "justification": "Structural impossibility (does not fit in the artifact) and a size-preserving decode cannot expand 0x6AC to 0x52000 bytes. The claim as stated is contradicted by the artifact's own byte layout."
+      },
+      "report_disposition": "exclude",
+      "limitations": [
+        "Rejection applies to the '0x6AC embedded at offset 0x15' model; a differently-placed or differently-sized encoded second-stage is not excluded.",
+        "The shellcode does contain a config block and file-I/O path indicating a second-stage decode; only the specific embedding geometry is rejected."
+      ]
+    },
+    {
+      "id": "fr-005",
+      "title": "Second-stage artifact decoded_stage2_raw.bin: real hash, but not a valid loadable PE and provenance not reproducible",
+      "original_claims": [
+        {
+          "stage": "dynamic",
+          "finding_id": "fin-dyn-007",
+          "claim": "Second-stage PE decoded offline; valid PE structure at offset 0xB30C (I386, 3 sections, entry 0xA472, ImageBase 0x400000, SizeOfImage 0xC9000); not loadable as-is due to header corruption",
+          "confidence": 0.8
+        }
+      ],
+      "final_status": "partial",
+      "final_confidence": 0.35,
+      "evidence_chain": [
+        {
+          "id": "ev-dyn-007",
+          "kind": "artifact",
+          "source": { "stage": "dynamic", "artifact": "decoded_stage2_raw.bin", "location": "hex dump + PE parsing" },
+          "observation": "335872 bytes (0x52000), SHA256 0ec0a9464ed57a3b0451b1527006c2177fc183b760049c7a87322d6cca50e012; MZ at offset 4 with invalid e_lfanew 0xBA100072; PE block at 0xB30C.",
+          "address": "0xB30C",
+          "confidence": 0.8
+        },
+        {
+          "id": "ev-dd-005",
+          "kind": "tool_output",
+          "source": { "stage": "deepdive", "artifact": "decoded_stage2_raw.bin", "location": "host PE parse" },
+          "observation": "SHA256 verified = 0ec0a946... . PE signature at 0xB30C parses: Machine=0x14C, 3 sections, Entry=0xA472, ImageBase=0x400000, SizeOfImage=0xC9000, SizeOfHeaders=0x400. Sections: .text (VSize 0xC5000/RawSize 0x4FC00 @0x400), .rsrc (0x2000/0x1E00 @0x50000), .reloc (0x200/0x200 @0x51E00); max raw end = 0x52000 = file size.",
+          "address": "0xB30C",
+          "confidence": 0.9
+        },
+        {
+          "id": "ev-dd-006",
+          "kind": "tool_output",
+          "source": { "stage": "deepdive", "artifact": "decoded_stage2_raw.bin", "location": "host PE loadability check" },
+          "observation": "No valid DOS header at file offset 0 (bytes '6a15 966f 4d5a 5003' at 0, stray MZ at offset 4; e_lfanew field 0x3C = 0x7c000000 garbage). PE signature block sits mid-file at 0xB30C while section RawPtr fields (0x400, 0x50000, 0x51E00) are file-start-relative — inconsistent with the header position. Not a loadable PE as-is.",
+          "address": "0x0",
+          "confidence": 0.9
+        },
+        {
+          "id": "ev-dd-007",
+          "kind": "tool_output",
+          "source": { "stage": "deepdive", "artifact": "decoded_stage2_pe.exe", "location": "host PE parse" },
+          "observation": "decoded_stage2_pe.exe (0x52200 bytes) has MZ at 0 and e_lfanew=0xB30C but NO 'PE\\0\\0' signature at 0xB30C, 0x7C, or 0x80. The claimed header reconstruction did not produce a valid loadable PE.",
+          "address": null,
+          "confidence": 0.9
+        },
+        {
+          "id": "ev-dd-008",
+          "kind": "analyst",
+          "source": { "stage": "deepdive", "artifact": "_state/decode_stage2.progress.md", "location": "documented decode attempts" },
+          "observation": "Progress log records that decoding the 0x6AC buffer with key 0x7845B018 and with key 0x22CC456A both failed to produce a valid PE; it further notes the config values (pe_offset=0xB20400, size=0x40000) exceed the original sample size and that the decode 'operates on the mapped view of the original PE file'. No successful decode run is logged.",
+          "address": null,
+          "confidence": 0.85
+        }
+      ],
+      "reasoning": "The artifact exists and its embedded PE header at 0xB30C parses (ev-dd-005), and its SHA256 matches the recorded claim. However: (1) it is not a loadable PE (ev-dd-006, ev-dd-007); (2) the documented decode attempts in decode_stage2.progress.md record failures with both candidate keys, and no successful offline decode is logged, so the exact mechanism that produced decoded_stage2_raw.bin is not reproducible from documented inputs; (3) SizeOfImage 0xC9000 and ImageBase 0x400000 are identical to the ORIGINAL sample's, and the original's SizeOfImage is also 0xC9000 (ev-dd-009), suggesting derivation from the original PE header rather than an independent payload. The stage-2 raw artifact therefore exists but its provenance is uncertain and its contents are unverified. Capabilities cannot be attributed from it.",
+      "confidence_change": {
+        "direction": "decreased",
+        "previous_max": 0.8,
+        "new": 0.35,
+        "justification": "The dynamic narrative claims a successful decode, but the recorded attempt log documents failures and a 0x6AC source cannot expand to 0x52000 bytes. Independent verification confirms the file's existence and partial PE parse, but not a reproducible, valid, loadable second-stage payload."
+      },
+      "report_disposition": "include_with_caveat",
+      "limitations": [
+        "Production mechanism not reproducible from the progress log.",
+        "Not a valid loadable PE; header reconstruction (decoded_stage2_pe.exe) is also invalid.",
+        "SizeOfImage/ImageBase identity with the original sample suggests it may be a re-encode of the original rather than a distinct payload.",
+        "No imports, strings, or capabilities can be asserted from this artifact."
+      ]
+    },
+    {
+      "id": "fr-006",
+      "title": "Second-stage source is the original PE mapped from disk (self-reloading loader) — hypothesis, not validated",
+      "original_claims": [
+        {
+          "stage": "static-pass2",
+          "finding_id": "fin-p2-005",
+          "claim": "Shellcode includes GetModuleFileNameA + CreateFileA path to read the original PE from disk as an alternative source",
+          "confidence": 0.85
+        },
+        {
+          "stage": "dynamic",
+          "finding_id": "bhv-dyn-005",
+          "claim": "Shellcode file I/O path (GetModuleFileNameA + CreateFileA) for reading the original PE; not tested at runtime",
+          "confidence": 0.85
+        }
+      ],
+      "final_status": "partial",
+      "final_confidence": 0.55,
+      "evidence_chain": [
+        {
+          "id": "ev-p2-005",
+          "kind": "static",
+          "source": { "stage": "static-pass2", "artifact": "decoded_payload.bin", "location": "capstone disassembly 0x606-0x646" },
+          "observation": "0x606: VirtualAlloc(0,[ebp+0x68],0x1000,4); GetModuleFileNameA via [ebp+0x20]; CreateFileA via [ebp+0x24] — opens the current PE file from disk.",
+          "address": "0x606",
+          "confidence": 0.85
+        },
+        {
+          "id": "ev-dd-010",
+          "kind": "static",
+          "source": { "stage": "deepdive", "artifact": "_state/shellcode_analysis.json", "location": "execution_graph.resolved_apis" },
+          "observation": "Stage-1 shellcode resolves CreateFileA [ebp+0x24], CreateFileMappingA [ebp+0x28], MapViewOfFile [ebp+0x2C] in addition to GetModuleFileNameA [ebp+0x20] — a full file-mapping pipeline consistent with mapping the on-disk original PE.",
+          "address": null,
+          "confidence": 0.8
+        },
+        {
+          "id": "ev-dd-009",
+          "kind": "tool_output",
+          "source": { "stage": "deepdive", "artifact": "H:/Dataset/files/malware/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6", "location": "host PE parse" },
+          "observation": "Original sample: PE@0x7C, Machine=0x14C, 4 sections (.text/.rdata/.data/.rsrc), Entry=0x1510, ImageBase=0x400000, SizeOfImage=0xC9000 — the same SizeOfImage and ImageBase as the stage-2 header at 0xB30C.",
+          "address": "0x7C",
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-dd-008",
+          "kind": "analyst",
+          "source": { "stage": "deepdive", "artifact": "_state/decode_stage2.progress.md", "location": "documented decode attempts" },
+          "observation": "Progress log: config pe_offset=0xB20400 and size=0x40000 'are too large for the original sample' and the decode 'operates on the mapped view of the original PE file'.",
+          "address": null,
+          "confidence": 0.85
+        }
+      ],
+      "reasoning": "Multiple independent signals converge on the original-PE-mapping model: the resolved CreateFileA/CreateFileMappingA/MapViewOfFile APIs (ev-dd-010), the static file-I/O path (ev-p2-005), the progress-log insight (ev-dd-008), and the SizeOfImage/ImageBase identity between the original and the stage-2 header (ev-dd-009). This is a coherent hypothesis for a self-reloading loader, but it has not been validated: the shellcode never executed past the decode loop locally, and no reproducible decode of the original file region was produced. Confidence is capped at 0.55 pending a reproduction.",
+      "confidence_change": {
+        "direction": "decreased",
+        "previous_max": 0.85,
+        "new": 0.55,
+        "justification": "The file-I/O path claim was 0.85 as a static observation; the inference that the second stage IS the original sample (rather than the claimed embedded PE) is a hypothesis requiring validation and is therefore lower than the static observation that merely documents the code path."
+      },
+      "report_disposition": "include_with_caveat",
+      "limitations": [
+        "Hypothesis not validated by execution or by a reproducible decode.",
+        "The exact config semantics (pe_offset 0xB20400, size 0x40000) are unresolved and exceed the original file size on their face, so the mapping geometry is not yet explained."
+      ]
+    },
+    {
+      "id": "fr-007",
+      "title": "API hash-to-name mapping for the shellcode's 16-entry table is unresolved",
+      "original_claims": [
+        {
+          "stage": "static-pass2",
+          "finding_id": "fin-p2-003",
+          "claim": "Custom rolling hash (ror eax,7 / rol [esp],0xd / add) resolves 16 kernel32 APIs from a table at offset 0x64A",
+          "confidence": 0.9
+        }
+      ],
+      "final_status": "unknown",
+      "final_confidence": 0.6,
+      "evidence_chain": [
+        {
+          "id": "ev-p2-003",
+          "kind": "static",
+          "source": { "stage": "static-pass2", "artifact": "decoded_payload.bin", "location": "capstone disassembly 0x354-0x3DD and 0x5D-0x90" },
+          "observation": "Hash fn at 0x354: ror eax,7; rol [esp],0xd; add [esp],eax; lodsb; loop. 16-entry table at 0x64A. Stack strings 'HeapAlloc'/'HeapFree' at 0x67-0x88.",
+          "address": "0x354",
+          "confidence": 0.9
+        },
+        {
+          "id": "ev-dd-010",
+          "kind": "static",
+          "source": { "stage": "deepdive", "artifact": "_state/shellcode_analysis.json", "location": "execution_graph.resolved_apis" },
+          "observation": "Resolved API stub list includes LoadLibraryA, GetProcAddress, HeapAlloc, VirtualAlloc, HeapFree, GetModuleFileNameA, CreateFileA, CreateFileMappingA, MapViewOfFile, msvcrt.initterm (thunk), plus 'additional APIs via hash table (16 entries total)'.",
+          "address": null,
+          "confidence": 0.8
+        }
+      ],
+      "reasoning": "The hash algorithm and table location are well documented, and a partial API list was reconstructed, but the individual hash-to-name mapping for all 16 entries was never computed. The set of resolved capabilities is therefore partial and inferred. This does not block the loader characterization but limits the capability enumeration.",
+      "confidence_change": {
+        "direction": "unchanged",
+        "previous_max": 0.9,
+        "new": 0.6,
+        "justification": "Algorithm and table confirmed (0.9) but the actual 16 API identities remain unmapped; the effective confidence for the capability claim is set to 0.6 reflecting partial knowledge rather than a change in the algorithm finding itself."
+      },
+      "report_disposition": "include_as_unknown",
+      "limitations": [
+        "16 hash-to-name mappings not computed.",
+        "Resolved-API list is partially inferred from surrounding code."
+      ]
+    },
+    {
+      "id": "fr-008",
+      "title": "Persistence, C2, network, and family identity were NOT locally observed (external-only leads)",
+      "original_claims": [
+        {
+          "stage": "dynamic",
+          "finding_id": "bhv-dyn-007",
+          "claim": "Network communication could not be assessed because the second-stage PE was not loaded; stage-1 shellcode has no networking capability",
+          "confidence": 0.5
+        },
+        {
+          "stage": "intel",
+          "finding_id": null,
+          "claim": "Public behaviour_summary reports external C2 IP 175.41.28.156 (/api/urls/, /api/stats/install/) and HKCU RunOnce persistence GUID 6F638C1208E9B91B55DDEB0F7B07D287 — not observed locally",
+          "confidence": 0.5
+        }
+      ],
+      "final_status": "not_reproduced",
+      "final_confidence": 0.3,
+      "evidence_chain": [
+        {
+          "id": "ev-dd-011",
+          "kind": "external",
+          "source": { "stage": "deepdive", "artifact": "06-intel.json", "location": "ioc_correlation.external_only" },
+          "observation": "External-only IOCs: C2 IP 175.41.28.156 with HTTP GET /api/urls/ and /api/stats/install/; HKCU RunOnce value 6F638C1208E9B91B55DDEB0F7B07D287 with matching mutex and AppData copy path; IFEO key for 996E.exe; SafeBoot and Safer CodeIdentifiers registry keys. All are from VirusTotal behaviour_summary, none locally observed.",
+          "address": null,
+          "confidence": 0.5
+        },
+        {
+          "id": "ev-dyn-003",
+          "kind": "dynamic",
+          "source": { "stage": "dynamic", "artifact": "05-dynamic.json", "location": "x64dbg memory query" },
+          "observation": "Decode destination in uncommitted MEM_RESERVE region; in-process second-stage load never completed; observation window limited to entry_gate_to_decode_exit_only.",
+          "address": "0x2E0073",
+          "confidence": 0.95
+        }
+      ],
+      "reasoning": "No persistence, C2, network, credential, or exfiltration behavior was observed locally — the run stopped at the decode exit. The VirusTotal external IOCs are attributed public sandbox observations, useful as follow-up leads but explicitly NOT local evidence. They cannot be used to upgrade local claims. The 'spreader' tag and rogue/fraudtool/fakeav labels likewise remain attribution hints pending local confirmation in the (unloaded) second stage.",
+      "confidence_change": {
+        "direction": "unchanged",
+        "previous_max": 0.5,
+        "new": 0.3,
+        "justification": "The claim of 'not locally observed' is certain, but its significance is lowered because it reflects an observation gap (second stage never loaded), not evidence of absence. External-only IOCs remain at low confidence for any local claim."
+      },
+      "report_disposition": "include_as_unknown",
+      "limitations": [
+        "Absence during one run is not proof of nonexistence.",
+        "External-only IOCs must be attributed to VirusTotal, not presented as local observations."
+      ]
+    }
+  ],
+  "contradictions": [
+    {
+      "id": "ct-001",
+      "topic": "Embedded second-stage PE model vs artifact byte layout",
+      "claims": [
+        {
+          "stage": "static-pass2",
+          "claim": "A 0x6AC-byte encoded second-stage PE is embedded at shellcode offset 0x15.",
+          "evidence_ids": ["ev-p2-002", "ev-p2-006"]
+        },
+        {
+          "stage": "deepdive",
+          "claim": "0x15+0x6AC=0x6C1 exceeds the 1728-byte (0x6C0) shellcode; the region is the shellcode's own code/config, and the rep movsb copies the shellcode body.",
+          "evidence_ids": ["ev-dd-003", "ev-dd-004"]
+        }
+      ],
+      "analysis": "Pure arithmetic contradiction: an object of size 0x6AC cannot start at offset 0x15 of a 0x6C0-byte file. Independent evidence: the region 0x15..0x6A5 contains the loader's own instructions and data ('Kernel32.dll', hash table, config block); the rep movsb (esi=0x12, ecx=0x6AC) copies 0x12..0x6BD, which is the shellcode's own body. Additionally, a 0x6AC-byte source cannot decode to a 0x52000-byte output under a size-preserving XOR+bswap loop.",
+      "resolution": "The embedded-PE geometry claim is rejected as structurally impossible. The second-stage source is elsewhere (file-mapping hypothesis). static-pass2's wider loader reading (manual PE load of some source) is retained.",
+      "resolved": true,
+      "final_confidence": 0.95
+    },
+    {
+      "id": "ct-002",
+      "topic": "Second-stage decode key: 0x22CC456A vs 0x7845B018",
+      "claims": [
+        {
+          "stage": "static-pass2",
+          "claim": "Config key component 0x5A89AFFB XOR 0x7845EA91 = 0x22CC456A.",
+          "evidence_ids": ["ev-p2-002"]
+        },
+        {
+          "stage": "dynamic",
+          "claim": "decode_stage2.progress.md computes key = 0x00005A89 XOR 0x7845EA91 = 0x7845B018.",
+          "evidence_ids": []
+        }
+      ],
+      "analysis": "The two derivations read the same config bytes at different offsets. Direct byte read of decoded_payload.bin: dword little-endian at 0x6B9 = FB AF 89 5A -> 0x5A89AFFB; 0x5A89AFFB XOR 0x7845EA91 = 0x22CC456A (verified by arithmetic). The progress-log 0x7845B018 came from a misaligned read of the key field across the file boundary.",
+      "resolution": "Resolved in favor of 0x22CC456A. Note this key is identical to the packer's stage-1 decode seed (also 0x22CC456A, confirmed live in EDI at 0x401BE1) — a genuine cross-stage corroboration of a shared key.",
+      "resolved": true,
+      "final_confidence": 0.95
+    },
+    {
+      "id": "ct-003",
+      "topic": "decoded_stage2_raw.bin provenance: progress-log failures vs final dynamic success",
+      "claims": [
+        {
+          "stage": "dynamic",
+          "claim": "Second-stage PE decoded offline from the embedded 0x6AC payload (fin-dyn-007).",
+          "evidence_ids": ["ev-dyn-007"]
+        },
+        {
+          "stage": "deepdive",
+          "claim": "decode_stage2.progress.md records decode failures with both candidate keys and states the decode operates on a mapped view of the original PE, not the 0x6AC buffer; no successful run is logged.",
+          "evidence_ids": ["ev-dd-008"]
+        }
+      ],
+      "analysis": "The progress file (a live checkpoint written during the task) contradicts the final narrative on (a) the data source and (b) whether the decode succeeded. The two cannot both be accurate. The progress file is contemporaneous and specific; the final JSON gives no reproducible decode script/parameters. Combined with the 0x6AC->0x52000 size impossibility, the 'decoded from the embedded 0x6AC payload' claim is not credible. The artifact itself exists and hashes correctly, so the contradiction is about its origin and validity, not its existence.",
+      "resolution": "Unresolved as to exact origin. The artifact is retained but its production is not reproducible from documented inputs and it is not a valid loadable PE. The report must not present decoded_stage2_raw.bin as a confirmed decoded second-stage payload.",
+      "resolved": false,
+      "final_confidence": 0.4
+    },
+    {
+      "id": "ct-004",
+      "topic": "'Decode loop reached exit' vs 'decode output never materialized in memory'",
+      "claims": [
+        {
+          "stage": "unpack",
+          "claim": "Decode loop confirmed live; decode exit reached (ev-003 / ev-002).",
+          "evidence_ids": ["ev-003", "ev-002"]
+        },
+        {
+          "stage": "dynamic",
+          "claim": "In-process decode could not complete because the destination (0x2E0073+) is in an uncommitted MEM_RESERVE region; writes fault and are skipped.",
+          "evidence_ids": ["ev-dyn-003"]
+        }
+      ],
+      "analysis": "Both observations can be true simultaneously: the loop's control flow reached its exit (counter advanced), but writes to uncommitted pages were bypassed by x64dbg exception-skipping, so the output was never actually written to memory. This is why analytic recovery was required and why the in-memory second stage was never materialized.",
+      "resolution": "Resolved: 'decode loop executed' (control flow) and 'payload not materialized' (memory) are not contradictory once the debugger's Skip/erun exception handling is accounted for.",
+      "resolved": true,
+      "final_confidence": 0.9
+    }
+  ],
+  "hypotheses": [
+    {
+      "id": "hyp-001",
+      "statement": "The second-stage PE is derived from the ORIGINAL sample file mapped from disk (self-reloading loader), not from a distinct embedded PE.",
+      "confidence": 0.55,
+      "supporting_evidence_ids": ["ev-p2-005", "ev-dd-009", "ev-dd-010", "ev-dd-008"],
+      "counter_evidence_ids": ["ev-p2-002"],
+      "validation_plan": [
+        "Extract the region of the original PE file referenced by the config (pe_offset/size semantics) and decode it with key 0x22CC456A using the 0x4DA loop.",
+        "Compare the decoded output to decoded_stage2_raw.bin; check whether it yields a loadable PE with a valid IAT.",
+        "Alternatively run the shellcode in the guest to its second-stage load and dump the mapped image."
+      ],
+      "falsification_condition": "Decoding the mapped original file region with key 0x22CC456A does not reproduce decoded_stage2_raw.bin and does not yield a loadable PE; or the shellcode's second-stage load provably consumes a distinct embedded buffer.",
+      "status": "open"
+    },
+    {
+      "id": "hyp-002",
+      "statement": "The packer allocates the decode destination as MEM_RESERVE and commits-on-write via an exception handler (SEH); x64dbg's Skip/erun bypassed that handler, preventing in-memory materialization.",
+      "confidence": 0.6,
+      "supporting_evidence_ids": ["ev-dyn-003", "ev-dyn-002"],
+      "counter_evidence_ids": [],
+      "validation_plan": [
+        "Re-run in the guest without exception-skipping, letting the sample's own SEH handler process the page faults.",
+        "Alternatively hook VirtualAlloc/VirtualProtect to observe commit requests for the 0x250000 base.",
+        "Observe whether the process would naturally commit the pages (single-step past the first fault and inspect the page state)."
+      ],
+      "falsification_condition": "Allowing the sample to handle faults still leaves the destination uncommitted (i.e., the packer never intended those writes to succeed in this path).",
+      "status": "open"
+    },
+    {
+      "id": "hyp-003",
+      "statement": "decoded_stage2_raw.bin was produced by decoding a region of the original sample (its data/overlay) with key 0x22CC456A, which is why its SizeOfImage/ImageBase match the original; its corrupt DOS header results from an incomplete/incorrect header handling rather than a distinct payload.",
+      "confidence": 0.4,
+      "supporting_evidence_ids": ["ev-dd-005", "ev-dd-009"],
+      "counter_evidence_ids": ["ev-dd-006", "ev-dd-007"],
+      "validation_plan": [
+        "Reproduce the decode over candidate regions of the original file and compare hashes/headers.",
+        "Reconstruct a DOS+PE header consistent with the 0xB30C block and validate it loads."
+      ],
+      "falsification_condition": "No decode of any region of the original reproduces decoded_stage2_raw.bin; the file is instead generated by an entirely different source.",
+      "status": "open"
+    }
+  ],
+  "root_cause_analysis": [
+    {
+      "id": "rca-001",
+      "problem": "Local dynamic analysis never reached the loaded second-stage PE; the pipeline stopped at the decode exit.",
+      "candidate_causes": [
+        {
+          "cause": "Decode destination in an uncommitted MEM_RESERVE region; writes fault and are skipped by the debugger, so the in-memory payload never materialized.",
+          "likelihood": 0.65,
+          "reason": "Directly documented (ev-dyn-003); memory query + repeated access violations + Skip/erun behavior all observed."
+        },
+        {
+          "cause": "Debugger divergence at the disguised HeapCreate call ((char*)&HeapCreate-2 = 0x75970CDE) via the sample's anti-debug int3 hotpatch.",
+          "likelihood": 0.55,
+          "reason": "Documented in unpack and the progress log; the unpack run diverged there, and the dynamic run relied on Skip to pass it."
+        },
+        {
+          "cause": "The packer expects an SEH commit-on-write handler that the debugger's exception skipping bypassed.",
+          "likelihood": 0.5,
+          "reason": "Consistent with MEM_RESERVE allocation + write faults; see hyp-002."
+        },
+        {
+          "cause": "Analysis timeout / environment interaction.",
+          "likelihood": 0.2,
+          "reason": "No explicit timeout recorded, but the run was long and diverged; lower likelihood."
+        },
+        {
+          "cause": "Wrong dump timing / incorrect candidate handoff.",
+          "likelihood": 0.15,
+          "reason": "The stage-1 recovery was analytic and correct (hash verified); timing is not the primary failure."
+        }
+      ],
+      "most_likely_cause": "Uncommitted MEM_RESERVE decode destination combined with debugger bypass of the sample's exception handling (SEH commit-on-write) prevented in-memory materialization; the anti-debug int3 hotpatch on the disguised HeapCreate call compounded the divergence.",
+      "confidence": 0.6,
+      "evidence_gap": "A re-run that lets the sample's own exception handler commit the pages (no Skip/erun), plus a trace of VirtualAlloc/VirtualProtect around 0x250000, would distinguish commit-on-write (likely) from a genuinely broken path."
+    },
+    {
+      "id": "rca-002",
+      "problem": "The 'second-stage PE embedded at offset 0x15' model propagated from static-pass2 into dynamic without validation.",
+      "candidate_causes": [
+        {
+          "cause": "Misreading the rep movsb (esi=0x12, ecx=0x6AC) as copying an embedded PE rather than the shellcode's own body.",
+          "likelihood": 0.75,
+          "reason": "Structural analysis shows the copied region is the shellcode's code/config; no size check was applied."
+        },
+        {
+          "cause": "Failure to sanity-check 0x15+0x6AC against the 1728-byte shellcode length.",
+          "likelihood": 0.7,
+          "reason": "A one-line size check would have disproved the geometry."
+        },
+        {
+          "cause": "Over-interpretation of the config block 'size=0x52000' as the embedded payload size, which instead matches the decoded_stage2_raw output size.",
+          "likelihood": 0.4,
+          "reason": "The config size and the raw artifact size coinciding reinforced the wrong source model."
+        }
+      ],
+      "most_likely_cause": "Misreading the rep movsb copy as an embedded PE and never size-checking the embedding geometry against the shellcode length.",
+      "confidence": 0.75,
+      "evidence_gap": "None significant — the arithmetic (ev-dd-003) is dispositive."
+    }
+  ],
+  "investigation_targets": [
+    {
+      "id": "tgt-001",
+      "priority": 5,
+      "target": "Reproduce the stage-2 decode over the mapped original PE file (config pe_offset/size, key 0x22CC456A, 0x4DA loop)",
+      "reason": "Blocks verdict on the second-stage payload and whether decoded_stage2_raw.bin is a re-encode of the original or a distinct payload. Resolves the provenance contradiction (ct-003).",
+      "recommended_action": "Reverse the exact 0x4DA decode semantics (including the sub ecx,3 iteration), reconcile config field meanings, then decode candidate regions of the original sample; compare to decoded_stage2_raw.bin; if a loadable PE results, parse imports/config.",
+      "success_criteria": "A reproducible decode yields a valid loadable PE with a real IAT; decoded_stage2_raw.bin's role (or the corrected artifact) is established."
+    },
+    {
+      "id": "tgt-002",
+      "priority": 5,
+      "target": "Reconstruct a loadable DOS+PE header for the stage-2 artifact and statically analyze the resulting PE",
+      "reason": "The recovered stage-2 header parses but is not loadable; the actual malware logic (C2 config, persistence, family) lives in this PE.",
+      "recommended_action": "Fix the DOS header (MZ at 0, correct e_lfanew), relocate/adjust the section table to be file-start-consistent, validate with a PE parser, then run import/string/config extraction and family matching.",
+      "success_criteria": "A loadable PE with valid imports whose capabilities (C2, persistence) can be assessed."
+    },
+    {
+      "id": "tgt-003",
+      "priority": 5,
+      "target": "Map all 16 shellcode API hashes to kernel32 export names",
+      "reason": "Reveals the stage-1 loader's full runtime capability set and enables a definitive capability enumeration.",
+      "recommended_action": "Reimplement the ror/rol/add rolling hash and compute over kernel32 export names; match the 64-byte table at offset 0x64A.",
+      "success_criteria": "All 16 hashes mapped to specific functions."
+    },
+    {
+      "id": "tgt-004",
+      "priority": 4,
+      "target": "Re-run the sample in the guest letting its own exception handler commit the decode destination (no Skip/erun)",
+      "reason": "If the packer uses SEH commit-on-write, a clean run will materialize the second stage in memory and let the full payload execute, enabling local C2/persistence observation.",
+      "recommended_action": "Revert to VMRunV4, launch without exception-skipping, breakpoint VirtualAlloc/VirtualProtect and the second-stage load path; dump the mapped image at the manual-PE-load completion.",
+      "success_criteria": "Second-stage PE materialized and its entry reached; runtime behavior (network, persistence) observed or conclusively absent."
+    },
+    {
+      "id": "tgt-005",
+      "priority": 3,
+      "target": "Validate the VirusTotal external IOCs locally once the second stage runs (C2 175.41.28.156, RunOnce GUID 6F638C1208E9B91B55DDEB0F7B07D287, IFEO 996E.exe)",
+      "reason": "These are follow-up leads only; local confirmation or refutation determines whether they enter the final report as confirmed IOCs.",
+      "recommended_action": "Network/persistence monitoring during the tgt-004 run; check for /api/urls/ and /api/stats/install/ requests, RunOnce writes, and mutex open.",
+      "success_criteria": "Local evidence confirms, partially matches, or refutes each external IOC."
+    },
+    {
+      "id": "tgt-006",
+      "priority": 2,
+      "target": "Identify packer toolchain and confirm/refute the 'spreader' tag and rogue/fraudtool family hints",
+      "reason": "Family attribution is currently enrichment-only; a concrete identification would materially improve detection guidance.",
+      "recommended_action": "Compare the 49-wrapper/import-arithmetic packer style against known packer signatures; correlate the shared 0x22CC456A key and shellcode structure with public samples once a stage-2 hash is available.",
+      "success_criteria": "A named packer/family or a documented 'unidentified custom packer' with reproducible similarity."
+    }
+  ],
+  "final_claim_policy": {
+    "allowed_claims": [
+      "The original sample is a PE32 GUI I386 binary (ImageBase 0x400000, entry 0x1510) that is a malicious custom-packed loader (64 VirusTotal engines detect it; 64 malicious / 0 suspicious / 8 undetected).",
+      "The packer uses an obfuscated entry gate (ROR-based, conditional __halt/JUMPOUT) that passes to a 49-wrapper loader chain at runtime (CF=0, jb not taken, confirmed live).",
+      "The packer performs GlobalFlags/BeingDebugged anti-debug checks that return 0x8000 under a debugger but do not block the payload path in the observed runs.",
+      "A custom decode loop (sub_401B84, key 0x22CC456A, XOR+add+byteswap) decodes a 1728-byte first-stage shellcode (decoded_payload.bin, sha256 9f8e47944d294db5888d3cab9dd35f43f212b8b7dff92ae4439fe5358d7303e3), independently hash-verified.",
+      "The stage-1 shellcode is a position-independent PE loader: PEB-walks to kernel32.dll, resolves APIs via a custom rolling hash (ror/rol/add, 16-entry table), allocates a RWX buffer via VirtualAlloc, and manually loads a second PE (section mapping, relocation, import resolution, initterm).",
+      "The stage-1 shellcode contains no anti-VM, anti-debug, or timing checks (0 int3/rdtsc/int 0x2D in 716 instructions).",
+      "Local dynamic analysis did not reach the loaded second stage; the decode destination was in an uncommitted MEM_RESERVE region and the anti-debug int3 hotpatch on the disguised HeapCreate call diverted the unpack live path.",
+      "The second-stage decode key is 0x22CC456A, identical to the packer's stage-1 seed key (verified by direct byte read of the config block).",
+      "Artifacts recovered: original sample (000d6230...), stage-1 shellcode (9f8e4794...), stage-2 raw data (0ec0a946...) — hashes verified against recorded claims."
+    ],
+    "caveated_claims": [
+      "decoded_stage2_raw.bin (335872 bytes) contains a parseable PE header at 0xB30C (I386, 3 sections, entry 0xA472) but is NOT a valid loadable PE; its production mechanism is not reproducible from the documented attempt log, which records failures. Any statement about a 'recovered second-stage PE' must carry these limits.",
+      "The second-stage source is inferred to be the original sample mapped from disk (self-reloading loader) based on the resolved CreateFileA/CreateFileMappingA/MapViewOfFile APIs and matching SizeOfImage/ImageBase (0xC9000/0x400000); this is a hypothesis, not a validated conclusion.",
+      "C2, persistence, network, credential, and family behaviors were NOT observed locally; they remain unknown pending second-stage execution.",
+      "VirusTotal external IOCs (C2 IP 175.41.28.156 with /api/urls/ and /api/stats/install/; HKCU RunOnce GUID 6F638C1208E9B91B55DDEB0F7B07D287 with matching mutex/AppData copy; IFEO 996E.exe; SafeBoot and Safer policy keys) are attributed public sandbox observations only and must be labeled as follow-up leads, not local evidence.",
+      "Public labels (trojan.rogue/fraudtool, category fakeav) and the 'spreader' tag are attribution hints requiring local confirmation; they do not establish a family identity.",
+      "The 16 shellcode API hashes are unmapped to names; the resolved-capability list (LoadLibraryA, GetProcAddress, HeapAlloc, VirtualAlloc, HeapFree, GetModuleFileNameA, CreateFileA, CreateFileMappingA, MapViewOfFile, msvcrt.initterm) is partially inferred.",
+      "GlobalFlags anti-debug interpretation is heuristic; the identity of the import slot target at 0x403010 (0x75968560) is not symbol-resolved."
+    ],
+    "prohibited_claims": [
+      "Do not claim a distinct, recovered, analyzable second-stage PE payload — decoded_stage2_raw.bin is not loadable and its provenance is unreproducible.",
+      "Do not claim the '0x6AC-byte second-stage PE embedded at shellcode offset 0x15' — it is structurally impossible (exceeds the 1728-byte shellcode).",
+      "Do not claim persistence (RunOnce, AppData copy, IFEO, SafeBoot/Safer registry operations) as locally observed.",
+      "Do not claim C2 communication, command-and-control IPs, or the /api/urls/ or /api/stats/install/ endpoints as locally observed.",
+      "Do not claim credential access, exfiltration, collection, destructive impact, or ransomware behavior.",
+      "Do not claim family identity (rogue/fraudtool/fakeav) or the 'spreader' tag as confirmed — these are public attribution hints only.",
+      "Do not claim payload execution beyond the stage-1 loader (the second-stage PE never executed locally).",
+      "Do not present external-only public-sandbox IOCs as local evidence or as 'matched_local' indicators."
+    ]
+  },
+  "limitations": [
+    "The second-stage PE never executed locally; all final-payload behavior is unknown, and absence during one run is not proof of nonexistence.",
+    "decoded_stage2_raw.bin's production is not reproducible from documented inputs (progress log records failed attempts; no successful decode is logged).",
+    "The stage-1 shellcode was decoded analytically, not executed; API-hash-to-name mapping is incomplete.",
+    "The packer's anti-debug was observed only under x64dbg; other debugger states were not stress-tested.",
+    "Only hash-based public lookups were performed; no binaries or recovered artifacts were uploaded to VirusTotal.",
+    "Original-pass1's .rdata content was sampled, not exhaustively scanned; the anomalous section's full contents remain unmapped.",
+    "The exact config-block semantics (pe_offset=0xB20400, size=0x40000) exceed the original file size on their face and are not yet explained."
+  ],
+  "upstream_inputs": [
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/01-prepare-env.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/02-static-pass1.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/03-unpack.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/04-static-pass2.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/05-dynamic.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/06-intel.json"
+  ]
+}

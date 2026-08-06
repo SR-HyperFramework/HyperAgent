@@ -1,0 +1,172 @@
+{
+  "schema_version": "1.0",
+  "stage": "unpack",
+  "sample": {
+    "original_sha256": "000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+    "target_path": "H:\\Dataset\\files\\malware\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+    "target_sha256": "000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6"
+  },
+  "status": "completed",
+  "summary": "Recovered the first-stage decoded payload from the custom XOR+add+byteswap decode loop (sub_401B84, 0x401B84). Live-tracing confirmed the entry gate passes to the loader chain (no __halt), the GlobalFlags anti-debug site returns 0x8000, and the decode loop transform (out=(src^key)+1; key=bswap(out), seed key 0x22CC456A, size 0x6BC). The debugger diverged into an anti-debug int3 hotpatch path on the disguised HeapCreate call ((char*)&HeapCreate-2 = 0x75970CDE). The decode is fully deterministic, so the payload was recovered analytically by reading the 1724-byte source at 0x401ED1 and re-implementing the loop: a 1728-byte x86 shellcode stub. The shellcode PEB-walks (fs:[0x30] at 0x1B6), hash-resolves APIs from Kernel32.dll and msvcrt.dll, scans for MZ/PE signatures, and allocates a RWX region (VirtualAlloc 0,0x6AC,0x1000,0x40). Artifact sha256 9f8e47944d294db5888d3cab9dd35f43f212b8b7dff92ae4439fe5358d7303e3. This is a stage-1 shellcode handoff, not a PE; the second static pass should treat it as position-independent x86 code.",
+  "findings": [
+    {
+      "id": "fin-001",
+      "title": "Entry gate passes to loader chain",
+      "category": "execution",
+      "status": "confirmed",
+      "confidence": 1.0,
+      "description": "Live single-stepping through start() at 0x401510 confirmed the obfuscated gate computes ecx=(ror(*(dword*(NSPStartup PE header+0x1C)),8)) = 0xE6, then sub cl,0x50 = 0x96. The jb 0x401541 (__halt) branch is NOT taken; control falls through NOPs to jmp 0x401080 -> sub_40108C (loader chain).",
+      "reasoning": "At 0x401533 sub cl,ah with cl=0xE6, ah=0x50 yields 0x96 with no borrow, so CF=0 and jb is not taken. EIP advanced 0x401510->0x401515->...->0x40153C->0x401080->0x40108C exactly as static pass-1 predicted (bp-001 success).",
+      "sources": [
+        {"stage": "static-pass1", "artifact": "02-static-pass1.json", "location": "unpack_decision.breakpoint_plan[0]"},
+        {"stage": "unpack", "artifact": null, "location": "x64dbg trace_step.py register trace"}
+      ],
+      "evidence": [
+        {"id": "ev-001", "kind": "dynamic", "source": {"stage": "unpack", "artifact": null, "location": "x64dbg register_get_batch step trace"}, "observation": "ecx=0xE6 after ror 8 at 0x40152E; sub cl,ah -> 0x96; jb not taken; jmp 0x401080 reached.", "address": "0x40152E", "confidence": 1.0}
+      ],
+      "limitations": []
+    },
+    {
+      "id": "fin-002",
+      "title": "Anti-debug GlobalFlags returns 0x8000",
+      "category": "anti_analysis",
+      "status": "confirmed",
+      "confidence": 0.8,
+      "description": "At the first GlobalFlags call site (0x40104D, call dword ptr cs:[eax] with eax=0x403010 import slot), the resolved API returned 0x8000. The global heap flags under the x64dbg-managed heap are non-zero.",
+      "reasoning": "The import slot at 0x403010 held 0x75968560. Stepping over the call returned EAX=0x8000. This is a heap flag value consistent with a debugger-managed heap, matching the static anti-debug hypothesis. Execution nonetheless proceeded into sub_401B84, so the check did not block the payload path.",
+      "sources": [
+        {"stage": "static-pass1", "artifact": "02-static-pass1.json", "location": "findings[4] (fin-005)"},
+        {"stage": "unpack", "artifact": null, "location": "x64dbg memory_read 0x403010 / step_over"}
+      ],
+      "evidence": [
+        {"id": "ev-002", "kind": "dynamic", "source": {"stage": "unpack", "artifact": null, "location": "x64dbg memory_read + register_get_batch"}, "observation": "[0x403010]=0x75968560; after call EAX=0x8000; EIP returned to 0x401050.", "address": "0x40104D", "confidence": 0.8}
+      ],
+      "limitations": ["Exact API at 0x75968560 not symbol-resolved; 0x8000 value interpretation is heuristic."]
+    },
+    {
+      "id": "fin-003",
+      "title": "Decode loop transform confirmed live",
+      "category": "packing",
+      "status": "confirmed",
+      "confidence": 1.0,
+      "description": "Disassembly of sub_401B84 loop (0x401BF6-0x401C0B) confirms: eax=key; xor eax,[edx]; add eax,1; mov [ebx],eax; key=bswap(eax); edx+=4, ebx+=4. Seed key 0x22CC456A (mov edi,0x22CC456A at 0x401BE1). Size 0x6BC (1724) bytes. Source base 0x401ED1 with a 2-byte pre-advance; first dword copied raw.",
+      "reasoning": "Live disassembly at 0x401BF6-0x401C0B exactly matches static pass-1 fin-004, with the corrected seed constant 0x22CC456A (static text mis-typed 0x22CC816A). This deterministic transform was used for analytic recovery.",
+      "sources": [
+        {"stage": "static-pass1", "artifact": "02-static-pass1.json", "location": "findings[3] (fin-004)"},
+        {"stage": "unpack", "artifact": null, "location": "x64dbg disassembly_at 0x401BF6"}
+      ],
+      "evidence": [
+        {"id": "ev-003", "kind": "dynamic", "source": {"stage": "unpack", "artifact": null, "location": "x64dbg disassembly_at 0x401BF6"}, "observation": "0x401BF6 xor eax,[edx]; 0x401BF8 add eax,1; 0x401BFB mov [ebx],eax; 0x401C09 bswap edi; seed 0x22CC456A at 0x401BE1.", "address": "0x401B84", "confidence": 1.0}
+      ],
+      "limitations": ["Static pass-1 seed constant typo (0x22CC816A vs live 0x22CC456A) resolved by live disassembly."]
+    },
+    {
+      "id": "fin-004",
+      "title": "Decoded payload is a PEB-walking API-resolution shellcode stub",
+      "category": "execution",
+      "status": "confirmed",
+      "confidence": 0.85,
+      "description": "The 1728-byte decoded artifact (not a PE) is x86 position-independent shellcode. It embeds the wide string 'Kernel32.dll' (call+0x1F at 0x20, string at 0x23), PEB-walks via fs:[0x30] (0x1B6), scans for MZ (0x5C3) and PE (0x5E2) signatures, hash-resolves APIs (GetProcAddress/HeapAlloc/HeapFree/VirtualAlloc patterns at 0x66-0x98, msvcrt.dll at 0x533), and allocates a RWX buffer VirtualAlloc(0,0x6AC,0x1000,0x40) at 0x9A.",
+      "reasoning": "objdump -b binary -m i386 disassembles the artifact into coherent x86 instructions: call/GetPC prologue, PE structure offsets (0x3C, 0x50 subsystem check), PEB TEB offset 0x30, export table walks, and an RWX VirtualAlloc. This is the characteristic shape of a first-stage shellcode loader that will decode/load a second-stage module in memory.",
+      "sources": [
+        {"stage": "unpack", "artifact": "decoded_payload.bin", "location": "objdump -b binary -m i386 + manual hex map"}
+      ],
+      "evidence": [
+        {"id": "ev-004", "kind": "artifact", "source": {"stage": "unpack", "artifact": "decoded_payload.bin", "location": "byte offsets"}, "observation": "0x20 e8 1a 00 00 00 call; 0x23 'Kernel32.dll' UTF-16LE; 0x1B6 64 a1 30 00 00 00 mov eax,fs:[0x30]; 0x5C3 66 ba 4d 5a mov dx,0x5A4D; 0x5E2 50 45 'PE'; 0x9A VirtualAlloc(0,0x6AC,0x1000,0x40).", "address": "0x1B6", "confidence": 0.85}
+      ],
+      "limitations": ["No live execution of the shellcode performed (host-side safety); API-resolver targets inferred from surrounding code, not symbol names.", "Second-stage payload/configuration not present in this 1728-byte stage."]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "art-001",
+      "path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6\\decoded_payload.bin",
+      "sha256": "9f8e47944d294db5888d3cab9dd35f43f212b8b7dff92ae4439fe5358d7303e3",
+      "type": "x86_shellcode_stage1",
+      "validation_status": "validated",
+      "context": "1728-byte decoded first-stage shellcode recovered analytically from the sub_401B84 loop (source 0x401ED1, key 0x22CC456A). PEB-walking API resolver; allocates RWX region. Handoff to static pass-2 as position-independent x86 code."
+    },
+    {
+      "id": "art-002",
+      "path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6\\_state\\src_hex.txt",
+      "sha256": null,
+      "type": "evidence_hex",
+      "validation_status": "not_applicable",
+      "context": "1736 raw bytes read from 0x401ED1 (live memory) used as the decode source; retained as evidence."
+    }
+  ],
+  "investigation_targets": [
+    {
+      "id": "tgt-001",
+      "priority": 1,
+      "target": "decoded_payload.bin (stage-1 shellcode)",
+      "reason": "Recovered first-stage; must be disassembled and its API-resolution + second-stage load logic mapped by static pass-2.",
+      "recommended_action": "Disassemble as raw i386; follow call/GetPC, PEB walk, export hash loop, and the RWX VirtualAlloc + copy; identify the second-stage format (PE vs shellcode) and entry.",
+      "success_criteria": "Full control flow of the stage-1 loader mapped; second-stage delivery mechanism identified."
+    },
+    {
+      "id": "tgt-002",
+      "priority": 2,
+      "target": "0x401ED1 source blob",
+      "reason": "The 1724-byte encrypted source; confirm no second decoder or embedded config beyond the recovered shellcode.",
+      "recommended_action": "Cross-check decoded output hash against the analytic decode; scan for trailing data.",
+      "success_criteria": "Confirmed the decode fully consumes the source; no additional hidden stage at this site."
+    },
+    {
+      "id": "tgt-003",
+      "priority": 2,
+      "target": "sub_40108C loader chain end / OEP",
+      "reason": "The sample's post-unpack OEP after the stage-1 shellcode executes was not reached live (debugger diverged at the HeapCreate int3 hotpatch).",
+      "recommended_action": "In a controlled guest, re-run with the int3 hotpatch bytes skipped or the process restored, to capture the post-decode transfer and second-stage buffer.",
+      "success_criteria": "OEP and second-stage payload buffer captured from live execution."
+    }
+  ],
+  "limitations": [
+    "Debugger diverged into the sample's anti-debug int3 hotpatch path on the disguised HeapCreate call ((char*)&HeapCreate-2); the runtime output-buffer and post-decode OEP were not captured by live execution.",
+    "Artifact recovered analytically from live-confirmed decode algorithm rather than by a memory dump; decode correctness relies on exact loop reproduction.",
+    "Shellcode API-resolver targets inferred from surrounding code; no live execution of the shellcode performed on host or guest.",
+    "Second-stage payload/configuration not present in the 1728-byte stage-1 artifact.",
+    "0x8000 GlobalFlags return API identity not symbol-resolved."
+  ],
+  "upstream_inputs": [
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/01-prepare-env.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/02-static-pass1.json"
+  ],
+  "recovery_status": "success",
+  "packing": {
+    "detected": true,
+    "type": "custom_in_place_self_decoding",
+    "confidence": 0.95
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "strategy": "in_place_self_decoding_analytic",
+      "source": "0x401ED1 (1724 bytes, key 0x22CC456A)",
+      "destination": "decoded_payload.bin (1728 bytes)",
+      "transform": "out=(src^key)+1; key=bswap(out); first dword raw; 2-byte pre-advance",
+      "handoff": "stage-1 x86 shellcode, PEB-walking API resolver",
+      "result": "success"
+    }
+  ],
+  "static_pass2_handoff": {
+    "recommended": true,
+    "artifact_id": "art-001",
+    "artifact_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6\\decoded_payload.bin",
+    "artifact_sha256": "9f8e47944d294db5888d3cab9dd35f43f212b8b7dff92ae4439fe5358d7303e3",
+    "artifact_type": "x86_shellcode_stage1",
+    "candidate_entry": "0x0 (offset 0; call+0x1F GetPC prologue)",
+    "runtime_base": null,
+    "image_base": null,
+    "repair_limitations": [
+      "Not a PE image; raw position-independent shellcode - no headers, imports, or relocations to repair.",
+      "API-resolution targets must be derived by analyzing the export-table hash loop.",
+      "Second-stage payload not included in this artifact."
+    ],
+    "questions": [
+      "What exact APIs does the stage-1 resolver import (export hash loop analysis)?",
+      "What is the second-stage payload format and where is it fetched/decoded from?",
+      "What is the final OEP / main logic of the malware after stage-1 completes?"
+    ]
+  }
+}

@@ -1,0 +1,428 @@
+{
+  "schema_version": "1.0",
+  "stage": "intel",
+  "sample_sha256": "000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+  "status": "completed",
+  "summary": "Public-source verification of sample 000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6. VirusTotal file_info returns a full report (last_analysis_stats: 64 malicious / 0 suspicious / 8 undetected / 4 type-unsupported) with public labels trojan.rogue/fraudtool, popular categories trojan/fakeav, and the 'spreader' tag - consistent with the locally confirmed packed/dropper character but providing no family-level attribution beyond public labels. behaviour_summary yields external-only network and persistence IOCs (C2 IP 175.41.28.156 with /api/urls/ and /api/stats/install/ HTTP GETs; HKCU RunOnce persistence GUID 6F638C1208E9B91B55DDEB0F7B07D287 with a matching opened mutex and AppData copy path) that were not locally observed because the second-stage PE never loaded in the local dynamic run. Recovered artifact hashes (stage-1 shellcode 9f8e4794... and stage-2 raw 0ec0a946...) return no public record on VirusTotal (404), consistent with freshly recovered in-house artifacts. 6 claim checks, 1 matched local IOC, 2 local-only IOCs, 11 external-only leads, and 10 enrichment candidates. No binaries were uploaded; all lookups were hash/report based.",
+  "provider_queries": [
+    {
+      "id": "pq.virustotal.file-info",
+      "provider": "virustotal",
+      "query_scope": "original_sample",
+      "query_type": "sha256",
+      "query_value": "000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+      "result": "match",
+      "matched_identity": "000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6.exe",
+      "reference": "https://www.virustotal.com/api/v3/files/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+      "notes": "VirusTotal returned a full file report for the original sample. Magic 'PE32 executable (GUI) Intel 80386' matches the local identity finding (fin-001). Detection: 64 malicious / 0 suspicious / 8 undetected / 4 type-unsupported. Public tags: peexe, spreader."
+    },
+    {
+      "id": "pq.virustotal.behaviour-summary",
+      "provider": "virustotal",
+      "query_scope": "original_sample",
+      "query_type": "sha256",
+      "query_value": "000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+      "result": "match",
+      "matched_identity": "Merged behaviour summary",
+      "reference": "https://www.virustotal.com/api/v3/files/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/behaviour_summary",
+      "notes": "Merged behaviour summary across available sandboxes. Verdict field 'UNKNOWN_VERDICT'. Provides external-only C2/persistence IOCs (see ioc_correlation.external_only). These are public-source runtime context, not proof the same behavior was reproduced in the local run."
+    },
+    {
+      "id": "pq.virustotal.stage1-shellcode",
+      "provider": "virustotal",
+      "query_scope": "recovered_artifact",
+      "query_type": "sha256",
+      "query_value": "9f8e47944d294db5888d3cab9dd35f43f212b8b7dff92ae4439fe5358d7303e3",
+      "result": "no_match",
+      "matched_identity": null,
+      "reference": "https://www.virustotal.com/api/v3/files/9f8e47944d294db5888d3cab9dd35f43f212b8b7dff92ae4439fe5358d7303e3",
+      "notes": "404 NotFoundError. The recovered stage-1 shellcode (decoded_payload.bin) is not indexed publicly. Consistent with a freshly recovered in-house artifact; absence is not evidence either way."
+    },
+    {
+      "id": "pq.virustotal.stage2-raw",
+      "provider": "virustotal",
+      "query_scope": "recovered_artifact",
+      "query_type": "sha256",
+      "query_value": "0ec0a9464ed57a3b0451b1527006c2177fc183b760049c7a87322d6cca50e012",
+      "result": "no_match",
+      "matched_identity": null,
+      "reference": "https://www.virustotal.com/api/v3/files/0ec0a9464ed57a3b0451b1527006c2177fc183b760049c7a87322d6cca50e012",
+      "notes": "404 NotFoundError. The decoded second-stage raw data (decoded_stage2_raw.bin, header requires reconstruction) is not indexed publicly. Absence is not evidence either way."
+    }
+  ],
+  "claim_checks": [
+    {
+      "id": "cc.custom-pack-obfuscation",
+      "claim_text": "The sample is a custom-packed binary with an obfuscated entry gate, self-modifying import table, and a single custom XOR+byteswap decode loop (sub_401B84).",
+      "related_stage": "static-pass1",
+      "related_finding_ids": [
+        "fin-002",
+        "fin-003",
+        "fin-006"
+      ],
+      "verification_status": "public_label_only",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "analysis": "VirusTotal matched the public label 'obfuscator' (popular_threat_name) for this claim. The label is consistent with the locally confirmed custom-packing findings but is enrichment-only; it does not independently confirm the specific entry-gate/import-self-modification mechanics. Local static evidence remains primary.",
+      "report_use": "followup_only"
+    },
+    {
+      "id": "cc.stage1-shellcode-loader",
+      "claim_text": "The packer decodes a first-stage x86 shellcode that PEB-walks to kernel32.dll and hash-resolves kernel32 APIs.",
+      "related_stage": "static-pass2",
+      "related_finding_ids": [
+        "fin-p2-001",
+        "fin-p2-003"
+      ],
+      "verification_status": "no_public_evidence",
+      "provider_query_ids": [
+        "pq.virustotal.stage1-shellcode"
+      ],
+      "analysis": "The recovered-artifact hash for this claim (stage-1 shellcode) was queried against VirusTotal and returned no public record (404). No public corroboration or conflict is available; the claim rests on local static analysis of the decoded artifact.",
+      "report_use": "caveat_only"
+    },
+    {
+      "id": "cc.stage2-pe-embedded",
+      "claim_text": "The stage-1 shellcode embeds a XOR+bswap-encoded second-stage PE and loads it via a manual PE loader (section mapping, relocation, import resolution).",
+      "related_stage": "static-pass2",
+      "related_finding_ids": [
+        "fin-p2-002",
+        "fin-p2-006"
+      ],
+      "verification_status": "no_public_evidence",
+      "provider_query_ids": [
+        "pq.virustotal.stage2-raw"
+      ],
+      "analysis": "The recovered-artifact hash for this claim (stage-2 raw data) was queried against VirusTotal and returned no public record (404). No public corroboration or conflict is available; the claim rests on local static analysis of the decoded artifact.",
+      "report_use": "caveat_only"
+    },
+    {
+      "id": "cc.anti-debug-present",
+      "claim_text": "The original packer stub performs GlobalFlags(NULL) anti-debug checks at multiple sites (sub_401038, sub_401624, sub_40172C, sub_4018E0, sub_401B38, sub_401E38).",
+      "related_stage": "static-pass1",
+      "related_finding_ids": [
+        "fin-005"
+      ],
+      "verification_status": "insufficient_input",
+      "provider_query_ids": [],
+      "analysis": "No public source field in the supplied VirusTotal inputs speaks to GlobalFlags anti-debug mechanics. No comparison was possible; the claim remains a local static/runtime observation. Note: the public 'spreader' tag is a different signal and does not bear on this claim.",
+      "report_use": "caveat_only"
+    },
+    {
+      "id": "cc.unknown-family-config",
+      "claim_text": "No family attribution or embedded configuration (C2, paths) was identified from local static analysis of the packed sample.",
+      "related_stage": "static-pass1",
+      "related_finding_ids": [
+        "fin-008"
+      ],
+      "verification_status": "public_label_only",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "analysis": "VirusTotal matched public labels 'rogue' and 'fraudtool' (popular_threat_name) for this claim. These are public label suggestions (suggested_threat_label trojan.rogue/fraudtool, category fakeav) and provide candidate attribution to pursue, but do not confirm a family on their own. They do not conflict with the local finding that no configuration was embedded statically.",
+      "report_use": "followup_only"
+    },
+    {
+      "id": "cc.dynamic-c2-persistence-gap",
+      "claim_text": "Local dynamic analysis could not observe C2, persistence, or network IOCs because the second-stage PE never loaded (decode destination in an uncommitted MEM_RESERVE region).",
+      "related_stage": "dynamic",
+      "related_finding_ids": [
+        "fin-dyn-007",
+        "bhv-dyn-007"
+      ],
+      "verification_status": "insufficient_input",
+      "provider_query_ids": [
+        "pq.virustotal.behaviour-summary"
+      ],
+      "analysis": "The claim is about a local observation gap; public evidence cannot corroborate or refute a non-observation. However, the public behaviour_summary provides external-only C2 and persistence leads (C2 IP 175.41.28.156, HKCU RunOnce GUID, mutex GUID) that were NOT seen locally. These are follow-up leads only and do not widen the scope of any local claim.",
+      "report_use": "followup_only"
+    }
+  ],
+  "ioc_correlation": {
+    "matched_local": [
+      {
+        "id": "ioc.orig-sample-sha256",
+        "category": "host",
+        "value": "000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+        "upstream_evidence_ids": [
+          "ev-001",
+          "art-001"
+        ],
+        "provider_query_ids": [
+          "pq.virustotal.file-info"
+        ],
+        "notes": "Original packed PE32 GUI sample. Publicly indexed on VirusTotal and detected as malicious by 64 engines (last_analysis_stats: 64 malicious / 0 suspicious / 8 undetected / 4 type-unsupported). Public labels trojan.rogue/fraudtool and 'spreader' tag are enrichment-only."
+      }
+    ],
+    "local_only_no_public_match": [
+      {
+        "id": "ioc.stage1-shellcode-sha256",
+        "category": "host",
+        "value": "9f8e47944d294db5888d3cab9dd35f43f212b8b7dff92ae4439fe5358d7303e3",
+        "upstream_evidence_ids": [
+          "ev-dyn-004",
+          "art-dyn-001",
+          "art-p2-001"
+        ],
+        "provider_query_ids": [
+          "pq.virustotal.stage1-shellcode"
+        ],
+        "notes": "Decoded 1728-byte first-stage shellcode (PEB-walking API resolver, embedded second-stage loader). Queried against VirusTotal - no public record (404)."
+      },
+      {
+        "id": "ioc.stage2-raw-sha256",
+        "category": "host",
+        "value": "0ec0a9464ed57a3b0451b1527006c2177fc183b760049c7a87322d6cca50e012",
+        "upstream_evidence_ids": [
+          "ev-dyn-007",
+          "art-dyn-002"
+        ],
+        "provider_query_ids": [
+          "pq.virustotal.stage2-raw"
+        ],
+        "notes": "Decoded 335872-byte second-stage raw data containing an embedded PE at offset 0xB30C (header requires reconstruction). Queried against VirusTotal - no public record (404)."
+      }
+    ],
+    "external_only": [
+      {
+        "id": "ioc.external.network.175-41-28-156",
+        "category": "network",
+        "value": "175.41.28.156",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Public C2/IP lead: destination of HTTP GET requests to /api/urls/ and /api/stats/install/ on TCP/80. Observed only in VirusTotal behaviour summary (http_conversations, ip_traffic), not in the local run. Follow-up lead only."
+      },
+      {
+        "id": "ioc.external.network.http-175-41-28-156-api-urls",
+        "category": "network",
+        "value": "http://175.41.28.156/api/urls/",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Public C2 endpoint (HTTP GET). Observed only in VirusTotal behaviour summary; not locally confirmed."
+      },
+      {
+        "id": "ioc.external.network.http-175-41-28-156-api-urls-ts-2b8bab86-affid-66803",
+        "category": "network",
+        "value": "http://175.41.28.156/api/urls/?ts=2b8bab86&affid=66803",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Public C2 endpoint variant carrying a timestamp token (ts=2b8bab86) and affiliate ID (affid=66803). Observed only in VirusTotal behaviour summary; not locally confirmed."
+      },
+      {
+        "id": "ioc.external.network.http-175-41-28-156-api-stats-install",
+        "category": "network",
+        "value": "http://175.41.28.156/api/stats/install/",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Public install-stats reporting endpoint (HTTP GET). Observed only in VirusTotal behaviour summary; not locally confirmed."
+      },
+      {
+        "id": "ioc.external.host.6f638c1208e9b91b55ddeb0f7b07d287",
+        "category": "host",
+        "value": "6F638C1208E9B91B55DDEB0F7B07D287",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Mutex opened during public-sandbox execution; the same GUID is used for the RunOnce value and the All Users Application Data copy path. Observed only in VirusTotal behaviour summary; not locally confirmed."
+      },
+      {
+        "id": "ioc.external.persistence.hkey-current-user-software-microsoft-windows-currentversion-runonce-6f638c1208e9b91b55ddeb0f7b07d287",
+        "category": "persistence",
+        "value": "HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce\\6F638C1208E9B91B55DDEB0F7B07D287",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "RunOnce persistence key set during public-sandbox execution under the sample's GUID. Matches the opened mutex and the All Users Application Data copy path C:\\Documents and Settings\\All Users\\Application Data\\6F638C1208E9B91B55DDEB0F7B07D287\\6F638C1208E9B91B55DDEB0F7B07D287. External-only lead; not locally observed (local dynamic never reached the second stage)."
+      },
+      {
+        "id": "ioc.external.host.registry-machine-software-microsoft-windows-nt-currentversion-image-file-execution-options-996e-exe",
+        "category": "host",
+        "value": "\\Registry\\Machine\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\996E.exe",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Registry key opened under Image File Execution Options for '996E.exe' - a candidate IFEO (debugger hijack / compatibility) manipulation. Observed only in VirusTotal behaviour summary; not locally confirmed."
+      },
+      {
+        "id": "ioc.external.host.registry-machine-system-currentcontrolset-control-safeboot-option",
+        "category": "host",
+        "value": "\\Registry\\MACHINE\\System\\CurrentControlSet\\Control\\SafeBoot\\Option",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "SafeBoot option key opened during public-sandbox execution. Observed only in VirusTotal behaviour summary; not locally confirmed."
+      },
+      {
+        "id": "ioc.external.host.registry-machine-software-policies-microsoft-windows-safer-codeidentifiers",
+        "category": "host",
+        "value": "\\Registry\\Machine\\Software\\Policies\\Microsoft\\Windows\\Safer\\CodeIdentifiers",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Windows Safer code-identifier policy key opened during public-sandbox execution. Observed only in VirusTotal behaviour summary; not locally confirmed."
+      },
+      {
+        "id": "ioc.external.host.registry-machine-software-policies-microsoft-windows-safer-codeidentifiers-transparentenabled",
+        "category": "host",
+        "value": "\\REGISTRY\\MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Safer\\CodeIdentifiers\\TransparentEnabled",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Safer policy TransparentEnabled subkey opened during public-sandbox execution. Observed only in VirusTotal behaviour summary; not locally confirmed."
+      },
+      {
+        "id": "ioc.external.host.registry-user-s-1-5-21-1482476501-1645522239-1417001333-500-software-policies-microsoft-windows-safer-codeidentifiers",
+        "category": "host",
+        "value": "\\REGISTRY\\USER\\S-1-5-21-1482476501-1645522239-1417001333-500\\Software\\Policies\\Microsoft\\Windows\\Safer\\CodeIdentifiers",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Per-user Safer policy key opened during public-sandbox execution. Observed only in VirusTotal behaviour summary; not locally confirmed."
+      }
+    ]
+  },
+  "enrichment_candidates": [
+    {
+      "id": "en.behavior_tag.spreader",
+      "type": "behavior_tag",
+      "value": "spreader",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.4,
+      "usage": "needs_local_confirmation",
+      "notes": "Public tag from VirusTotal file_info. Suggestive of self-spreading/replication behavior; not locally confirmed and not tied to a specific local finding. Local dynamic run did not reach the second stage where spread logic would live."
+    },
+    {
+      "id": "en.behavior_tag.runonce-persistence-guid",
+      "type": "behavior_tag",
+      "value": "RunOnce persistence under HKCU RunOnce with matching mutex and AppData copy, GUID 6F638C1208E9B91B55DDEB0F7B07D287",
+      "provider_query_ids": [
+        "pq.virustotal.behaviour-summary"
+      ],
+      "confidence": 0.5,
+      "usage": "needs_local_confirmation",
+      "notes": "Aggregated from VirusTotal behaviour_summary external observations. Suggests an installation/persistence pattern for the second stage. External-only; requires local confirmation before use as a confirmed persistence claim."
+    },
+    {
+      "id": "en.family_label.rogue",
+      "type": "family_label",
+      "value": "rogue",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.41,
+      "usage": "needs_local_confirmation",
+      "notes": "VirusTotal popular threat name."
+    },
+    {
+      "id": "en.family_label.fraudtool",
+      "type": "family_label",
+      "value": "fraudtool",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.39,
+      "usage": "needs_local_confirmation",
+      "notes": "VirusTotal popular threat name."
+    },
+    {
+      "id": "en.family_label.obfuscator",
+      "type": "family_label",
+      "value": "obfuscator",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.39,
+      "usage": "needs_local_confirmation",
+      "notes": "VirusTotal popular threat name. Consistent with the locally confirmed custom packing."
+    },
+    {
+      "id": "en.family_label.rogue-fraudtool",
+      "type": "family_label",
+      "value": "rogue/fraudtool",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.58,
+      "usage": "needs_local_confirmation",
+      "notes": "Derived from VirusTotal suggested_threat_label. Public attribution hint only."
+    },
+    {
+      "id": "en.malware_type.trojan",
+      "type": "malware_type",
+      "value": "trojan",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.88,
+      "usage": "needs_local_confirmation",
+      "notes": "Derived from VirusTotal suggested_threat_label and popular threat category."
+    },
+    {
+      "id": "en.malware_type.fakeav",
+      "type": "malware_type",
+      "value": "fakeav",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.55,
+      "usage": "needs_local_confirmation",
+      "notes": "VirusTotal popular threat category. Hints at fake-antivirus/scareware behavior; not locally confirmed."
+    },
+    {
+      "id": "en.public_report.virustotal-file-000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+      "type": "public_report",
+      "value": "https://www.virustotal.com/gui/file/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.85,
+      "usage": "context_only",
+      "notes": "VirusTotal file report reference (GUI URL)."
+    },
+    {
+      "id": "en.sandbox_verdict.unknown-verdict",
+      "type": "sandbox_verdict",
+      "value": "UNKNOWN_VERDICT",
+      "provider_query_ids": [
+        "pq.virustotal.behaviour-summary"
+      ],
+      "confidence": 0.6,
+      "usage": "context_only",
+      "notes": "VirusTotal merged sandbox verdict field. Not informative; detection evidence comes from engine detection counts (64 malicious) rather than a verdict string."
+    }
+  ],
+  "limitations": [
+    "Public provider data was translated as attributed external evidence only.",
+    "Recovered artifact hashes (stage-1 shellcode and stage-2 raw data) returned no public record on VirusTotal (404); this is consistent with freshly recovered in-house artifacts and neither confirms nor refutes their relationship to the original sample.",
+    "Public family/label signals (rogue, fraudtool, fakeav, trojan) and the 'spreader' tag are enrichment-only and require local confirmation before any family attribution is claimed.",
+    "External-only network and persistence IOCs (C2 IP 175.41.28.156 with /api/urls/ and /api/stats/install/ endpoints; HKCU RunOnce persistence GUID with matching mutex and AppData copy) were observed only in public sandbox reports, not in the local dynamic run, because the second-stage PE never loaded. They are follow-up leads, not confirmed local IOCs.",
+    "Non-indicator tokens extracted by the normalizer from the behaviour_summary HTTP conversations (request method 'GET', header values 'Keep-Alive', 'no-cache') and protocol label 'TCP' were pruned from external_only as non-indicative.",
+    "The VirusTotal merged sandbox verdict field returned 'UNKNOWN_VERDICT'; detection evidence is based on engine detection counts (last_analysis_stats), not a single verdict string.",
+    "No binaries, payloads, or recovered artifacts were uploaded to any public provider; only hash-based file-info, behaviour-summary, and report lookups were performed per the safe public-lookup policy.",
+    "The original packer's custom decode loop, obfuscated entry gate, and GlobalFlags anti-debug mechanics have no direct public-source analogue in the supplied inputs; public labels support but do not independently confirm those local findings."
+  ],
+  "upstream_inputs": [
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/02-static-pass1.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/03-unpack.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/04-static-pass2.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/05-dynamic.json"
+  ]
+}

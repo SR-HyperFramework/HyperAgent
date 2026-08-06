@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.0",
+  "timestamp_utc": "2026-08-05T15:43:38Z",
+  "sample_sha256": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+  "input_path": "H:/Dataset/files/malware/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+  "report_dir": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+  "current_stage_id": "01-prepare-env",
+  "last_error": null,
+  "stages": {
+    "01-prepare-env": {
+      "skill": "hyperagent-prepare-env",
+      "status": "completed",
+      "output_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069\\reports\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069\\01-prepare-env.json",
+      "progress_path": null,
+      "updated_at": "2026-08-05T13:35:08Z"
+    },
+    "02-static-pass1": {
+      "skill": "hyperagent-static",
+      "status": "completed",
+      "output_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069\\reports\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069\\02-static-pass1.json",
+      "progress_path": null,
+      "updated_at": "2026-08-05T14:12:20Z"
+    },
+    "03-unpack": {
+      "skill": "hyperagent-unpack",
+      "status": "completed",
+      "output_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069\\03-unpack.json",
+      "progress_path": null,
+      "updated_at": "2026-08-05T15:43:38Z"
+    },
+    "04-static-pass2": {
+      "skill": "hyperagent-static",
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "updated_at": null
+    },
+    "05-dynamic": {
+      "skill": "hyperagent-dynamic",
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "updated_at": null
+    },
+    "06-intel": {
+      "skill": "hyperagent-intel",
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "updated_at": null
+    },
+    "07-deepdive": {
+      "skill": "hyperagent-deepdive",
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "updated_at": null
+    },
+    "08-report": {
+      "skill": "hyperagent-report",
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "updated_at": null
+    },
+    "09-summary": {
+      "skill": "hyperagent-summary",
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "updated_at": null
+    }
+  },
+  "recommend_next_stage": {
+    "action": "run_next",
+    "stage_id": "04-static-pass2",
+    "skill": "hyperagent-static",
+    "source_stage_id": "03-unpack",
+    "reason": "Unpack-stage output is recorded; run 04-static-pass2 next to analyze the best recovered artifact (recovered 1717-byte shellcode at artifacts/decrypted_shellcode_1717.raw) or preserve the blocked/not-needed outcome.",
+    "progress_path": null
+  }
+}

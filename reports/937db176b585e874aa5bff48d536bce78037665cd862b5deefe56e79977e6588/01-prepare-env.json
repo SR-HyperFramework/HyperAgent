@@ -1,0 +1,99 @@
+{
+  "schema_version": "1.0",
+  "stage": "prepare-env",
+  "sample": {
+    "file_name": "officecli.exe",
+    "absolute_path": "C:/Users/ADMIN/Downloads/xu-ly-van-phong-cli-v1.0/xu-ly-van-phong-cli/resources/bin/officecli.exe",
+    "sha256": "937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588"
+  },
+  "workspace": {
+    "report_directory": "reports/937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588",
+    "artifact_directory": "reports/937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588/artifacts"
+  },
+  "static_environment": {
+    "status": "blocked",
+    "components": [
+      {
+        "name": "sample_path",
+        "status": "available",
+        "detail": "C:/Users/ADMIN/Downloads/xu-ly-van-phong-cli-v1.0/xu-ly-van-phong-cli/resources/bin/officecli.exe is accessible on the host."
+      },
+      {
+        "name": "/ida-pro:idapython",
+        "status": "unavailable",
+        "detail": "Claude plugin skill /ida-pro:idapython was not found under C:/Users/ADMIN/.claude/skills."
+      }
+    ]
+  },
+  "dynamic_environment": {
+    "status": "ready",
+    "components": [
+      {
+        "name": "vmrun",
+        "status": "available",
+        "detail": "E:/Program/VMware Workstation 17/vmrun.exe"
+      },
+      {
+        "name": "vmx",
+        "status": "available",
+        "detail": "H:/VMware/WinVM/Windows 10 - RunSmt.vmx"
+      },
+      {
+        "name": "snapshot",
+        "status": "available",
+        "detail": "VMRunV4 reverted successfully by prepare_vm.py."
+      },
+      {
+        "name": "guest_sample_path",
+        "status": "available",
+        "detail": "C:\\Users\\h26v\\Desktop\\officecli.exe copied successfully by prepare_vm.py."
+      },
+      {
+        "name": "guest_debugger",
+        "status": "available",
+        "detail": "C:\\Users\\h26v\\Downloads\\x64dbg\\release\\x96dbg.exe launched with the sample by prepare_vm.py."
+      },
+      {
+        "name": "x64dbg-mcp",
+        "status": "available",
+        "detail": "prepare_vm.py returned status=ready after launching the debugger and probing the endpoint."
+      }
+    ]
+  },
+  "readiness": {
+    "static": "blocked",
+    "dynamic": "ready",
+    "overall": "blocked"
+  },
+  "blockers": [
+    {
+      "id": "blocker-static-ida-pro-idapython-unavailable",
+      "scope": "static",
+      "code": "STATIC-ENV-ERR",
+      "description": "Claude plugin skill /ida-pro:idapython is unavailable under C:/Users/ADMIN/.claude/skills.",
+      "recoverable": true
+    }
+  ],
+  "provenance": [
+    {
+      "type": "file",
+      "location": "C:/Users/ADMIN/Downloads/xu-ly-van-phong-cli-v1.0/xu-ly-van-phong-cli/resources/bin/officecli.exe"
+    },
+    {
+      "type": "command",
+      "location": "python sha256/readability check for officecli.exe"
+    },
+    {
+      "type": "command",
+      "location": "tool path checks for vmrun, curl, python, and H:/VMware/WinVM/Windows 10 - RunSmt.vmx"
+    },
+    {
+      "type": "file",
+      "location": "reports/937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588/prepare-vm.json"
+    },
+    {
+      "type": "tool",
+      "location": "Glob C:/Users/ADMIN/.claude/skills ida-pro*"
+    }
+  ]
+}

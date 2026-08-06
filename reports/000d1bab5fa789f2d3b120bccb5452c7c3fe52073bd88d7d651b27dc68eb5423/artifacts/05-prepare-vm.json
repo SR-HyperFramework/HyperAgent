@@ -1,0 +1,47 @@
+{
+  "status": "ready",
+  "attempt": 1,
+  "guest_sample": "C:\\Users\\h26v\\Desktop\\000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+  "steps": [
+    {
+      "step": "revert_snapshot",
+      "status": "success",
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "",
+      "elapsed_seconds": 1.22
+    },
+    {
+      "step": "start_vm",
+      "status": "success",
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "",
+      "elapsed_seconds": 27.32
+    },
+    {
+      "step": "wait_guest_ip",
+      "status": "success",
+      "returncode": 0,
+      "stdout": "192.168.248.169\n",
+      "stderr": "",
+      "elapsed_seconds": 31.26
+    },
+    {
+      "step": "copy_sample",
+      "status": "success",
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "",
+      "elapsed_seconds": 1.1
+    },
+    {
+      "step": "launch_debugger",
+      "status": "success",
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "",
+      "elapsed_seconds": 0.73
+    }
+  ]
+}

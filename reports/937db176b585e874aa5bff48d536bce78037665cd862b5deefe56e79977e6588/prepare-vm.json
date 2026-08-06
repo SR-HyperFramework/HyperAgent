@@ -1,0 +1,47 @@
+{
+  "status": "ready",
+  "attempt": 1,
+  "guest_sample": "C:\\Users\\h26v\\Desktop\\officecli.exe",
+  "steps": [
+    {
+      "step": "revert_snapshot",
+      "status": "success",
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "",
+      "elapsed_seconds": 4.0
+    },
+    {
+      "step": "start_vm",
+      "status": "success",
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "",
+      "elapsed_seconds": 22.99
+    },
+    {
+      "step": "wait_guest_ip",
+      "status": "success",
+      "returncode": 0,
+      "stdout": "192.168.248.169\n",
+      "stderr": "",
+      "elapsed_seconds": 30.99
+    },
+    {
+      "step": "copy_sample",
+      "status": "success",
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "",
+      "elapsed_seconds": 27.8
+    },
+    {
+      "step": "launch_debugger",
+      "status": "success",
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "",
+      "elapsed_seconds": 0.79
+    }
+  ]
+}

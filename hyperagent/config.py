@@ -46,10 +46,19 @@ class ProviderConfig:
     """LLM provider settings."""
 
     name: str = "anthropic"
-    model: str = "claude-sonnet-4-20250514"
+    model: str = ""
+    """Model id. Empty means "whatever the selected provider defaults to" —
+    keeping the default in one place (``providers._DEFAULT_MODELS``) instead of
+    repeating a model string that has to be updated here too when it retires."""
     api_key: str = ""
     max_output_tokens: int = 16384
-    temperature: float = 0.0
+    temperature: float | None = None
+    """Sampling temperature, forwarded only to backends that still accept one.
+
+    ``None`` by default because Anthropic removed sampling parameters on Claude
+    Opus 4.7 and later — a non-default value there returns a 400. Note that
+    ``temperature=0`` never guaranteed identical outputs on any model; to reduce
+    variance, tighten the prompt rather than the sampler."""
     # Per-stage model overrides: stage_id -> model name
     stage_models: dict[str, str] = field(default_factory=dict)
 
@@ -90,7 +99,7 @@ def _env_int(key: str, default: int) -> int:
     return int(raw) if raw is not None else default
 
 
-def _env_float(key: str, default: float) -> float:
+def _env_float(key: str, default: float | None) -> float | None:
     raw = os.environ.get(key)
     return float(raw) if raw is not None else default
 
@@ -114,14 +123,14 @@ def load_config(config_path: Path | None = None) -> HyperAgentConfig:
 
     provider = ProviderConfig(
         name=_env("HYPERAGENT_PROVIDER", provider_data.get("name", "anthropic")),
-        model=_env("HYPERAGENT_MODEL", provider_data.get("model", "claude-sonnet-4-20250514")),
+        model=_env("HYPERAGENT_MODEL", provider_data.get("model", "")),
         api_key=_env("ANTHROPIC_API_KEY", _env("OPENAI_API_KEY", provider_data.get("api_key", ""))),
         max_output_tokens=_env_int(
             "HYPERAGENT_MAX_OUTPUT_TOKENS",
             provider_data.get("max_output_tokens", 16384),
         ),
         temperature=_env_float(
-            "HYPERAGENT_TEMPERATURE", provider_data.get("temperature", 0.0)
+            "HYPERAGENT_TEMPERATURE", provider_data.get("temperature")
         ),
         stage_models=provider_data.get("stage_models", {}),
     )

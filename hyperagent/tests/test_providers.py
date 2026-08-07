@@ -10,6 +10,7 @@ import pytest
 
 from hyperagent.config import ProviderConfig
 from hyperagent.providers import (
+    DEFAULT_ANTHROPIC_MODEL,
     AnthropicProvider,
     LLMProvider,
     Message,
@@ -41,12 +42,49 @@ class _CharProvider(LLMProvider):
 
 def test_create_provider_reads_provider_config():
     cfg = ProviderConfig(name="anthropic", api_key="sk-test", model="claude-x",
-                         max_output_tokens=1234, temperature=0.7)
+                         max_output_tokens=1234)
     provider = create_provider(cfg)
     assert isinstance(provider, AnthropicProvider)
     assert provider._model == "claude-x"
     assert provider._max_output_tokens == 1234
-    assert provider._temperature == 0.7
+
+
+def test_create_provider_resolves_default_model():
+    """An empty config model falls through to the provider default, so the id
+    lives in exactly one place instead of being repeated across config files."""
+    provider = create_provider(ProviderConfig(name="anthropic", api_key="sk-test"))
+    assert provider._model == DEFAULT_ANTHROPIC_MODEL
+
+
+def test_configured_temperature_is_not_forwarded_to_anthropic():
+    """Sampling parameters were removed on Claude Opus 4.7+; a non-default value
+    returns a 400, so a configured temperature must never reach the client."""
+    cfg = ProviderConfig(name="anthropic", api_key="sk-test", temperature=0.7)
+    provider = create_provider(cfg)
+    assert provider.accepts_temperature is False
+    assert not hasattr(provider, "_temperature")
+
+
+def test_complete_omits_temperature_from_request():
+    provider = create_provider(ProviderConfig(name="anthropic", api_key="sk-test"))
+    captured: dict = {}
+
+    class _Messages:
+        @staticmethod
+        def create(**kwargs):
+            captured.update(kwargs)
+            raise _StopCall
+
+    class _StopCall(Exception):
+        pass
+
+    provider._client = type("_C", (), {"messages": _Messages()})()
+
+    with pytest.raises(_StopCall):
+        provider.complete([Message(role="user", content="hi")], temperature=0.7)
+
+    assert "temperature" not in captured
+    assert "top_p" not in captured and "top_k" not in captured
 
 
 def test_create_provider_stage_model_override():

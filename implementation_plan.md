@@ -186,7 +186,10 @@ class LLMProvider(ABC):
 
 #### `anthropic_provider.py` — Key Design Decisions
 
-- **Model**: `claude-sonnet-4-20250514` default, configurable
+- **Model**: `claude-opus-5` default, configurable. The default lives only in
+  `providers/anthropic_provider.DEFAULT_MODEL`; an empty `provider.model` in
+  config resolves to it. Context windows are read from the Models API at
+  runtime, not hardcoded — model ids and window sizes both change per release.
 - **Max tokens**: Use `anthropic.count_tokens()` for accurate tracking
 - **Tool format**: Map `ToolDefinition` → Anthropic `tools` param format
 - **System prompt**: Pass as `system` parameter in Messages API

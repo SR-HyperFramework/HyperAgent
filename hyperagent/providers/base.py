@@ -68,6 +68,14 @@ class CompletionResult:
 class LLMProvider(ABC):
     """Provider-agnostic interface that every backend must implement."""
 
+    accepts_temperature: bool = True
+    """Whether this backend accepts sampling parameters.
+
+    False for Anthropic: ``temperature``/``top_p``/``top_k`` were removed on
+    Claude Opus 4.7 and later, and sending a non-default value returns a 400.
+    The factory reads this instead of hardcoding a provider name.
+    """
+
     @abstractmethod
     def complete(
         self,

@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hyperagent"
+version = "4.0.0-dev"
+description = "Multi-stage malware analysis orchestrator — SDK edition"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "GPL-3.0-or-later"}
+authors = [
+    {name = "HyperAgent Team"},
+]
+
+dependencies = [
+    # LLM SDKs
+    "anthropic>=0.52.0",
+    "openai>=1.82.0",
+    # Token counting
+    "tiktoken>=0.9.0",
+    # API server
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    # Schema validation
+    "jsonschema>=4.23.0",
+    # Existing dependency
+    "flask>=3.0.0",
+    # Utilities
+    "pydantic>=2.10.0",
+    "httpx>=0.28.0",
+    "pyyaml>=6.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.8.0",
+]
+
+[project.scripts]
+hyperagent = "hyperagent.cli:main"
+hyperagent-server = "hyperagent.api.server:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["hyperagent*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]

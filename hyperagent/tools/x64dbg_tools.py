@@ -5,13 +5,22 @@ agentic loop can offer to the LLM and dispatch at runtime.
 """
 from __future__ import annotations
 
+import dataclasses
+import logging
+
 from ..config import MCPEndpoint
 from .base import ToolDefinition, ToolResult
 from .mcp_client import MCPClient
 
+logger = logging.getLogger(__name__)
+
 
 def create_x64dbg_tools(endpoint: MCPEndpoint) -> tuple[MCPClient, list[ToolDefinition]]:
     """Connect to x64dbg MCP and return (client, tool_definitions).
+
+    If the MCP server is unreachable, degrades to an empty tool list instead
+    of raising, so registry construction can proceed with the debugger
+    simply unavailable for this run.
 
     The caller is responsible for closing the client when done.
     """
@@ -21,8 +30,12 @@ def create_x64dbg_tools(endpoint: MCPEndpoint) -> tuple[MCPClient, list[ToolDefi
         timeout=endpoint.timeout,
         client_name="hyperagent",
     )
-    tools = client.get_tool_definitions()
-    return client, tools
+    try:
+        tools = client.get_tool_definitions()
+    except ConnectionError as exc:
+        logger.warning("x64dbg MCP unreachable at %s: %s", endpoint.url, exc)
+        return client, []
+    return client, [dataclasses.replace(t, source="x64dbg") for t in tools]
 
 
 def x64dbg_health_check_tool(endpoint: MCPEndpoint) -> ToolDefinition:
@@ -46,4 +59,5 @@ def x64dbg_health_check_tool(endpoint: MCPEndpoint) -> ToolDefinition:
         description="Check if the x64dbg MCP server in the guest VM is reachable.",
         parameters={"type": "object", "properties": {}},
         handler=handler,
+        source="x64dbg",
     )

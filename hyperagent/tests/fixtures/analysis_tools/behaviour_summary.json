@@ -1,0 +1,12 @@
+{
+  "response": {
+    "data": {
+      "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "type": "file_behaviour",
+      "attributes": {
+        "processes_tree": [],
+        "network_traffic": []
+      }
+    }
+  }
+}

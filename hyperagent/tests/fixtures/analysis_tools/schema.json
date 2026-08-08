@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["name", "count"],
+  "properties": {
+    "name": {"type": "string"},
+    "count": {"type": "integer", "minimum": 0}
+  }
+}

@@ -90,18 +90,21 @@ def create_vmware_tools(config: VMwareConfig) -> list[ToolDefinition]:
             description="Revert the analysis VM to the clean snapshot.",
             parameters={"type": "object", "properties": {}},
             handler=revert_snapshot,
+            source="vm",
         ),
         ToolDefinition(
             name="vm_start",
             description="Start the analysis VM (headless).",
             parameters={"type": "object", "properties": {}},
             handler=start_vm,
+            source="vm",
         ),
         ToolDefinition(
             name="vm_get_guest_ip",
             description="Wait for the guest OS to be ready and return its IP address.",
             parameters={"type": "object", "properties": {}},
             handler=get_guest_ip,
+            source="vm",
         ),
         ToolDefinition(
             name="vm_copy_to_guest",
@@ -115,6 +118,7 @@ def create_vmware_tools(config: VMwareConfig) -> list[ToolDefinition]:
                 "required": ["host_path", "guest_filename"],
             },
             handler=copy_to_guest,
+            source="vm",
         ),
         ToolDefinition(
             name="vm_run_program",
@@ -128,6 +132,7 @@ def create_vmware_tools(config: VMwareConfig) -> list[ToolDefinition]:
                 "required": ["guest_program"],
             },
             handler=run_program_in_guest,
+            source="vm",
         ),
         ToolDefinition(
             name="vm_run_debugger_with_sample",
@@ -140,5 +145,6 @@ def create_vmware_tools(config: VMwareConfig) -> list[ToolDefinition]:
                 "required": ["sample_filename"],
             },
             handler=run_debugger_with_sample,
+            source="vm",
         ),
     ]

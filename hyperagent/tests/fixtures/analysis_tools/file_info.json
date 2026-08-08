@@ -1,0 +1,14 @@
+{
+  "response": {
+    "data": {
+      "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "type": "file",
+      "attributes": {
+        "meaningful_name": "sample.exe",
+        "popular_threat_classification": {
+          "suggested_threat_label": "trojan.generic"
+        }
+      }
+    }
+  }
+}

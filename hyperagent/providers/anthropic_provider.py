@@ -194,11 +194,21 @@ class AnthropicProvider(LLMProvider):
                     )
                 )
 
+        # Prompt-caching fields are present on the usage object only when the
+        # cache_control block was sent and Anthropic processed the cache request.
+        # Use getattr with a 0 default so we stay compatible with older API
+        # responses or providers that do not support prompt caching.
+        usage = response.usage
+        cache_creation = getattr(usage, "cache_creation_input_tokens", None) or 0
+        cache_read = getattr(usage, "cache_read_input_tokens", None) or 0
+
         return CompletionResult(
             content="\n".join(text_parts),
             tool_calls=tool_calls,
             stop_reason=response.stop_reason or "end_turn",
-            input_tokens=response.usage.input_tokens,
-            output_tokens=response.usage.output_tokens,
+            input_tokens=usage.input_tokens,
+            output_tokens=usage.output_tokens,
+            cache_creation_input_tokens=cache_creation,
+            cache_read_input_tokens=cache_read,
             model=response.model,
         )

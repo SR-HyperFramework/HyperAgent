@@ -88,6 +88,7 @@ def create_filesystem_tools() -> list[ToolDefinition]:
                 "required": ["path"],
             },
             handler=_read_file,
+            source="filesystem",
         ),
         ToolDefinition(
             name="write_file",
@@ -101,6 +102,7 @@ def create_filesystem_tools() -> list[ToolDefinition]:
                 "required": ["path", "content"],
             },
             handler=_write_file,
+            source="filesystem",
         ),
         ToolDefinition(
             name="sha256_file",
@@ -111,6 +113,7 @@ def create_filesystem_tools() -> list[ToolDefinition]:
                 "required": ["path"],
             },
             handler=_sha256_file,
+            source="filesystem",
         ),
         ToolDefinition(
             name="list_directory",
@@ -121,6 +124,7 @@ def create_filesystem_tools() -> list[ToolDefinition]:
                 "required": ["path"],
             },
             handler=_list_directory,
+            source="filesystem",
         ),
         ToolDefinition(
             name="file_exists",
@@ -131,6 +135,7 @@ def create_filesystem_tools() -> list[ToolDefinition]:
                 "required": ["path"],
             },
             handler=_file_exists,
+            source="filesystem",
         ),
         ToolDefinition(
             name="mkdir",
@@ -141,5 +146,6 @@ def create_filesystem_tools() -> list[ToolDefinition]:
                 "required": ["path"],
             },
             handler=_mkdir,
+            source="filesystem",
         ),
     ]

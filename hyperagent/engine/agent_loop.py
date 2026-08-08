@@ -5,6 +5,7 @@ import logging
 from typing import Any
 
 from ..providers.base import LLMProvider, Message
+from ..telemetry.metrics import MetricsCollector
 from ..tools.registry import ToolRegistry
 from .checkpoint import CheckpointReached, ContextTracker
 from .injection_guard import build_system_prompt
@@ -22,11 +23,13 @@ class AgentLoop:
         *,
         checkpoint_threshold: float = 0.75,
         max_turns: int = 50,
+        metrics: MetricsCollector | None = None,
     ) -> None:
         self.provider = provider
         self.registry = registry
         self.max_turns = max_turns
         self.tracker = ContextTracker(provider, threshold=checkpoint_threshold)
+        self._metrics = metrics
 
     def run(
         self,
@@ -35,6 +38,7 @@ class AgentLoop:
         stage_tools: list[str],
         reads_sample_content: bool = False,
         global_context: str | None = None,
+        stage_id: str = "unknown",
     ) -> str:
         """Run the autonomous loop until completion or checkpoint.
         
@@ -50,6 +54,9 @@ class AgentLoop:
             Whether this stage reads untrusted sample data directly.
         global_context:
             Optional global pipeline context (from STATE.json).
+        stage_id:
+            Identifier used for telemetry attribution (e.g. ``"05-dynamic"``).  
+            Passed through to the ``MetricsCollector`` if one was provided.
             
         Returns
         -------
@@ -74,6 +81,8 @@ class AgentLoop:
                 self.tracker.check_messages(messages)
             except CheckpointReached as exc:
                 logger.warning("Checkpoint triggered: %s", exc)
+                if self._metrics is not None:
+                    self._metrics.record_checkpoint(stage_id)
                 return self._checkpoint_response(exc)
 
             # 2. Get LLM completion
@@ -82,7 +91,19 @@ class AgentLoop:
                 tools=anthropic_tools,
                 system_prompt=system_prompt,
             )
-            
+
+            # -- Telemetry: record per-turn token usage -----------------------
+            if self._metrics is not None:
+                self._metrics.record_turn(
+                    stage_id,
+                    input_tokens=result.input_tokens,
+                    output_tokens=result.output_tokens,
+                    cache_creation_input_tokens=result.cache_creation_input_tokens,
+                    cache_read_input_tokens=result.cache_read_input_tokens,
+                    provider=result.model,
+                )
+            # -----------------------------------------------------------------
+
             # Anthropic returns content alongside tool_calls if it wants to speak
             content_blocks: list[dict[str, Any]] = []
             if result.content:
@@ -104,7 +125,7 @@ class AgentLoop:
                 return result.content
 
             # 4. Execute tools requested by LLM
-            tool_results = self._execute_tool_calls(result.tool_calls)
+            tool_results = self._execute_tool_calls(result.tool_calls, stage_id=stage_id)
             messages.append(Message(role="user", content=tool_results))
 
         logger.warning("Agent loop reached max turns (%d)", self.max_turns)
@@ -127,9 +148,14 @@ class AgentLoop:
                     
         return resolved
 
-    def _execute_tool_calls(self, tool_calls: list) -> list[dict[str, Any]]:
+    def _execute_tool_calls(
+        self,
+        tool_calls: list,
+        stage_id: str = "unknown",
+    ) -> list[dict[str, Any]]:
         """Run requested tools and format results for the LLM."""
         results = []
+        tool_errors = 0
         for tc in tool_calls:
             logger.info("Calling tool: %s", tc.name)
             res = self.registry.execute(tc.name, tc.arguments)
@@ -138,6 +164,7 @@ class AgentLoop:
             if res.is_error:
                 logger.warning("Tool %s returned an error", tc.name)
                 content = f"Error: {content}"
+                tool_errors += 1
                 
             results.append({
                 "type": "tool_result",
@@ -145,6 +172,15 @@ class AgentLoop:
                 "content": content,
                 "is_error": res.is_error,
             })
+
+        # Report tool errors to telemetry (if any occurred this batch)
+        if tool_errors > 0 and self._metrics is not None:
+            self._metrics.record_turn(
+                stage_id,
+                input_tokens=0,
+                output_tokens=0,
+                tool_errors=tool_errors,
+            )
         return results
 
     def _checkpoint_response(self, exc: CheckpointReached) -> str:

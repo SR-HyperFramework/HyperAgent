@@ -132,6 +132,22 @@ Run with the key set to close them out:
   health-check tools; unreachable MCP endpoint yields an `is_error` ToolResult,
   not an exception
 
+**Status: done.** 17 tests in `tests/test_tools.py` pass offline (schema
+validation, VT-report normalization, stage resolution via `STAGE_TOOLS`,
+MCP degradation on an unreachable endpoint). Full suite: 43 passed, 3 skipped.
+
+**Deferred — needs fixtures/credentials not committed.** 2 exit-0 checks are
+written but **not yet proven**:
+
+| Test | Proves | Needs |
+|---|---|---|
+| `upx_unpack` real-binary exit-0 | UPX round-trip on an actual packed sample | a UPX-packed fixture binary (not committed) |
+| `fetch_vt_report` live exit-0 | real VT API round-trip for a known-good hash | a VirusTotal API key |
+
+The offline suite already proves the bad-hash rejection path (`fetch_vt_report`
+fails before any network I/O) and the normalize/validate round-trip against
+fixture JSON, so these two are pure network/binary gaps, not logic gaps.
+
 ---
 
 ## Stage 4 — Skill system

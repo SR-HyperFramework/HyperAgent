@@ -17,6 +17,12 @@ class ToolDefinition:
     description: str
     parameters: dict[str, Any] = field(default_factory=lambda: {"type": "object", "properties": {}})
     handler: Callable[..., "ToolResult"] | None = None
+    source: str = ""
+    """Subsystem/MCP client this tool came from (e.g. "filesystem", "x64dbg").
+
+    Lets stage-tool selection group MCP-discovered tools (whose names are
+    server-defined and share no common prefix) without renaming them.
+    """
 
     def to_anthropic_schema(self) -> dict[str, Any]:
         """Format this tool for the Anthropic Messages API ``tools`` parameter."""

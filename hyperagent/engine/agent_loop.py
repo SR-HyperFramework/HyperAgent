@@ -62,7 +62,7 @@ class AgentLoop:
         -------
         The final text output of the model.
         """
-        system_prompt = build_system_prompt(
+        system_prompt, _token_map = build_system_prompt(
             skill_instructions=skill_instructions,
             reads_sample_content=reads_sample_content,
             global_context=global_context,

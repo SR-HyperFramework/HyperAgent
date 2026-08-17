@@ -69,14 +69,14 @@ def test_complete_omits_temperature_from_request():
     provider = create_provider(ProviderConfig(name="anthropic", api_key="sk-test"))
     captured: dict = {}
 
-    class _Messages:
-        @staticmethod
-        def create(**kwargs):
-            captured.update(kwargs)
-            raise _StopCall
-
     class _StopCall(Exception):
         pass
+
+    class _Messages:
+        @staticmethod
+        def stream(**kwargs):
+            captured.update(kwargs)
+            raise _StopCall
 
     provider._client = type("_C", (), {"messages": _Messages()})()
 

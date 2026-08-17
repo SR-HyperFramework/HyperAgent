@@ -33,7 +33,12 @@ _PROVIDERS = {
 }
 
 
-def create_provider(config: ProviderConfig, *, model: str = "") -> LLMProvider:
+def create_provider(
+    config: ProviderConfig,
+    *,
+    model: str = "",
+    cache_enabled: bool = True,
+) -> LLMProvider:
     """Instantiate the LLM provider described by *config*.
 
     Parameters
@@ -43,6 +48,8 @@ def create_provider(config: ProviderConfig, *, model: str = "") -> LLMProvider:
     model:
         Per-stage model override.  Falls back to ``config.model``, then the
         provider default.
+    cache_enabled:
+        Whether provider-level prompt caching should be enabled where supported.
     """
     provider_cls = _PROVIDERS.get(config.name)
     if provider_cls is None:
@@ -57,6 +64,13 @@ def create_provider(config: ProviderConfig, *, model: str = "") -> LLMProvider:
         "model": model or config.model or _DEFAULT_MODELS[config.name],
         "max_output_tokens": config.max_output_tokens,
     }
+    if config.name == "anthropic":
+        kwargs["cache_enabled"] = cache_enabled
+        kwargs["extended_thinking"] = config.extended_thinking
+        kwargs["thinking_budget_tokens"] = config.thinking_budget_tokens
+        kwargs["debug_console"] = config.debug_console
+        if config.base_url:
+            kwargs["base_url"] = config.base_url
     # Only backends that still accept sampling parameters get one. Anthropic
     # removed them on Opus 4.7+, so forwarding a configured temperature there
     # would 400 every request.

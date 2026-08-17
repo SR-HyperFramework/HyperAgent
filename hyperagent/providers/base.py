@@ -76,6 +76,14 @@ class CompletionResult:
     model: str = ""
     """Actual model id used for this completion."""
 
+    thinking_blocks: list[dict[str, Any]] = field(default_factory=list)
+    """Raw ``thinking``/``redacted_thinking`` content blocks, in response order.
+
+    Only non-empty when extended thinking is enabled. Must be replayed verbatim
+    (including their signatures) at the start of the assistant turn's content
+    when the conversation continues, or the next request is rejected.
+    """
+
 
 # ---------------------------------------------------------------------------
 # Abstract provider

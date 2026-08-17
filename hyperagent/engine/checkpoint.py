@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
+from .. import pipeline_state
 from ..providers.base import LLMProvider, Message
 
 logger = logging.getLogger(__name__)
@@ -53,3 +55,22 @@ class ContextTracker:
     @property
     def max_tokens(self) -> int:
         return self._max_tokens
+
+
+def write_checkpoint(
+    report_dir: Path,
+    stage_id: str,
+    progress_summary: str,
+    recommend_reason: str = "",
+) -> Path:
+    """Write `_state/<stage_id>.progress.md` and call pipeline_state.checkpoint().
+
+    Returns the progress file path written. Called from the launcher (not
+    agent_loop.py) after catching CheckpointReached, since agent_loop.py has
+    no report_dir context — only a bare stage_id label.
+    """
+    progress_path = report_dir / "_state" / f"{stage_id}.progress.md"
+    progress_path.parent.mkdir(parents=True, exist_ok=True)
+    progress_path.write_text(progress_summary, encoding="utf-8")
+    pipeline_state.checkpoint(report_dir, stage_id, str(progress_path), recommend_reason)
+    return progress_path

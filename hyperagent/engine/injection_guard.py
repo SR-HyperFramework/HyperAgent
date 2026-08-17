@@ -45,6 +45,7 @@ def build_system_prompt(
     reads_sample_content: bool,
     global_context: str | None = None,
     anonymize: bool = True,
+    include_injection_guard: bool = True,
 ) -> tuple[str, dict[str, str]]:
     """Build the full system prompt for a pipeline stage.
 
@@ -62,6 +63,9 @@ def build_system_prompt(
         If False, skip data anonymization even when reads_sample_content is
         True.  Used by ablation studies (condition A5) or when the user
         explicitly disables it.
+    include_injection_guard:
+        If False, omit the injection-guard prompt block even when the stage
+        reads sample content. Used by ablation condition A5.
 
     Returns
     -------
@@ -93,7 +97,7 @@ def build_system_prompt(
 
     parts.append(instructions)
 
-    if reads_sample_content:
+    if reads_sample_content and include_injection_guard:
         parts.append("\n" + ("=" * 40))
         parts.append(INJECTION_GUARD_PROMPT)
 

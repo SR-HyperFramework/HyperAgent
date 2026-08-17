@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 import time
 from typing import Any
 
@@ -36,12 +37,24 @@ class AnthropicProvider(LLMProvider):
         max_output_tokens: int = 16384,
         max_retries: int = 3,
         retry_base_delay: float = 1.0,
+        cache_enabled: bool = True,
+        base_url: str = "",
+        extended_thinking: bool = False,
+        thinking_budget_tokens: int = 4096,
+        debug_console: bool = False,
     ) -> None:
-        self._client = anthropic.Anthropic(api_key=api_key)
+        client_kwargs: dict[str, Any] = {"api_key": api_key}
+        if base_url:
+            client_kwargs["base_url"] = base_url
+        self._client = anthropic.Anthropic(**client_kwargs)
         self._model = model
         self._max_output_tokens = max_output_tokens
         self._max_retries = max_retries
         self._retry_base_delay = retry_base_delay
+        self._cache_enabled = cache_enabled
+        self._extended_thinking = extended_thinking
+        self._thinking_budget_tokens = thinking_budget_tokens
+        self._debug_console = debug_console
         self._token_cache: dict[str, int] = {}
         self._context_window: int | None = None
 
@@ -68,21 +81,32 @@ class AnthropicProvider(LLMProvider):
                 temperature,
             )
 
+        output_tokens = self._max_output_tokens if max_tokens is None else max_tokens
         kwargs: dict[str, Any] = {
             "model": self._model,
-            "max_tokens": self._max_output_tokens if max_tokens is None else max_tokens,
+            "max_tokens": output_tokens,
             "messages": api_messages,
         }
 
+        if self._extended_thinking:
+            # Anthropic requires max_tokens > budget_tokens; bump rather than
+            # error, since the caller's max_tokens wasn't chosen with a
+            # thinking budget in mind.
+            kwargs["max_tokens"] = max(output_tokens, self._thinking_budget_tokens + 1024)
+            kwargs["thinking"] = {
+                "type": "enabled",
+                "budget_tokens": self._thinking_budget_tokens,
+            }
+
         if system_prompt:
-            # Use prompt caching: system prompt is stable within a stage run.
-            kwargs["system"] = [
-                {
-                    "type": "text",
-                    "text": system_prompt,
-                    "cache_control": {"type": "ephemeral"},
-                }
-            ]
+            system_block: dict[str, Any] = {
+                "type": "text",
+                "text": system_prompt,
+            }
+            if self._cache_enabled:
+                # Use prompt caching: system prompt is stable within a stage run.
+                system_block["cache_control"] = {"type": "ephemeral"}
+            kwargs["system"] = [system_block]
 
         if tools:
             kwargs["tools"] = tools
@@ -144,11 +168,23 @@ class AnthropicProvider(LLMProvider):
     # -- internal helpers -----------------------------------------------------
 
     def _call_with_retry(self, **kwargs: Any) -> anthropic.types.Message:
-        """Call the Messages API with exponential backoff on transient errors."""
+        """Call the Messages API with exponential backoff on transient errors.
+
+        Always streams and reassembles the final message, rather than calling
+        ``messages.create`` directly. Streaming is required for `Message`
+        Batches API and long-running requests upstream (>10 min), and some
+        Anthropic-compatible proxies only implement the streaming path
+        correctly, silently returning a malformed non-Anthropic response
+        shape for a plain ``create`` call. Streaming is always at least as
+        correct, so it's the default rather than a configurable option.
+        """
         last_error: Exception | None = None
         for attempt in range(1, self._max_retries + 1):
             try:
-                return self._client.messages.create(**kwargs)
+                with self._client.messages.stream(**kwargs) as stream:
+                    if self._debug_console:
+                        self._drain_stream_to_console(stream)
+                    return stream.get_final_message()
             except (
                 anthropic.RateLimitError,
                 anthropic.InternalServerError,
@@ -169,6 +205,36 @@ class AnthropicProvider(LLMProvider):
         ) from last_error
 
     @staticmethod
+    def _drain_stream_to_console(stream: Any) -> None:
+        """Print thinking/text/tool-call deltas to stderr as they arrive.
+
+        Debug-only path: normal runs never touch this, so it can be liberal
+        about what it prints without affecting the parsed result (still built
+        from ``get_final_message()`` by the caller).
+        """
+        open_tool: str | None = None
+        for event in stream:
+            if event.type == "thinking":
+                print(event.thinking, end="", file=sys.stderr, flush=True)
+            elif event.type == "text":
+                print(event.text, end="", file=sys.stderr, flush=True)
+            elif event.type == "content_block_start":
+                block = event.content_block
+                if getattr(block, "type", None) == "tool_use":
+                    open_tool = block.name
+                    print(f"\n[tool_use:{open_tool}] ", end="", file=sys.stderr, flush=True)
+                elif getattr(block, "type", None) == "thinking":
+                    print("\n[thinking] ", end="", file=sys.stderr, flush=True)
+                elif getattr(block, "type", None) == "text":
+                    print("\n[text] ", end="", file=sys.stderr, flush=True)
+            elif event.type == "input_json":
+                print(event.partial_json, end="", file=sys.stderr, flush=True)
+            elif event.type == "content_block_stop":
+                print(file=sys.stderr, flush=True)
+                open_tool = None
+        print(file=sys.stderr, flush=True)
+
+    @staticmethod
     def _to_api_messages(messages: list[Message]) -> list[dict[str, Any]]:
         """Convert provider-agnostic Messages to Anthropic wire format."""
         result: list[dict[str, Any]] = []
@@ -181,6 +247,7 @@ class AnthropicProvider(LLMProvider):
         """Parse Anthropic response into a normalized CompletionResult."""
         text_parts: list[str] = []
         tool_calls: list[ToolCall] = []
+        thinking_blocks: list[dict[str, Any]] = []
 
         for block in response.content:
             if block.type == "text":
@@ -193,6 +260,11 @@ class AnthropicProvider(LLMProvider):
                         arguments=block.input,  # type: ignore[arg-type]
                     )
                 )
+            elif block.type in ("thinking", "redacted_thinking"):
+                # Must round-trip verbatim (signature included) into the next
+                # assistant turn's content, so keep it as the raw wire dict
+                # rather than re-deriving one from partial fields.
+                thinking_blocks.append(block.model_dump())
 
         # Prompt-caching fields are present on the usage object only when the
         # cache_control block was sent and Anthropic processed the cache request.
@@ -211,4 +283,5 @@ class AnthropicProvider(LLMProvider):
             cache_creation_input_tokens=cache_creation,
             cache_read_input_tokens=cache_read,
             model=response.model,
+            thinking_blocks=thinking_blocks,
         )

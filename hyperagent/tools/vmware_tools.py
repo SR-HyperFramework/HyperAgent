@@ -6,6 +6,7 @@ stages.
 """
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
 
@@ -34,6 +35,31 @@ def _run_vmrun(args: list[str], timeout: int = 30) -> ToolResult:
         return ToolResult(content=f"vmrun timed out after {timeout}s", is_error=True)
     except FileNotFoundError:
         return ToolResult(content="vmrun executable not found on PATH", is_error=True)
+
+
+def vm_check_vmrun(**_kw) -> ToolResult:
+    """Resolve ``vmrun`` via PATH instead of guessing install directories.
+
+    ``_run_vmrun`` already invokes the bare ``vmrun`` command and relies on
+    PATH resolution, so probing hardcoded ``Program Files`` locations with
+    ``file_exists`` is both unnecessary and unreliable (VMware Workstation is
+    not always installed under ``Program Files``, e.g. custom drive/paths).
+    """
+    found = shutil.which("vmrun")
+    if found:
+        return ToolResult(content=f"vmrun found on PATH: {found}")
+    return ToolResult(content="vmrun not found on PATH", is_error=True)
+
+
+def vm_auto_revert_after_dynamic(config: VMwareConfig) -> ToolResult:
+    """Revert the VM to the clean snapshot after the dynamic stage finishes.
+
+    This is a host-side safety hook for the launcher, not an LLM-callable tool.
+    """
+    return _run_vmrun(
+        ["-T", "ws", "revertToSnapshot", config.vmx_path, config.snapshot_name],
+        timeout=config.command_timeout,
+    )
 
 
 def create_vmware_tools(config: VMwareConfig) -> list[ToolDefinition]:
@@ -85,6 +111,16 @@ def create_vmware_tools(config: VMwareConfig) -> list[ToolDefinition]:
         )
 
     return [
+        ToolDefinition(
+            name="vm_check_vmrun",
+            description=(
+                "Resolve the vmrun executable via PATH. Call this first to confirm "
+                "VMware tooling is accessible instead of guessing install paths."
+            ),
+            parameters={"type": "object", "properties": {}},
+            handler=vm_check_vmrun,
+            source="vm",
+        ),
         ToolDefinition(
             name="vm_revert_snapshot",
             description="Revert the analysis VM to the clean snapshot.",

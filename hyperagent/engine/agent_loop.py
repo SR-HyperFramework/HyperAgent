@@ -30,6 +30,14 @@ class AgentLoop:
         self.max_turns = max_turns
         self.tracker = ContextTracker(provider, threshold=checkpoint_threshold)
         self._metrics = metrics
+        self.turns_used = 0
+        """Turns consumed by the most recent ``run()`` call."""
+        self.total_input_tokens = 0
+        """Cumulative ``input_tokens`` across all turns of the most recent ``run()`` call."""
+        self.total_output_tokens = 0
+        """Cumulative ``output_tokens`` across all turns of the most recent ``run()`` call."""
+        self.last_messages: list[Message] = []
+        """Conversation state from the most recent ``run()`` call."""
 
     def run(
         self,
@@ -39,9 +47,11 @@ class AgentLoop:
         reads_sample_content: bool = False,
         global_context: str | None = None,
         stage_id: str = "unknown",
+        initial_messages: list[Message] | None = None,
+        include_injection_guard: bool = True,
     ) -> str:
         """Run the autonomous loop until completion or checkpoint.
-        
+
         Parameters
         ----------
         skill_instructions:
@@ -55,9 +65,17 @@ class AgentLoop:
         global_context:
             Optional global pipeline context (from STATE.json).
         stage_id:
-            Identifier used for telemetry attribution (e.g. ``"05-dynamic"``).  
+            Identifier used for telemetry attribution (e.g. ``"05-dynamic"``).
             Passed through to the ``MetricsCollector`` if one was provided.
-            
+        initial_messages:
+            Optional prior conversation turns to seed the loop with (e.g. a
+            parent stage's history for a non-isolated sub-agent). ``None``
+            (the default) starts from just ``initial_prompt``, unchanged from
+            prior behavior.
+        include_injection_guard:
+            Whether to append the untrusted-sample injection guard when
+            ``reads_sample_content`` is true.
+
         Returns
         -------
         The final text output of the model.
@@ -66,16 +84,24 @@ class AgentLoop:
             skill_instructions=skill_instructions,
             reads_sample_content=reads_sample_content,
             global_context=global_context,
+            include_injection_guard=include_injection_guard,
         )
 
         tools = self._resolve_tools(stage_tools)
         anthropic_tools = [t.to_anthropic_schema() for t in tools]
 
-        messages: list[Message] = [Message(role="user", content=initial_prompt)]
+        seed = list(initial_messages) if initial_messages else []
+        messages: list[Message] = seed + [Message(role="user", content=initial_prompt)]
+
+        self.turns_used = 0
+        self.total_input_tokens = 0
+        self.total_output_tokens = 0
+        self.last_messages = list(messages)
 
         for turn in range(1, self.max_turns + 1):
             logger.info("Agent turn %d/%d", turn, self.max_turns)
-            
+            self.turns_used = turn
+
             # 1. Enforce context window safety
             try:
                 self.tracker.check_messages(messages)
@@ -83,7 +109,8 @@ class AgentLoop:
                 logger.warning("Checkpoint triggered: %s", exc)
                 if self._metrics is not None:
                     self._metrics.record_checkpoint(stage_id)
-                return self._checkpoint_response(exc)
+                self.last_messages = list(messages)
+                raise
 
             # 2. Get LLM completion
             result = self.provider.complete(
@@ -91,6 +118,8 @@ class AgentLoop:
                 tools=anthropic_tools,
                 system_prompt=system_prompt,
             )
+            self.total_input_tokens += result.input_tokens
+            self.total_output_tokens += result.output_tokens
 
             # -- Telemetry: record per-turn token usage -----------------------
             if self._metrics is not None:
@@ -105,7 +134,7 @@ class AgentLoop:
             # -----------------------------------------------------------------
 
             # Anthropic returns content alongside tool_calls if it wants to speak
-            content_blocks: list[dict[str, Any]] = []
+            content_blocks: list[dict[str, Any]] = list(result.thinking_blocks)
             if result.content:
                 content_blocks.append({"type": "text", "text": result.content})
 
@@ -122,6 +151,7 @@ class AgentLoop:
             # 3. Check stopping condition
             if result.stop_reason != "tool_use" and not result.tool_calls:
                 logger.info("Agent finished (stop_reason=%s)", result.stop_reason)
+                self.last_messages = list(messages)
                 return result.content
 
             # 4. Execute tools requested by LLM

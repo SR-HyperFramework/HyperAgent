@@ -51,6 +51,9 @@ class ProviderConfig:
     keeping the default in one place (``providers._DEFAULT_MODELS``) instead of
     repeating a model string that has to be updated here too when it retires."""
     api_key: str = ""
+    base_url: str = ""
+    """Override the API endpoint, e.g. for an Anthropic-compatible proxy or
+    gateway. Empty means the provider SDK's own default (``api.anthropic.com``)."""
     max_output_tokens: int = 16384
     temperature: float | None = None
     """Sampling temperature, forwarded only to backends that still accept one.
@@ -59,6 +62,12 @@ class ProviderConfig:
     Opus 4.7 and later — a non-default value there returns a 400. Note that
     ``temperature=0`` never guaranteed identical outputs on any model; to reduce
     variance, tighten the prompt rather than the sampler."""
+    extended_thinking: bool = False
+    """Request Claude's extended-thinking content blocks (Anthropic only)."""
+    thinking_budget_tokens: int = 4096
+    """Token budget for extended thinking when ``extended_thinking`` is on."""
+    debug_console: bool = False
+    """Stream thinking/text/tool-call deltas to the console as they arrive."""
     # Per-stage model overrides: stage_id -> model name
     stage_models: dict[str, str] = field(default_factory=dict)
 
@@ -104,6 +113,11 @@ def _env_float(key: str, default: float | None) -> float | None:
     return float(raw) if raw is not None else default
 
 
+def _env_bool(key: str, default: bool) -> bool:
+    raw = os.environ.get(key)
+    return raw.strip().lower() in ("1", "true", "yes", "on") if raw is not None else default
+
+
 def load_config(config_path: Path | None = None) -> HyperAgentConfig:
     """Load configuration from YAML file, then override with environment variables.
 
@@ -125,12 +139,24 @@ def load_config(config_path: Path | None = None) -> HyperAgentConfig:
         name=_env("HYPERAGENT_PROVIDER", provider_data.get("name", "anthropic")),
         model=_env("HYPERAGENT_MODEL", provider_data.get("model", "")),
         api_key=_env("ANTHROPIC_API_KEY", _env("OPENAI_API_KEY", provider_data.get("api_key", ""))),
+        base_url=_env(
+            "HYPERAGENT_ANTHROPIC_BASE_URL", provider_data.get("base_url", "")
+        ),
         max_output_tokens=_env_int(
             "HYPERAGENT_MAX_OUTPUT_TOKENS",
             provider_data.get("max_output_tokens", 16384),
         ),
         temperature=_env_float(
             "HYPERAGENT_TEMPERATURE", provider_data.get("temperature")
+        ),
+        extended_thinking=_env_bool(
+            "HYPERAGENT_EXTENDED_THINKING", provider_data.get("extended_thinking", False)
+        ),
+        thinking_budget_tokens=_env_int(
+            "HYPERAGENT_THINKING_BUDGET", provider_data.get("thinking_budget_tokens", 4096)
+        ),
+        debug_console=_env_bool(
+            "HYPERAGENT_DEBUG_CONSOLE", provider_data.get("debug_console", False)
         ),
         stage_models=provider_data.get("stage_models", {}),
     )

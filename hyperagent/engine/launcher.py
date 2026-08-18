@@ -25,6 +25,7 @@ from ..tools import vmware_tools
 from ..tools.registry import STAGE_TOOLS, ToolRegistry, build_full_registry
 from .agent_loop import AgentLoop
 from .checkpoint import CheckpointReached, write_checkpoint
+from .mcp_servers import ensure_idalib_mcp, stop_idalib_mcp
 
 logger = logging.getLogger(__name__)
 
@@ -188,6 +189,7 @@ async def run_pipeline_with_config(
         ablation_config=(getattr(ablation_config, "name", "FULL") if ablation_config else "FULL"),
     )
 
+    idalib_proc = ensure_idalib_mcp(config)
     registry, clients = build_full_registry(config)
     try:
         for index, stage in enumerate(selected_stages, start=1):
@@ -363,5 +365,6 @@ async def run_pipeline_with_config(
                 client.close()
             except Exception:
                 logger.warning("Failed to close MCP client cleanly", exc_info=True)
+        stop_idalib_mcp(idalib_proc)
 
     return metrics.finalize_run()

@@ -12,6 +12,18 @@ from .base import CompletionResult, LLMProvider, Message, ToolCall
 
 logger = logging.getLogger(__name__)
 
+_ANSI_RESET = "\033[0m"
+_OUTPUT_STYLES = {
+    "thinking": ("\033[35m", "🧠 thinking"),
+    "text": ("\033[32m", "💬 assistant"),
+    "tool_use": ("\033[36m", "🛠 tool"),
+}
+
+
+def _styled_output_label(kind: str, detail: str = "") -> str:
+    color, label = _OUTPUT_STYLES[kind]
+    return f"{color}{label}{detail}{_ANSI_RESET}"
+
 # Context windows are read from the Models API at runtime rather than kept in a
 # table here, which silently goes stale every release. This value is only the
 # fallback for when that lookup fails: guessing low costs early checkpoints,
@@ -215,6 +227,7 @@ class AnthropicProvider(LLMProvider):
         from ``get_final_message()`` by the caller).
         """
         open_tool: str | None = None
+        open_type: str | None = None
         for event in stream:
             if event.type == "thinking":
                 print(event.thinking, end="", file=sys.stderr, flush=True)
@@ -222,31 +235,49 @@ class AnthropicProvider(LLMProvider):
                 print(event.text, end="", file=sys.stderr, flush=True)
             elif event.type == "content_block_start":
                 block = event.content_block
-                if getattr(block, "type", None) == "tool_use":
+                open_type = getattr(block, "type", None)
+                if open_type == "tool_use":
                     open_tool = block.name
-                    print(f"\n[tool_use:{open_tool}] ", end="", file=sys.stderr, flush=True)
-                elif getattr(block, "type", None) == "thinking":
-                    print("\n[thinking] ", end="", file=sys.stderr, flush=True)
-                elif getattr(block, "type", None) == "text":
-                    print("\n[text] ", end="", file=sys.stderr, flush=True)
+                    print(
+                        f"\n{_styled_output_label('tool_use', f'[{open_tool}]')} ",
+                        end="",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                elif open_type == "thinking":
+                    print(
+                        f"\n{_styled_output_label('thinking')} ",
+                        end="",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                elif open_type == "text":
+                    print(
+                        f"\n{_styled_output_label('text')} ",
+                        end="",
+                        file=sys.stderr,
+                        flush=True,
+                    )
             elif event.type == "input_json":
                 print(event.partial_json, end="", file=sys.stderr, flush=True)
             elif event.type == "content_block_stop":
                 print(file=sys.stderr, flush=True)
                 open_tool = None
+                open_type = None
         print(file=sys.stderr, flush=True)
 
     @staticmethod
     def _drain_stream_to_console_minimal(stream: Any) -> None:
-        """Print only assistant text and concise tool-call lines to stderr.
+        """Print concise, labeled stream output to stderr.
 
-        Mirrors Claude Code's own console: prose streams live, tool calls show
-        up as a single ``-> tool_name(args)`` line once the call is fully
-        formed, and thinking deltas are suppressed entirely.
+        Assistant prose streams live under a text label, thinking appears under
+        a separate thinking label, and tool calls collapse into a single
+        labeled line once the call is fully formed.
         """
         open_type: str | None = None
         tool_name: str | None = None
         tool_json = ""
+        text_label_open = False
         for event in stream:
             if event.type == "content_block_start":
                 block = event.content_block
@@ -254,6 +285,13 @@ class AnthropicProvider(LLMProvider):
                 if open_type == "tool_use":
                     tool_name = block.name
                     tool_json = ""
+                elif open_type == "text":
+                    print(f"{_styled_output_label('text')} ", end="", file=sys.stderr, flush=True)
+                    text_label_open = True
+                elif open_type == "thinking":
+                    print(f"{_styled_output_label('thinking')} ", end="", file=sys.stderr, flush=True)
+            elif event.type == "thinking" and open_type == "thinking":
+                print(event.thinking, end="", file=sys.stderr, flush=True)
             elif event.type == "text" and open_type == "text":
                 print(event.text, end="", file=sys.stderr, flush=True)
             elif event.type == "input_json" and open_type == "tool_use":
@@ -263,12 +301,21 @@ class AnthropicProvider(LLMProvider):
                     args_preview = tool_json.strip()
                     if len(args_preview) > 200:
                         args_preview = args_preview[:200] + "..."
-                    print(f"\n[tool_use] {tool_name}({args_preview})", file=sys.stderr, flush=True)
+                    print(
+                        f"\n{_styled_output_label('tool_use', f' {tool_name}({args_preview})')}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
                 elif open_type == "text":
+                    print(file=sys.stderr, flush=True)
+                    text_label_open = False
+                elif open_type == "thinking":
                     print(file=sys.stderr, flush=True)
                 open_type = None
                 tool_name = None
                 tool_json = ""
+        if text_label_open:
+            print(file=sys.stderr, flush=True)
 
     @staticmethod
     def _to_api_messages(messages: list[Message]) -> list[dict[str, Any]]:

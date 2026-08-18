@@ -1,6 +1,8 @@
 """Tests for hyperagent.engine.agent_loop.AgentLoop."""
 from __future__ import annotations
 
+import logging
+
 import pytest
 
 from hyperagent.engine.agent_loop import AgentLoop
@@ -250,3 +252,21 @@ def test_run_records_checkpoint_via_metrics_collector(tmp_path):
     sm = collector.get_stage("05-dynamic")
     assert sm is not None
     assert sm.checkpoint_triggered is True
+
+
+
+def test_run_logs_context_window_usage_next_to_turn_counter(caplog):
+    provider = _ScriptedProvider([
+        CompletionResult(content="done", tool_calls=[], stop_reason="end_turn",
+                          input_tokens=1, output_tokens=1),
+    ], max_tokens=200)
+    loop = AgentLoop(provider, ToolRegistry())
+
+    with caplog.at_level(logging.INFO):
+        loop.run(
+            skill_instructions="test",
+            initial_prompt="abcd",
+            stage_tools=[],
+        )
+
+    assert "Agent turn 1/100 (context 4/200 tokens, 2.0%)" in caplog.text

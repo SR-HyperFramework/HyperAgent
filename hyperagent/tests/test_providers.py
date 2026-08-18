@@ -5,6 +5,7 @@ Live API tests are skipped unless ``ANTHROPIC_API_KEY`` is set.
 from __future__ import annotations
 
 import os
+from types import SimpleNamespace
 
 import pytest
 
@@ -181,6 +182,50 @@ def test_count_tokens_is_cached():
     assert provider._token_cache[text] == first
     provider._client = None  # any further API call would raise
     assert provider.count_tokens(text) == first
+
+
+def test_full_console_output_uses_distinct_labels(capsys):
+    events = [
+        SimpleNamespace(type="content_block_start", content_block=SimpleNamespace(type="thinking")),
+        SimpleNamespace(type="thinking", thinking="plan"),
+        SimpleNamespace(type="content_block_stop"),
+        SimpleNamespace(type="content_block_start", content_block=SimpleNamespace(type="text")),
+        SimpleNamespace(type="text", text="answer"),
+        SimpleNamespace(type="content_block_stop"),
+        SimpleNamespace(type="content_block_start", content_block=SimpleNamespace(type="tool_use", name="lookup")),
+        SimpleNamespace(type="input_json", partial_json='{"q":"abc"}'),
+        SimpleNamespace(type="content_block_stop"),
+    ]
+
+    AnthropicProvider._drain_stream_to_console(events)
+
+    stderr = capsys.readouterr().err
+    assert "🧠 thinking" in stderr
+    assert "💬 assistant" in stderr
+    assert "🛠 tool[lookup]" in stderr
+
+
+
+def test_minimal_console_output_uses_distinct_labels(capsys):
+    events = [
+        SimpleNamespace(type="content_block_start", content_block=SimpleNamespace(type="thinking")),
+        SimpleNamespace(type="thinking", thinking="plan"),
+        SimpleNamespace(type="content_block_stop"),
+        SimpleNamespace(type="content_block_start", content_block=SimpleNamespace(type="text")),
+        SimpleNamespace(type="text", text="answer"),
+        SimpleNamespace(type="content_block_stop"),
+        SimpleNamespace(type="content_block_start", content_block=SimpleNamespace(type="tool_use", name="lookup")),
+        SimpleNamespace(type="input_json", partial_json='{"q":"abc"}'),
+        SimpleNamespace(type="content_block_stop"),
+    ]
+
+    AnthropicProvider._drain_stream_to_console_minimal(events)
+
+    stderr = capsys.readouterr().err
+    assert "🧠 thinking" in stderr
+    assert "💬 assistant" in stderr
+    assert "🛠 tool lookup({\"q\":\"abc\"})" in stderr
+
 
 
 @live

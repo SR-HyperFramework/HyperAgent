@@ -102,7 +102,6 @@ class AgentLoop:
         self.last_messages = list(messages)
 
         for turn in range(1, self.max_turns + 1):
-            logger.info("Agent turn %d/%d", turn, self.max_turns)
             self.turns_used = turn
 
             # 1. Enforce context window safety
@@ -114,6 +113,18 @@ class AgentLoop:
                     self._metrics.record_checkpoint(stage_id)
                 self.last_messages = list(messages)
                 raise
+
+            context_tokens = self.tracker.current_tokens
+            context_cap = self.tracker.max_tokens
+            context_ratio = (context_tokens / context_cap) if context_cap > 0 else 0.0
+            logger.info(
+                "Agent turn %d/%d (context %d/%d tokens, %.1f%%)",
+                turn,
+                self.max_turns,
+                context_tokens,
+                context_cap,
+                context_ratio * 100,
+            )
 
             # 2. Get LLM completion
             result = self.provider.complete(

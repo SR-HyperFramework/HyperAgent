@@ -3,18 +3,18 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 from pathlib import Path
 
 from .base import ToolDefinition, ToolResult
+from .path_scope import PathScope, PathScopeError
 
 
-def _read_file(path: str = "", **_kw) -> ToolResult:
+def _read_file(scope: PathScope, path: str = "", **_kw) -> ToolResult:
     try:
-        p = Path(path)
+        p = scope.check_read(path)
         if not p.is_file():
             return ToolResult(content=f"Error: {path} is not a file or does not exist", is_error=True)
-        
+
         stat = p.stat()
         max_bytes = 2 * 1024 * 1024  # 2MB safety limit
         if stat.st_size > max_bytes:
@@ -23,60 +23,67 @@ def _read_file(path: str = "", **_kw) -> ToolResult:
             return ToolResult(
                 content=f"{text}\n\n--- [TRUNCATED: File size is {stat.st_size} bytes, which exceeds the 2MB safety limit] ---"
             )
-            
+
         text = p.read_text(encoding="utf-8", errors="replace")
         return ToolResult(content=text)
-    except Exception as exc:
+    except (PathScopeError, Exception) as exc:
         return ToolResult(content=f"read_file error: {exc}", is_error=True)
 
 
-def _write_file(path: str = "", content: str = "", **_kw) -> ToolResult:
+def _write_file(scope: PathScope, path: str = "", content: str = "", **_kw) -> ToolResult:
     try:
-        p = Path(path)
+        p = scope.check_write(path)
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content, encoding="utf-8")
-        return ToolResult(content=f"Written {len(content)} bytes to {path}")
-    except Exception as exc:
+        return ToolResult(content=f"Written {len(content)} bytes to {p}")
+    except (PathScopeError, Exception) as exc:
         return ToolResult(content=f"write_file error: {exc}", is_error=True)
 
 
-def _sha256_file(path: str = "", **_kw) -> ToolResult:
+def _sha256_file(scope: PathScope, path: str = "", **_kw) -> ToolResult:
     try:
+        p = scope.check_read(path)
         digest = hashlib.sha256()
-        with open(path, "rb") as fh:
+        with open(p, "rb") as fh:
             for chunk in iter(lambda: fh.read(1024 * 1024), b""):
                 digest.update(chunk)
         return ToolResult(content=digest.hexdigest())
-    except Exception as exc:
+    except (PathScopeError, Exception) as exc:
         return ToolResult(content=f"sha256 error: {exc}", is_error=True)
 
 
-def _list_directory(path: str = "", **_kw) -> ToolResult:
+def _list_directory(scope: PathScope, path: str = "", **_kw) -> ToolResult:
     try:
+        directory = scope.check_read(path)
         entries = []
-        for entry in sorted(Path(path).iterdir()):
+        for entry in sorted(directory.iterdir()):
             kind = "dir" if entry.is_dir() else "file"
             size = entry.stat().st_size if entry.is_file() else 0
             entries.append({"name": entry.name, "type": kind, "size": size})
         return ToolResult(content=json.dumps(entries, indent=2))
-    except Exception as exc:
+    except (PathScopeError, Exception) as exc:
         return ToolResult(content=f"list_directory error: {exc}", is_error=True)
 
 
-def _file_exists(path: str = "", **_kw) -> ToolResult:
-    exists = Path(path).exists()
-    return ToolResult(content=json.dumps({"exists": exists, "path": path}))
-
-
-def _mkdir(path: str = "", **_kw) -> ToolResult:
+def _file_exists(scope: PathScope, path: str = "", **_kw) -> ToolResult:
     try:
-        Path(path).mkdir(parents=True, exist_ok=True)
-        return ToolResult(content=f"Directory created: {path}")
-    except Exception as exc:
+        resolved = scope.check_read(path)
+        exists = resolved.exists()
+        return ToolResult(content=json.dumps({"exists": exists, "path": str(resolved)}))
+    except PathScopeError as exc:
+        return ToolResult(content=f"file_exists error: {exc}", is_error=True)
+
+
+def _mkdir(scope: PathScope, path: str = "", **_kw) -> ToolResult:
+    try:
+        resolved = scope.check_write(path)
+        resolved.mkdir(parents=True, exist_ok=True)
+        return ToolResult(content=f"Directory created: {resolved}")
+    except (PathScopeError, Exception) as exc:
         return ToolResult(content=f"mkdir error: {exc}", is_error=True)
 
 
-def create_filesystem_tools() -> list[ToolDefinition]:
+def create_filesystem_tools(scope: PathScope) -> list[ToolDefinition]:
     """Return all filesystem tool definitions."""
     return [
         ToolDefinition(
@@ -87,7 +94,7 @@ def create_filesystem_tools() -> list[ToolDefinition]:
                 "properties": {"path": {"type": "string", "description": "Absolute file path"}},
                 "required": ["path"],
             },
-            handler=_read_file,
+            handler=lambda **kwargs: _read_file(scope, **kwargs),
             source="filesystem",
         ),
         ToolDefinition(
@@ -101,7 +108,7 @@ def create_filesystem_tools() -> list[ToolDefinition]:
                 },
                 "required": ["path", "content"],
             },
-            handler=_write_file,
+            handler=lambda **kwargs: _write_file(scope, **kwargs),
             source="filesystem",
         ),
         ToolDefinition(
@@ -112,7 +119,7 @@ def create_filesystem_tools() -> list[ToolDefinition]:
                 "properties": {"path": {"type": "string", "description": "Absolute file path"}},
                 "required": ["path"],
             },
-            handler=_sha256_file,
+            handler=lambda **kwargs: _sha256_file(scope, **kwargs),
             source="filesystem",
         ),
         ToolDefinition(
@@ -123,7 +130,7 @@ def create_filesystem_tools() -> list[ToolDefinition]:
                 "properties": {"path": {"type": "string", "description": "Absolute directory path"}},
                 "required": ["path"],
             },
-            handler=_list_directory,
+            handler=lambda **kwargs: _list_directory(scope, **kwargs),
             source="filesystem",
         ),
         ToolDefinition(
@@ -134,7 +141,7 @@ def create_filesystem_tools() -> list[ToolDefinition]:
                 "properties": {"path": {"type": "string", "description": "Absolute path to check"}},
                 "required": ["path"],
             },
-            handler=_file_exists,
+            handler=lambda **kwargs: _file_exists(scope, **kwargs),
             source="filesystem",
         ),
         ToolDefinition(
@@ -145,7 +152,7 @@ def create_filesystem_tools() -> list[ToolDefinition]:
                 "properties": {"path": {"type": "string", "description": "Absolute directory path"}},
                 "required": ["path"],
             },
-            handler=_mkdir,
+            handler=lambda **kwargs: _mkdir(scope, **kwargs),
             source="filesystem",
         ),
     ]

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from typing import Any
 
 import httpx
@@ -81,11 +82,14 @@ class MCPClient:
 
     # -- tool definition export -----------------------------------------------
 
-    def get_tool_definitions(self, handler_factory=None) -> list[ToolDefinition]:
+    def get_tool_definitions(
+        self,
+        handler_factory: Callable[["MCPClient", str], Callable[..., ToolResult]] | None = None,
+    ) -> list[ToolDefinition]:
         """Convert discovered MCP tools to ``ToolDefinition`` instances.
 
         If ``handler_factory`` is provided, it is called with ``(mcp_client, tool_name)``
-        and must return a callable ``(arguments) -> ToolResult``.
+        and must return a callable ``(**kwargs) -> ToolResult``.
         """
         if not self._server_tools:
             self.list_tools()

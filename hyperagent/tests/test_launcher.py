@@ -11,6 +11,7 @@ from hyperagent import pipeline_state
 from hyperagent.engine.launcher import STAGES, run_pipeline_with_config
 from hyperagent.providers.base import CompletionResult, LLMProvider
 from hyperagent.tools import vmware_tools
+from hyperagent.tools.path_scope import compute_run_scope
 
 
 class _DummyProvider(LLMProvider):
@@ -45,8 +46,11 @@ def config(tmp_path: Path):
             max_output_tokens=1024,
             temperature=None,
             stage_models={},
+            console_mode="off",
         ),
         vmware=SimpleNamespace(),
+        x64dbg_mcp=SimpleNamespace(url="http://127.0.0.1:1/mcp", timeout=2),
+        ida_mcp=SimpleNamespace(url="http://127.0.0.1:1/mcp", timeout=2),
     )
 
 
@@ -67,7 +71,12 @@ def test_launcher_skips_completed_stage_with_valid_artifact(monkeypatch, sample_
     report_dir.mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: "a" * 64)
-    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg: (SimpleNamespace(get_tools_for_stage=lambda _sid: [],), []))
+    monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
+    monkeypatch.setattr(
+        "hyperagent.engine.launcher.build_full_registry",
+        lambda _cfg, _scope: (SimpleNamespace(get_tools_for_stage=lambda _sid: []), []),
+    )
 
     pipeline_state.ensure_state(report_dir, "a" * 64, str(sample_file))
     out = report_dir / "01-prepare-env.json"
@@ -78,13 +87,61 @@ def test_launcher_skips_completed_stage_with_valid_artifact(monkeypatch, sample_
     assert result.stages == []
 
 
+def test_launcher_builds_scope_from_sample_and_report_dir(monkeypatch, sample_file: Path, config):
+    _stage_skill_tree(config.skills_root)
+    captured = {}
+    stage_hash = "scope" * 16
+    report_dir = config.reports_root / stage_hash
+
+    class _Registry:
+        def get_tools_for_stage(self, _sid):
+            return []
+
+    monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: stage_hash)
+
+    def fake_build_full_registry(_cfg, scope):
+        captured["scope"] = scope
+        return _Registry(), []
+
+    monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
+
+    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", fake_build_full_registry)
+    monkeypatch.setattr("hyperagent.engine.launcher.create_provider", lambda *a, **k: _DummyProvider())
+
+    class _Loop:
+        def __init__(self, *args, **kwargs):
+            self.last_messages = []
+
+        def run(self, **kwargs):
+            out = report_dir / "01-prepare-env.json"
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text("{}", encoding="utf-8")
+            pipeline_state.complete(report_dir, "01-prepare-env", str(out))
+            return "ok"
+
+    monkeypatch.setattr("hyperagent.engine.launcher.AgentLoop", _Loop)
+
+    result = asyncio.run(run_pipeline_with_config(sample_file, config, stage_id="01-prepare-env"))
+    assert len(result.stages) == 1
+
+    expected_scope = compute_run_scope(sample_file, report_dir, config.skills_root)
+    assert captured["scope"].read_roots == expected_scope.read_roots
+    assert captured["scope"].write_roots == expected_scope.write_roots
+
+
 def test_launcher_stops_on_state_drift(monkeypatch, sample_file: Path, config):
     _stage_skill_tree(config.skills_root)
     report_dir = config.reports_root / ("b" * 64)
     report_dir.mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: "b" * 64)
-    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg: (SimpleNamespace(get_tools_for_stage=lambda _sid: []), []))
+    monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
+    monkeypatch.setattr(
+        "hyperagent.engine.launcher.build_full_registry",
+        lambda _cfg, _scope: (SimpleNamespace(get_tools_for_stage=lambda _sid: []), []),
+    )
 
     pipeline_state.ensure_state(report_dir, "b" * 64, str(sample_file))
     pipeline_state.complete(report_dir, "01-prepare-env", str(report_dir / "missing.json"))
@@ -124,7 +181,9 @@ def test_launcher_retries_when_stage_checkpointed(monkeypatch, sample_file: Path
             return "ok"
 
     monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: "c" * 64)
-    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg: (_Registry(), []))
+    monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg, _scope: (_Registry(), []))
     monkeypatch.setattr("hyperagent.engine.launcher.create_provider", lambda *a, **k: _DummyProvider())
     monkeypatch.setattr("hyperagent.engine.launcher.AgentLoop", _Loop)
 
@@ -152,7 +211,9 @@ def test_launcher_fails_when_stage_exits_without_state_update(monkeypatch, sampl
             return "ok"
 
     monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: "d" * 64)
-    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg: (_Registry(), []))
+    monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg, _scope: (_Registry(), []))
     monkeypatch.setattr("hyperagent.engine.launcher.create_provider", lambda *a, **k: _DummyProvider())
     monkeypatch.setattr("hyperagent.engine.launcher.AgentLoop", _Loop)
 
@@ -184,7 +245,9 @@ def test_launcher_reverts_vm_after_dynamic_stage_succeeds(monkeypatch, sample_fi
     revert_calls: list[object] = []
     monkeypatch.setattr(vmware_tools, "vm_auto_revert_after_dynamic", lambda cfg: revert_calls.append(cfg))
     monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: "e" * 64)
-    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg: (_Registry(), []))
+    monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg, _scope: (_Registry(), []))
     monkeypatch.setattr("hyperagent.engine.launcher.create_provider", lambda *a, **k: _DummyProvider())
     monkeypatch.setattr("hyperagent.engine.launcher.AgentLoop", _Loop)
 
@@ -214,7 +277,9 @@ def test_launcher_reverts_vm_after_dynamic_stage_fails(monkeypatch, sample_file:
     revert_calls: list[object] = []
     monkeypatch.setattr(vmware_tools, "vm_auto_revert_after_dynamic", lambda cfg: revert_calls.append(cfg))
     monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: "f" * 64)
-    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg: (_Registry(), []))
+    monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg, _scope: (_Registry(), []))
     monkeypatch.setattr("hyperagent.engine.launcher.create_provider", lambda *a, **k: _DummyProvider())
     monkeypatch.setattr("hyperagent.engine.launcher.AgentLoop", _Loop)
 

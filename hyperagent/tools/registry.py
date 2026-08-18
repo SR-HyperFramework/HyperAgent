@@ -11,6 +11,7 @@ from .base import ToolDefinition, ToolResult
 from .filesystem_tools import create_filesystem_tools
 from .ida_tools import create_ida_tools, ida_health_check_tool
 from .mcp_client import MCPClient
+from .path_scope import PathScope
 from .vmware_tools import create_vmware_tools
 from .x64dbg_tools import create_x64dbg_tools, x64dbg_health_check_tool
 
@@ -113,19 +114,22 @@ class ToolRegistry:
             return ToolResult(content=f"Tool execution failed: {exc}", is_error=True)
 
 
-def build_core_registry() -> ToolRegistry:
+def build_core_registry(scope: PathScope, scripts_dir=None) -> ToolRegistry:
     """Build a registry pre-populated with core host tools (filesystem, analysis).
 
     Note: MCP tools (x64dbg, ida) require active connections and must be
     registered at runtime by the pipeline orchestrator.
     """
     registry = ToolRegistry()
-    registry.register_many(create_filesystem_tools())
-    registry.register_many(create_analysis_tools())
+    registry.register_many(create_filesystem_tools(scope))
+    registry.register_many(create_analysis_tools(scripts_dir, scope))
     return registry
 
 
-def build_full_registry(config: HyperAgentConfig) -> tuple[ToolRegistry, list[MCPClient]]:
+def build_full_registry(
+    config: HyperAgentConfig,
+    scope: PathScope,
+) -> tuple[ToolRegistry, list[MCPClient]]:
     """Build a registry with every tool source: filesystem, analysis, vmware,
     and whatever x64dbg/ida MCP tools are discoverable right now.
 
@@ -135,17 +139,17 @@ def build_full_registry(config: HyperAgentConfig) -> tuple[ToolRegistry, list[MC
     ``.close()`` them when the run ends.
     """
     registry = ToolRegistry()
-    registry.register_many(create_filesystem_tools())
+    registry.register_many(create_filesystem_tools(scope))
     registry.register_many(
-        create_analysis_tools(config.skills_root / "_hyperagent-common" / "scripts")
+        create_analysis_tools(config.skills_root / "_hyperagent-common" / "scripts", scope)
     )
-    registry.register_many(create_vmware_tools(config.vmware))
+    registry.register_many(create_vmware_tools(config.vmware, scope))
 
     registry.register(x64dbg_health_check_tool(config.x64dbg_mcp))
     registry.register(ida_health_check_tool(config.ida_mcp))
 
     x64dbg_client, x64dbg_tools = create_x64dbg_tools(config.x64dbg_mcp)
-    ida_client, ida_tools = create_ida_tools(config.ida_mcp)
+    ida_client, ida_tools = create_ida_tools(config.ida_mcp, scope=scope)
     registry.register_many(x64dbg_tools)
     registry.register_many(ida_tools)
 

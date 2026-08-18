@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 from .base import ToolDefinition, ToolResult
+from .path_scope import PathScope, PathScopeError
 
 
 def _run_bounded(
@@ -66,17 +67,22 @@ def _get_scripts_dir(scripts_dir: str | Path | None = None) -> Path:
 
 # -- Bounded Wrappers --------------------------------------------------------
 
-def _make_upx_unpack(scripts_dir: Path):
+def _make_upx_unpack(scripts_dir: Path, scope: PathScope):
     def upx_unpack(input_path: str = "", output_path: str = "", **_kw) -> ToolResult:
         """Run `upx -d -o <output> <input>`."""
         if not input_path or not output_path:
             return ToolResult(content="input_path and output_path required", is_error=True)
-        return _run_bounded(["upx", "-d", "-o", output_path, input_path])
+        try:
+            scoped_input = scope.check_read(input_path)
+            scoped_output = scope.check_write(output_path)
+        except PathScopeError as exc:
+            return ToolResult(content=str(exc), is_error=True)
+        return _run_bounded(["upx", "-d", "-o", str(scoped_output), str(scoped_input)])
 
     return upx_unpack
 
 
-def _make_fetch_vt_report(scripts_dir: Path):
+def _make_fetch_vt_report(scripts_dir: Path, scope: PathScope):
     def fetch_vt_report(
         file_id: str = "",
         output_path: str = "",
@@ -95,11 +101,16 @@ def _make_fetch_vt_report(scripts_dir: Path):
         if not script_path.exists():
             return ToolResult(content=f"Script not found: {script_path}", is_error=True)
 
+        try:
+            scoped_output = scope.check_write(output_path)
+        except PathScopeError as exc:
+            return ToolResult(content=str(exc), is_error=True)
+
         cmd = [
             sys.executable, str(script_path),
             file_id,
             "--endpoint", endpoint,
-            "-o", output_path,
+            "-o", str(scoped_output),
         ]
         if api_key:
             cmd += ["--api-key", api_key]
@@ -114,7 +125,7 @@ def _make_fetch_vt_report(scripts_dir: Path):
     return fetch_vt_report
 
 
-def _make_normalize_vt_report(scripts_dir: Path):
+def _make_normalize_vt_report(scripts_dir: Path, scope: PathScope):
     def normalize_vt_report(
         file_info_path: str = "",
         behaviour_summary_path: str = "",
@@ -140,22 +151,32 @@ def _make_normalize_vt_report(scripts_dir: Path):
         if not script_path.exists():
             return ToolResult(content=f"Script not found: {script_path}", is_error=True)
 
+        try:
+            scoped_file_info = str(scope.check_read(file_info_path)) if file_info_path else ""
+            scoped_behaviour = str(scope.check_read(behaviour_summary_path)) if behaviour_summary_path else ""
+            scoped_local_context = str(scope.check_read(local_context_path)) if local_context_path else ""
+            scoped_schema = str(scope.check_read(schema_path)) if schema_path else ""
+            scoped_upstream_inputs = [str(scope.check_read(path)) for path in (upstream_inputs or [])]
+            scoped_output = scope.check_write(output_path)
+        except PathScopeError as exc:
+            return ToolResult(content=str(exc), is_error=True)
+
         cmd = [sys.executable, str(script_path)]
-        if file_info_path:
-            cmd += ["--file-info", file_info_path]
-        if behaviour_summary_path:
-            cmd += ["--behaviour-summary", behaviour_summary_path]
-        if local_context_path:
-            cmd += ["--local-context", local_context_path]
+        if scoped_file_info:
+            cmd += ["--file-info", scoped_file_info]
+        if scoped_behaviour:
+            cmd += ["--behaviour-summary", scoped_behaviour]
+        if scoped_local_context:
+            cmd += ["--local-context", scoped_local_context]
         if sample_sha256:
             cmd += ["--sample-sha256", sample_sha256]
-        for upstream_input in upstream_inputs or []:
+        for upstream_input in scoped_upstream_inputs:
             cmd += ["--upstream-input", upstream_input]
         if validate:
             cmd.append("--validate")
-        if schema_path:
-            cmd += ["--schema", schema_path]
-        cmd += ["-o", output_path]
+        if scoped_schema:
+            cmd += ["--schema", scoped_schema]
+        cmd += ["-o", str(scoped_output)]
         if indent is not None:
             cmd += ["--indent", str(indent)]
         return _run_bounded(cmd)
@@ -163,7 +184,7 @@ def _make_normalize_vt_report(scripts_dir: Path):
     return normalize_vt_report
 
 
-def _make_validate_json_output(scripts_dir: Path):
+def _make_validate_json_output(scripts_dir: Path, scope: PathScope):
     def validate_json_output(schema_path: str = "", json_path: str = "", **_kw) -> ToolResult:
         """Run validate_output.py."""
         if not schema_path or not json_path:
@@ -173,17 +194,26 @@ def _make_validate_json_output(scripts_dir: Path):
         if not script_path.exists():
             return ToolResult(content=f"Script not found: {script_path}", is_error=True)
 
-        return _run_bounded([sys.executable, str(script_path), schema_path, json_path])
+        try:
+            scoped_schema = scope.check_read(schema_path)
+            scoped_json = scope.check_read(json_path)
+        except PathScopeError as exc:
+            return ToolResult(content=str(exc), is_error=True)
+
+        return _run_bounded([sys.executable, str(script_path), str(scoped_schema), str(scoped_json)])
 
     return validate_json_output
 
 
-def create_analysis_tools(scripts_dir: str | Path | None = None) -> list[ToolDefinition]:
+def create_analysis_tools(scripts_dir: str | Path | None = None, scope: PathScope | None = None) -> list[ToolDefinition]:
     """Return bounded analysis tool definitions.
 
     ``scripts_dir`` overrides the resolved ``_hyperagent-common/scripts``
     directory — used by tests to point at fixture scripts.
     """
+    if scope is None:
+        raise ValueError("create_analysis_tools requires a PathScope")
+
     resolved_scripts_dir = _get_scripts_dir(scripts_dir)
 
     return [
@@ -198,7 +228,7 @@ def create_analysis_tools(scripts_dir: str | Path | None = None) -> list[ToolDef
                 },
                 "required": ["input_path", "output_path"],
             },
-            handler=_make_upx_unpack(resolved_scripts_dir),
+            handler=_make_upx_unpack(resolved_scripts_dir, scope),
             source="analysis",
         ),
         ToolDefinition(
@@ -222,7 +252,7 @@ def create_analysis_tools(scripts_dir: str | Path | None = None) -> list[ToolDef
                 },
                 "required": ["file_id", "output_path"],
             },
-            handler=_make_fetch_vt_report(resolved_scripts_dir),
+            handler=_make_fetch_vt_report(resolved_scripts_dir, scope),
             source="analysis",
         ),
         ToolDefinition(
@@ -248,7 +278,7 @@ def create_analysis_tools(scripts_dir: str | Path | None = None) -> list[ToolDef
                     {"required": ["behaviour_summary_path"]},
                 ],
             },
-            handler=_make_normalize_vt_report(resolved_scripts_dir),
+            handler=_make_normalize_vt_report(resolved_scripts_dir, scope),
             source="analysis",
         ),
         ToolDefinition(
@@ -262,7 +292,7 @@ def create_analysis_tools(scripts_dir: str | Path | None = None) -> list[ToolDef
                 },
                 "required": ["schema_path", "json_path"],
             },
-            handler=_make_validate_json_output(resolved_scripts_dir),
+            handler=_make_validate_json_output(resolved_scripts_dir, scope),
             source="analysis",
         ),
     ]

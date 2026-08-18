@@ -22,6 +22,7 @@ from ..providers import create_provider
 from ..skills import SkillDoc, load_stage_skill
 from ..telemetry.metrics import MetricsCollector, RunMetrics
 from ..tools import vmware_tools
+from ..tools.path_scope import compute_run_scope
 from ..tools.registry import STAGE_TOOLS, ToolRegistry, build_full_registry
 from .agent_loop import AgentLoop
 from .checkpoint import CheckpointReached, write_checkpoint
@@ -179,6 +180,7 @@ async def run_pipeline_with_config(
     selected_stages = _selected_stages(stage_id)
     sample_sha256 = _sha256_of(sample_path)
     report_dir = _report_dir_for(sample_path, config)
+    scope = compute_run_scope(sample_path, report_dir, config.skills_root)
     pipeline_state.ensure_state(report_dir, sample_sha256, str(sample_path))
     state_path = pipeline_state.state_path_for(report_dir)
 
@@ -190,7 +192,7 @@ async def run_pipeline_with_config(
     )
 
     idalib_proc = ensure_idalib_mcp(config)
-    registry, clients = build_full_registry(config)
+    registry, clients = build_full_registry(config, scope)
     try:
         for index, stage in enumerate(selected_stages, start=1):
             failure_reason: str | None = None

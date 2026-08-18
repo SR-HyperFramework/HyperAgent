@@ -13,6 +13,7 @@ from pathlib import Path
 
 from ..config import VMwareConfig
 from .base import ToolDefinition, ToolResult
+from .path_scope import PathScope, PathScopeError
 
 
 def _run_vmrun(args: list[str], timeout: int = 30) -> ToolResult:
@@ -63,7 +64,7 @@ def vm_auto_revert_after_dynamic(config: VMwareConfig) -> ToolResult:
     )
 
 
-def create_vmware_tools(config: VMwareConfig) -> list[ToolDefinition]:
+def create_vmware_tools(config: VMwareConfig, scope: PathScope) -> list[ToolDefinition]:
     """Build VMware tool definitions from the current config."""
     vmx = config.vmx_path
     snap = config.snapshot_name
@@ -89,18 +90,22 @@ def create_vmware_tools(config: VMwareConfig) -> list[ToolDefinition]:
     def copy_to_guest(host_path: str = "", guest_filename: str = "", **_kw) -> ToolResult:
         if not host_path or not guest_filename:
             return ToolResult(content="host_path and guest_filename are required", is_error=True)
+        try:
+            scoped_host_path = scope.check_read(host_path)
+        except PathScopeError as exc:
+            return ToolResult(content=str(exc), is_error=True)
         guest_path = f"{desktop}\\{guest_filename}"
         # Large samples (100+ MB) routinely exceed the base command_timeout over
         # CopyFileFromHostToGuest, so this scales the budget with file size instead
         # of hardcoding a bigger constant that would still be wrong for some sample.
         try:
-            file_size = Path(host_path).stat().st_size
+            file_size = scoped_host_path.stat().st_size
         except OSError:
             file_size = 0
         copy_timeout = max(command_timeout, startup_timeout, int(file_size / (1024 * 1024)) * 5)
         return _run_vmrun(
             ["-T", "ws", "-gu", user, "-gp", pwd,
-             "CopyFileFromHostToGuest", vmx, host_path, guest_path],
+             "CopyFileFromHostToGuest", vmx, str(scoped_host_path), guest_path],
             timeout=copy_timeout,
         )
 

@@ -101,6 +101,20 @@ def _artifact_is_valid(stage: Stage, output_path: Path | None, skill_doc: SkillD
     return True
 
 
+def _fallback_complete_if_valid(report_dir: Path, stage: Stage, skill_doc: SkillDoc) -> Path | None:
+    output_path = _default_output_path(report_dir, stage.stage_id)
+    if not _artifact_is_valid(stage, output_path, skill_doc):
+        return None
+
+    pipeline_state.complete(
+        report_dir,
+        stage.stage_id,
+        str(output_path),
+        "launcher fallback: valid artifact found after agent exited without updating STATE.json",
+    )
+    return output_path
+
+
 def _build_stage_prompt(sample_path: Path, report_dir: Path, stage: Stage, state_path: Path) -> str:
     lines = [
         f"Analyze sample: {sample_path}",
@@ -346,6 +360,18 @@ async def run_pipeline_with_config(
                         )
                         logger.error("[%d/%d] %s", index, len(selected_stages), failure_reason)
                         return metrics.finalize_run()
+
+                    fallback_output = _fallback_complete_if_valid(report_dir, stage, skill_doc)
+                    if fallback_output is not None:
+                        logger.warning(
+                            "[%d/%d] launcher auto-completed %s from valid artifact at %s after agent exited without updating STATE.json",
+                            index,
+                            len(selected_stages),
+                            stage.stage_id,
+                            fallback_output,
+                        )
+                        metrics.finalize_stage(stage.stage_id, status="completed")
+                        break
 
                     pipeline_state.fail(
                         report_dir,

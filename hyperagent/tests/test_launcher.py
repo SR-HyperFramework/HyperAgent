@@ -222,6 +222,107 @@ def test_launcher_fails_when_stage_exits_without_state_update(monkeypatch, sampl
     assert result.stages[0].stage_status == "failed"
 
 
+def test_launcher_fallback_completes_when_artifact_valid_but_state_not_updated(monkeypatch, caplog, sample_file: Path, config):
+    _stage_skill_tree(config.skills_root)
+    report_dir = config.reports_root / ("aa" * 32)
+    report_dir.mkdir(parents=True, exist_ok=True)
+    pipeline_state.ensure_state(report_dir, "aa" * 32, str(sample_file))
+
+    class _Registry:
+        def get_tools_for_stage(self, _sid):
+            return []
+
+    class _Loop:
+        def __init__(self, *args, **kwargs):
+            self.last_messages = []
+
+        def run(self, **kwargs):
+            out = report_dir / "01-prepare-env.json"
+            out.write_text("{}", encoding="utf-8")
+            return "ok"
+
+    monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: "aa" * 32)
+    monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg, _scope: (_Registry(), []))
+    monkeypatch.setattr("hyperagent.engine.launcher.create_provider", lambda *a, **k: _DummyProvider())
+    monkeypatch.setattr("hyperagent.engine.launcher.AgentLoop", _Loop)
+
+    result = asyncio.run(run_pipeline_with_config(sample_file, config, stage_id="01-prepare-env"))
+    assert len(result.stages) == 1
+    assert result.stages[0].stage_status == "completed"
+
+    state = pipeline_state.load_state(report_dir)
+    entry = state["stages"]["01-prepare-env"]
+    assert entry["status"] == pipeline_state.STATUS_COMPLETED
+    assert Path(entry["output_path"]) == report_dir / "01-prepare-env.json"
+    assert "launcher fallback" in entry["recommend_reason"]
+    assert "launcher auto-completed 01-prepare-env from valid artifact" in caplog.text
+    assert "without updating STATE.json" in caplog.text
+
+
+def test_launcher_fallback_does_not_complete_when_artifact_invalid(monkeypatch, sample_file: Path, config):
+    _stage_skill_tree(config.skills_root)
+    report_dir = config.reports_root / ("ab" * 32)
+    report_dir.mkdir(parents=True, exist_ok=True)
+    pipeline_state.ensure_state(report_dir, "ab" * 32, str(sample_file))
+
+    class _Registry:
+        def get_tools_for_stage(self, _sid):
+            return []
+
+    class _Loop:
+        def __init__(self, *args, **kwargs):
+            self.last_messages = []
+
+        def run(self, **kwargs):
+            out = report_dir / "01-prepare-env.json"
+            out.write_text('not json', encoding="utf-8")
+            return "ok"
+
+    monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: "ab" * 32)
+    monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg, _scope: (_Registry(), []))
+    monkeypatch.setattr("hyperagent.engine.launcher.create_provider", lambda *a, **k: _DummyProvider())
+    monkeypatch.setattr("hyperagent.engine.launcher.AgentLoop", _Loop)
+
+    result = asyncio.run(run_pipeline_with_config(sample_file, config, stage_id="01-prepare-env"))
+    assert len(result.stages) == 1
+    assert result.stages[0].stage_status == "failed"
+
+
+def test_launcher_fallback_completes_nonempty_report_stage(monkeypatch, sample_file: Path, config):
+    _stage_skill_tree(config.skills_root)
+    report_dir = config.reports_root / ("ac" * 32)
+    report_dir.mkdir(parents=True, exist_ok=True)
+    pipeline_state.ensure_state(report_dir, "ac" * 32, str(sample_file))
+
+    class _Registry:
+        def get_tools_for_stage(self, _sid):
+            return []
+
+    class _Loop:
+        def __init__(self, *args, **kwargs):
+            self.last_messages = []
+
+        def run(self, **kwargs):
+            out = report_dir / "08-report.md"
+            out.write_text("# Report\n\nDone.", encoding="utf-8")
+            return "ok"
+
+    monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: "ac" * 32)
+    monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg, _scope: (_Registry(), []))
+    monkeypatch.setattr("hyperagent.engine.launcher.create_provider", lambda *a, **k: _DummyProvider())
+    monkeypatch.setattr("hyperagent.engine.launcher.AgentLoop", _Loop)
+
+    result = asyncio.run(run_pipeline_with_config(sample_file, config, stage_id="08-report"))
+    assert len(result.stages) == 1
+    assert result.stages[0].stage_status == "completed"
+
+
 def test_launcher_reverts_vm_after_dynamic_stage_succeeds(monkeypatch, sample_file: Path, config):
     _stage_skill_tree(config.skills_root)
     report_dir = config.reports_root / ("e" * 64)

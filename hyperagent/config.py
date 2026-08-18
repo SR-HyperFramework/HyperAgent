@@ -66,8 +66,10 @@ class ProviderConfig:
     """Request Claude's extended-thinking content blocks (Anthropic only)."""
     thinking_budget_tokens: int = 4096
     """Token budget for extended thinking when ``extended_thinking`` is on."""
-    debug_console: bool = False
-    """Stream thinking/text/tool-call deltas to the console as they arrive."""
+    console_mode: str = "off"
+    """Console streaming verbosity: ``"off"``, ``"minimal"`` (assistant text plus
+    concise tool-call/result lines, like Claude Code), or ``"full"`` (raw
+    thinking/text/tool-call deltas as they arrive)."""
     # Per-stage model overrides: stage_id -> model name
     stage_models: dict[str, str] = field(default_factory=dict)
 
@@ -155,8 +157,8 @@ def load_config(config_path: Path | None = None) -> HyperAgentConfig:
         thinking_budget_tokens=_env_int(
             "HYPERAGENT_THINKING_BUDGET", provider_data.get("thinking_budget_tokens", 4096)
         ),
-        debug_console=_env_bool(
-            "HYPERAGENT_DEBUG_CONSOLE", provider_data.get("debug_console", False)
+        console_mode=_env(
+            "HYPERAGENT_CONSOLE_MODE", provider_data.get("console_mode", "off")
         ),
         stage_models=provider_data.get("stage_models", {}),
     )

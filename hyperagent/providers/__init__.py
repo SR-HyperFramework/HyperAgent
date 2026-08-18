@@ -68,7 +68,7 @@ def create_provider(
         kwargs["cache_enabled"] = cache_enabled
         kwargs["extended_thinking"] = config.extended_thinking
         kwargs["thinking_budget_tokens"] = config.thinking_budget_tokens
-        kwargs["debug_console"] = config.debug_console
+        kwargs["console_mode"] = config.console_mode
         if config.base_url:
             kwargs["base_url"] = config.base_url
     # Only backends that still accept sampling parameters get one. Anthropic

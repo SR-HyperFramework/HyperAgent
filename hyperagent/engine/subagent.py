@@ -25,7 +25,7 @@ def spawn_subagent(
     *,
     parent_messages: list[Message] | None = None,
     isolated: bool = True,
-    max_turns: int = 20,
+    max_turns: int = 40,
     checkpoint_threshold: float = 0.75,
     metrics: MetricsCollector | None = None,
     stage_id: str = "subagent",

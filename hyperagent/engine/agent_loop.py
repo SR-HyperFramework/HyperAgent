@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 from typing import Any
 
 from ..providers.base import LLMProvider, Message
@@ -22,12 +23,14 @@ class AgentLoop:
         registry: ToolRegistry,
         *,
         checkpoint_threshold: float = 0.75,
-        max_turns: int = 50,
+        max_turns: int = 100,
         metrics: MetricsCollector | None = None,
+        console_mode: str = "off",
     ) -> None:
         self.provider = provider
         self.registry = registry
         self.max_turns = max_turns
+        self.console_mode = console_mode
         self.tracker = ContextTracker(provider, threshold=checkpoint_threshold)
         self._metrics = metrics
         self.turns_used = 0
@@ -195,7 +198,14 @@ class AgentLoop:
                 logger.warning("Tool %s returned an error", tc.name)
                 content = f"Error: {content}"
                 tool_errors += 1
-                
+
+            if self.console_mode == "minimal":
+                preview = content.strip().replace("\n", " ")
+                if len(preview) > 200:
+                    preview = preview[:200] + "..."
+                marker = "x" if res.is_error else "="
+                print(f"  {marker} {preview}", file=sys.stderr, flush=True)
+
             results.append({
                 "type": "tool_result",
                 "tool_use_id": tc.id,

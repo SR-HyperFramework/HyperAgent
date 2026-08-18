@@ -20,10 +20,16 @@ def _build_parser() -> argparse.ArgumentParser:
     analyze.add_argument("--provider", help="Override provider name (e.g. anthropic)")
     analyze.add_argument("--model", help="Override model id")
     analyze.add_argument("--config", type=Path, help="Path to config YAML")
-    analyze.add_argument(
+    debug_group = analyze.add_mutually_exclusive_group()
+    debug_group.add_argument(
         "--debug",
         action="store_true",
-        help="Stream live LLM thinking/text/tool-call output to console",
+        help="Stream full live LLM thinking/text/tool-call output to console",
+    )
+    debug_group.add_argument(
+        "--mdebug",
+        action="store_true",
+        help="Stream a condensed console view (assistant text + concise tool calls only)",
     )
 
     batch = subparsers.add_parser("batch", help="Batch evaluation pipeline (Phase 5)")
@@ -42,8 +48,13 @@ def _cmd_analyze(args: argparse.Namespace) -> int:
         config.provider.model = args.model
     if args.debug:
         config.provider.extended_thinking = True
-        config.provider.debug_console = True
+        config.provider.console_mode = "full"
         logging.basicConfig(level=logging.DEBUG)
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+    elif args.mdebug:
+        config.provider.console_mode = "minimal"
+        logging.basicConfig(level=logging.INFO, format="%(message)s")
+        logging.getLogger("httpx").setLevel(logging.WARNING)
 
     metrics = asyncio.run(
         run_pipeline_with_config(

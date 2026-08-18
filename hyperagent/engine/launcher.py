@@ -274,6 +274,7 @@ async def run_pipeline_with_config(
                         registry,
                         checkpoint_threshold=checkpoint_threshold,
                         metrics=metrics,
+                        console_mode=config.provider.console_mode,
                     )
                     if not stage_metrics_started:
                         metrics.start_stage(stage.stage_id, provider=getattr(provider, "_model", ""))

@@ -41,7 +41,7 @@ class AnthropicProvider(LLMProvider):
         base_url: str = "",
         extended_thinking: bool = False,
         thinking_budget_tokens: int = 4096,
-        debug_console: bool = False,
+        console_mode: str = "off",
     ) -> None:
         client_kwargs: dict[str, Any] = {"api_key": api_key}
         if base_url:
@@ -54,7 +54,7 @@ class AnthropicProvider(LLMProvider):
         self._cache_enabled = cache_enabled
         self._extended_thinking = extended_thinking
         self._thinking_budget_tokens = thinking_budget_tokens
-        self._debug_console = debug_console
+        self._console_mode = console_mode
         self._token_cache: dict[str, int] = {}
         self._context_window: int | None = None
 
@@ -182,8 +182,10 @@ class AnthropicProvider(LLMProvider):
         for attempt in range(1, self._max_retries + 1):
             try:
                 with self._client.messages.stream(**kwargs) as stream:
-                    if self._debug_console:
+                    if self._console_mode == "full":
                         self._drain_stream_to_console(stream)
+                    elif self._console_mode == "minimal":
+                        self._drain_stream_to_console_minimal(stream)
                     return stream.get_final_message()
             except (
                 anthropic.RateLimitError,
@@ -233,6 +235,40 @@ class AnthropicProvider(LLMProvider):
                 print(file=sys.stderr, flush=True)
                 open_tool = None
         print(file=sys.stderr, flush=True)
+
+    @staticmethod
+    def _drain_stream_to_console_minimal(stream: Any) -> None:
+        """Print only assistant text and concise tool-call lines to stderr.
+
+        Mirrors Claude Code's own console: prose streams live, tool calls show
+        up as a single ``-> tool_name(args)`` line once the call is fully
+        formed, and thinking deltas are suppressed entirely.
+        """
+        open_type: str | None = None
+        tool_name: str | None = None
+        tool_json = ""
+        for event in stream:
+            if event.type == "content_block_start":
+                block = event.content_block
+                open_type = getattr(block, "type", None)
+                if open_type == "tool_use":
+                    tool_name = block.name
+                    tool_json = ""
+            elif event.type == "text" and open_type == "text":
+                print(event.text, end="", file=sys.stderr, flush=True)
+            elif event.type == "input_json" and open_type == "tool_use":
+                tool_json += event.partial_json
+            elif event.type == "content_block_stop":
+                if open_type == "tool_use" and tool_name:
+                    args_preview = tool_json.strip()
+                    if len(args_preview) > 200:
+                        args_preview = args_preview[:200] + "..."
+                    print(f"\n[tool_use] {tool_name}({args_preview})", file=sys.stderr, flush=True)
+                elif open_type == "text":
+                    print(file=sys.stderr, flush=True)
+                open_type = None
+                tool_name = None
+                tool_json = ""
 
     @staticmethod
     def _to_api_messages(messages: list[Message]) -> list[dict[str, Any]]:

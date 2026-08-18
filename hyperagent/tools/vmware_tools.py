@@ -9,6 +9,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 from ..config import VMwareConfig
 from .base import ToolDefinition, ToolResult
@@ -71,9 +72,10 @@ def create_vmware_tools(config: VMwareConfig) -> list[ToolDefinition]:
     desktop = config.guest_desktop
     debugger = config.guest_debugger
     startup_timeout = config.startup_timeout
+    command_timeout = config.command_timeout
 
     def revert_snapshot(**_kw) -> ToolResult:
-        return _run_vmrun(["-T", "ws", "revertToSnapshot", vmx, snap])
+        return _run_vmrun(["-T", "ws", "revertToSnapshot", vmx, snap], timeout=command_timeout)
 
     def start_vm(**_kw) -> ToolResult:
         return _run_vmrun(["-T", "ws", "start", vmx, "nogui"], timeout=startup_timeout)
@@ -88,9 +90,18 @@ def create_vmware_tools(config: VMwareConfig) -> list[ToolDefinition]:
         if not host_path or not guest_filename:
             return ToolResult(content="host_path and guest_filename are required", is_error=True)
         guest_path = f"{desktop}\\{guest_filename}"
+        # Large samples (100+ MB) routinely exceed the base command_timeout over
+        # CopyFileFromHostToGuest, so this scales the budget with file size instead
+        # of hardcoding a bigger constant that would still be wrong for some sample.
+        try:
+            file_size = Path(host_path).stat().st_size
+        except OSError:
+            file_size = 0
+        copy_timeout = max(command_timeout, startup_timeout, int(file_size / (1024 * 1024)) * 5)
         return _run_vmrun(
             ["-T", "ws", "-gu", user, "-gp", pwd,
              "CopyFileFromHostToGuest", vmx, host_path, guest_path],
+            timeout=copy_timeout,
         )
 
     def run_program_in_guest(guest_program: str = "", guest_args: str = "", **_kw) -> ToolResult:
@@ -99,7 +110,7 @@ def create_vmware_tools(config: VMwareConfig) -> list[ToolDefinition]:
                       "runProgramInGuest", vmx, "-noWait", program]
         if guest_args:
             args_parts.append(guest_args)
-        return _run_vmrun(args_parts)
+        return _run_vmrun(args_parts, timeout=command_timeout)
 
     def run_debugger_with_sample(sample_filename: str = "", **_kw) -> ToolResult:
         if not sample_filename:
@@ -108,6 +119,7 @@ def create_vmware_tools(config: VMwareConfig) -> list[ToolDefinition]:
         return _run_vmrun(
             ["-T", "ws", "-gu", user, "-gp", pwd,
              "runProgramInGuest", vmx, "-noWait", debugger, guest_sample],
+            timeout=command_timeout,
         )
 
     return [

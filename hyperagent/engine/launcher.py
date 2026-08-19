@@ -23,7 +23,7 @@ from ..skills import SkillDoc, load_stage_skill
 from ..telemetry.metrics import MetricsCollector, RunMetrics
 from ..tools import vmware_tools
 from ..tools.path_scope import compute_run_scope
-from ..tools.registry import STAGE_TOOLS, ToolRegistry, build_full_registry
+from ..tools.registry import STAGE_TOOLS, ToolRegistry, build_full_registry, common_scripts_dir, refresh_x64dbg_tools
 from .agent_loop import AgentLoop
 from .checkpoint import CheckpointReached, write_checkpoint
 from .mcp_servers import ensure_idalib_mcp, stop_idalib_mcp
@@ -82,28 +82,40 @@ def _resolve_stage_output(report_dir: Path, stage: Stage, entry: dict[str, Any])
     return _default_output_path(report_dir, stage.stage_id)
 
 
-def _artifact_is_valid(stage: Stage, output_path: Path | None, skill_doc: SkillDoc) -> bool:
-    if output_path is None or not output_path.exists():
-        return False
+def _artifact_validation_error(stage: Stage, output_path: Path | None, skill_doc: SkillDoc) -> str | None:
+    if output_path is None:
+        return "no canonical output path is defined for this stage"
+    if not output_path.exists():
+        return f"artifact missing at {output_path}"
 
     if stage.stage_id == "08-report":
-        return bool(output_path.read_text(encoding="utf-8").strip())
+        return None if output_path.read_text(encoding="utf-8").strip() else f"artifact at {output_path} is empty"
 
     if skill_doc.schema_path is None or not skill_doc.schema_path.exists():
-        return output_path.stat().st_size > 0
+        return None if output_path.stat().st_size > 0 else f"artifact at {output_path} is empty"
 
     try:
         payload = json.loads(output_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return f"artifact at {output_path} is not valid JSON: {exc.msg}"
+
+    try:
         schema = json.loads(skill_doc.schema_path.read_text(encoding="utf-8"))
         jsonschema.validate(payload, schema)
-    except Exception:
-        return False
-    return True
+    except jsonschema.ValidationError as exc:
+        return f"artifact at {output_path} does not match schema: {exc.message}"
+    except Exception as exc:
+        return f"artifact at {output_path} could not be validated: {exc}"
+    return None
+
+
+def _artifact_is_valid(stage: Stage, output_path: Path | None, skill_doc: SkillDoc) -> bool:
+    return _artifact_validation_error(stage, output_path, skill_doc) is None
 
 
 def _fallback_complete_if_valid(report_dir: Path, stage: Stage, skill_doc: SkillDoc) -> Path | None:
     output_path = _default_output_path(report_dir, stage.stage_id)
-    if not _artifact_is_valid(stage, output_path, skill_doc):
+    if _artifact_validation_error(stage, output_path, skill_doc) is not None:
         return None
 
     pipeline_state.complete(
@@ -115,16 +127,32 @@ def _fallback_complete_if_valid(report_dir: Path, stage: Stage, skill_doc: Skill
     return output_path
 
 
-def _build_stage_prompt(sample_path: Path, report_dir: Path, stage: Stage, state_path: Path) -> str:
+def _build_stage_prompt(
+    sample_path: Path,
+    report_dir: Path,
+    stage: Stage,
+    state_path: Path,
+    skill_doc: SkillDoc,
+    skills_root: Path,
+) -> str:
     lines = [
         f"Analyze sample: {sample_path}",
         f"Report directory: {report_dir}",
         f"STATE.json path: {state_path}",
         f"Current stage_id: {stage.stage_id}",
     ]
+    if skill_doc.schema_path is not None:
+        lines.append(f"Stage schema path: {skill_doc.schema_path}")
+    lines.append(f"Common scripts directory: {common_scripts_dir(skills_root)}")
     default_output = _default_output_path(report_dir, stage.stage_id)
     if default_output is not None:
         lines.append(f"Default stage output path: {default_output}")
+    lines.extend([
+        "Operational contract:",
+        "- Do not manually discover SKILL.md, schema.json, or validator-script paths; use the resolved paths provided in this prompt.",
+        "- Do not write STATE.json directly; rely on the stage output/state contract instead.",
+        "- If a filesystem path is denied by scope policy, treat it as out of bounds instead of searching other roots.",
+    ])
     lines.append("Honor the stage output/state contract for this stage.")
     return "\n".join(lines)
 
@@ -232,7 +260,8 @@ async def run_pipeline_with_config(
                 stage_output = _resolve_stage_output(report_dir, stage, entry)
 
                 if entry["status"] == pipeline_state.STATUS_COMPLETED:
-                    if _artifact_is_valid(stage, stage_output, skill_doc):
+                    validation_error = _artifact_validation_error(stage, stage_output, skill_doc)
+                    if validation_error is None:
                         logger.info(
                             "[%d/%d] Skipping %s (%s): already completed.",
                             index,
@@ -243,12 +272,19 @@ async def run_pipeline_with_config(
                         continue
                     metrics.start_stage(stage.stage_id)
                     metrics.finalize_stage(stage.stage_id, status="failed")
-                    failure_reason = (
-                        f"State drift: {stage.stage_id} marked completed but artifact missing/invalid at {stage_output}"
-                    )
+                    failure_reason = f"State drift: {stage.stage_id} marked completed but {validation_error}"
                     logger.error("[%d/%d] %s", index, len(selected_stages), failure_reason)
                     return metrics.finalize_run()
 
+                x64dbg_client = refresh_x64dbg_tools(
+                    registry,
+                    clients,
+                    config.x64dbg_mcp,
+                    stage.stage_id,
+                    current_client=clients[0] if clients else None,
+                )
+                if x64dbg_client is not None and clients:
+                    clients[0] = x64dbg_client
                 stage_tools = registry.get_tools_for_stage(stage.stage_id)
                 tool_names = [tool.name for tool in stage_tools]
                 model_name = config.provider.stage_models.get(stage.stage_id, config.provider.model)
@@ -298,7 +334,14 @@ async def run_pipeline_with_config(
                         metrics.start_stage(stage.stage_id, provider=getattr(provider, "_model", ""))
                         stage_metrics_started = True
 
-                    stage_prompt = _build_stage_prompt(sample_path, report_dir, stage, state_path)
+                    stage_prompt = _build_stage_prompt(
+                        sample_path,
+                        report_dir,
+                        stage,
+                        state_path,
+                        skill_doc,
+                        config.skills_root,
+                    )
                     resume_prompt = _resume_prompt_if_any(report_dir, stage.stage_id)
                     if resume_prompt:
                         stage_prompt = f"{stage_prompt}\n\n{resume_prompt}"
@@ -346,18 +389,17 @@ async def run_pipeline_with_config(
                         continue
 
                     if status == pipeline_state.STATUS_COMPLETED:
-                        if _artifact_is_valid(stage, stage_output, skill_doc):
+                        validation_error = _artifact_validation_error(stage, stage_output, skill_doc)
+                        if validation_error is None:
                             metrics.finalize_stage(stage.stage_id, status="completed")
                             break
                         pipeline_state.fail(
                             report_dir,
                             stage.stage_id,
-                            f"marked completed but artifact missing/invalid at {stage_output}",
+                            f"marked completed but {validation_error}",
                         )
                         metrics.finalize_stage(stage.stage_id, status="failed")
-                        failure_reason = (
-                            f"{stage.stage_id} exited 0 and claimed completed but artifact at {stage_output} is missing or invalid"
-                        )
+                        failure_reason = f"{stage.stage_id} exited 0 and claimed completed but {validation_error}"
                         logger.error("[%d/%d] %s", index, len(selected_stages), failure_reason)
                         return metrics.finalize_run()
 

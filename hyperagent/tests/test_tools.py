@@ -13,7 +13,7 @@ from hyperagent.tools.base import ToolDefinition
 from hyperagent.tools.filesystem_tools import create_filesystem_tools
 from hyperagent.tools.ida_tools import create_ida_tools, ida_health_check_tool
 from hyperagent.tools.path_scope import PathScope
-from hyperagent.tools.registry import STAGE_TOOLS, ToolRegistry, build_full_registry
+from hyperagent.tools.registry import STAGE_TOOLS, ToolRegistry, build_full_registry, common_scripts_dir, refresh_x64dbg_tools
 from hyperagent.tools.vmware_tools import create_vmware_tools
 from hyperagent.tools.x64dbg_tools import create_x64dbg_tools, x64dbg_health_check_tool
 
@@ -319,8 +319,87 @@ class TestStageToolResolution:
             "list_directory", "file_exists", "mkdir",
             "vm_check_vmrun", "vm_revert_snapshot", "vm_start", "vm_get_guest_ip",
             "vm_copy_to_guest", "vm_run_program", "vm_run_debugger_with_sample",
-            "x64dbg_health_check",
+            "x64dbg_health_check", "ida_health_check", "validate_json_output",
         }
+
+    def test_refresh_x64dbg_tools_adds_debugger_surface_when_server_becomes_live(self, monkeypatch, scope):
+        registry = ToolRegistry()
+        registry.register(x64dbg_health_check_tool(UNREACHABLE))
+        clients = []
+
+        fake_tools = [
+            ToolDefinition(name="debug_init", description="", parameters={}, handler=lambda **_: None, source="x64dbg"),
+            ToolDefinition(name="debug_get_state", description="", parameters={}, handler=lambda **_: None, source="x64dbg"),
+            ToolDefinition(name="module_get_main", description="", parameters={}, handler=lambda **_: None, source="x64dbg"),
+            ToolDefinition(name="module_list", description="", parameters={}, handler=lambda **_: None, source="x64dbg"),
+            ToolDefinition(name="symbol_resolve", description="", parameters={}, handler=lambda **_: None, source="x64dbg"),
+            ToolDefinition(name="breakpoint_set", description="", parameters={}, handler=lambda **_: None, source="x64dbg"),
+            ToolDefinition(name="breakpoint_list", description="", parameters={}, handler=lambda **_: None, source="x64dbg"),
+            ToolDefinition(name="memory_enumerate", description="", parameters={}, handler=lambda **_: None, source="x64dbg"),
+            ToolDefinition(name="memory_read", description="", parameters={}, handler=lambda **_: None, source="x64dbg"),
+            ToolDefinition(name="dump_get_dumpable_regions", description="", parameters={}, handler=lambda **_: None, source="x64dbg"),
+            ToolDefinition(name="dump_memory_region", description="", parameters={}, handler=lambda **_: None, source="x64dbg"),
+            ToolDefinition(name="dump_module", description="", parameters={}, handler=lambda **_: None, source="x64dbg"),
+        ]
+
+        class _FakeClient:
+            def close(self):
+                return None
+
+        monkeypatch.setattr(
+            "hyperagent.tools.registry.create_x64dbg_tools",
+            lambda endpoint: (_FakeClient(), fake_tools),
+        )
+
+        client = refresh_x64dbg_tools(registry, clients, UNREACHABLE, "05-dynamic")
+        assert client is not None
+        names = {tool.name for tool in registry.get_tools_for_stage("05-dynamic")}
+        assert "debug_init" in names
+        assert "memory_read" in names
+        assert "dump_module" in names
+        assert clients == [client]
+
+    def test_refresh_x64dbg_tools_skips_non_debugger_stages(self, monkeypatch):
+        registry = ToolRegistry()
+        clients = []
+        called = {"value": False}
+
+        def _unexpected(endpoint):
+            called["value"] = True
+            return None, []
+
+        monkeypatch.setattr("hyperagent.tools.registry.create_x64dbg_tools", _unexpected)
+
+        client = refresh_x64dbg_tools(registry, clients, UNREACHABLE, "01-prepare-env")
+        assert client is None
+        assert not called["value"]
+
+    def test_refresh_x64dbg_tools_keeps_existing_surface(self, monkeypatch):
+        registry = ToolRegistry()
+        registry.register(ToolDefinition(name="debug_init", description="", parameters={}, handler=lambda **_: None, source="x64dbg"))
+        registry.register(ToolDefinition(name="debug_get_state", description="", parameters={}, handler=lambda **_: None, source="x64dbg"))
+        registry.register(ToolDefinition(name="module_get_main", description="", parameters={}, handler=lambda **_: None, source="x64dbg"))
+        registry.register(ToolDefinition(name="module_list", description="", parameters={}, handler=lambda **_: None, source="x64dbg"))
+        registry.register(ToolDefinition(name="symbol_resolve", description="", parameters={}, handler=lambda **_: None, source="x64dbg"))
+        registry.register(ToolDefinition(name="breakpoint_set", description="", parameters={}, handler=lambda **_: None, source="x64dbg"))
+        registry.register(ToolDefinition(name="breakpoint_list", description="", parameters={}, handler=lambda **_: None, source="x64dbg"))
+        registry.register(ToolDefinition(name="memory_enumerate", description="", parameters={}, handler=lambda **_: None, source="x64dbg"))
+        registry.register(ToolDefinition(name="memory_read", description="", parameters={}, handler=lambda **_: None, source="x64dbg"))
+        registry.register(ToolDefinition(name="dump_get_dumpable_regions", description="", parameters={}, handler=lambda **_: None, source="x64dbg"))
+        registry.register(ToolDefinition(name="dump_memory_region", description="", parameters={}, handler=lambda **_: None, source="x64dbg"))
+        registry.register(ToolDefinition(name="dump_module", description="", parameters={}, handler=lambda **_: None, source="x64dbg"))
+        clients = []
+        called = {"value": False}
+
+        def _unexpected(endpoint):
+            called["value"] = True
+            return None, []
+
+        monkeypatch.setattr("hyperagent.tools.registry.create_x64dbg_tools", _unexpected)
+
+        client = refresh_x64dbg_tools(registry, clients, UNREACHABLE, "05-dynamic")
+        assert client is None
+        assert not called["value"]
 
     def test_deepdive_is_filesystem_only(self, registry):
         names = {t.name for t in registry.get_tools_for_stage("07-deepdive")}
@@ -342,6 +421,10 @@ class TestStageToolResolution:
     def test_every_stage_resolves(self, registry):
         for stage_id in STAGE_TOOLS:
             assert registry.get_tools_for_stage(stage_id)
+
+
+def test_common_scripts_dir(tmp_path):
+    assert common_scripts_dir(tmp_path) == tmp_path / "_hyperagent-common" / "scripts"
 
 
 class TestMCPDegradation:

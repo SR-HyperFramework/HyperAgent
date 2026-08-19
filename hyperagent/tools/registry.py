@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import logging
 from fnmatch import fnmatch
+from pathlib import Path
 from typing import Any
 
-from ..config import HyperAgentConfig
+from ..config import HyperAgentConfig, MCPEndpoint
 from .analysis_tools import create_analysis_tools
 from .base import ToolDefinition, ToolResult
 from .filesystem_tools import create_filesystem_tools
@@ -26,17 +27,41 @@ _ANALYSIS_TOOLS = [
     "upx_unpack", "fetch_vt_report",
     "normalize_vt_report", "validate_json_output",
 ]
+_X64DBG_REQUIRED_TOOLS = [
+    "debug_init",
+    "debug_get_state",
+    "module_get_main",
+    "module_list",
+    "symbol_resolve",
+    "breakpoint_set",
+    "breakpoint_list",
+    "memory_enumerate",
+    "memory_read",
+    "dump_get_dumpable_regions",
+    "dump_memory_region",
+    "dump_module",
+]
 
 STAGE_TOOLS: dict[str, list[str]] = {
-    "01-prepare-env":  ["vm_*", *_FILESYSTEM_TOOLS, "x64dbg_health_check"],
+    "01-prepare-env": [
+        "vm_*",
+        *_FILESYSTEM_TOOLS,
+        "x64dbg_health_check",
+        "ida_health_check",
+        "validate_json_output",
+    ],
     "02-static-pass1": ["source:ida", *_FILESYSTEM_TOOLS, *_ANALYSIS_TOOLS],
-    "03-unpack":       ["source:x64dbg", "vm_*", *_FILESYSTEM_TOOLS, *_ANALYSIS_TOOLS],
+    "03-unpack": ["source:x64dbg", "vm_*", *_FILESYSTEM_TOOLS, *_ANALYSIS_TOOLS],
     "04-static-pass2": ["source:ida", *_FILESYSTEM_TOOLS, *_ANALYSIS_TOOLS],
-    "05-dynamic":      ["source:x64dbg", "vm_*", *_FILESYSTEM_TOOLS, *_ANALYSIS_TOOLS],
-    "06-intel":        [*_ANALYSIS_TOOLS, *_FILESYSTEM_TOOLS],
-    "07-deepdive":     [*_FILESYSTEM_TOOLS],
-    "08-report":       [*_FILESYSTEM_TOOLS, *_ANALYSIS_TOOLS],
-    "09-summary":      [*_FILESYSTEM_TOOLS],
+    "05-dynamic": ["source:x64dbg", "vm_*", *_FILESYSTEM_TOOLS, *_ANALYSIS_TOOLS],
+    "06-intel": [*_ANALYSIS_TOOLS, *_FILESYSTEM_TOOLS],
+    "07-deepdive": [*_FILESYSTEM_TOOLS],
+    "08-report": [*_FILESYSTEM_TOOLS, *_ANALYSIS_TOOLS],
+    "09-summary": [*_FILESYSTEM_TOOLS],
+}
+
+_X64DBG_REFRESH_STAGES = {
+    stage_id for stage_id, patterns in STAGE_TOOLS.items() if "source:x64dbg" in patterns
 }
 
 
@@ -64,6 +89,10 @@ class ToolRegistry:
     def get_all_tools(self) -> list[ToolDefinition]:
         """Retrieve all registered tools."""
         return list(self._tools.values())
+
+    def has_tools(self, tool_names: list[str]) -> bool:
+        """Return True when every named tool is registered."""
+        return all(name in self._tools for name in tool_names)
 
     def get_tools_for_stage(self, stage_id: str) -> list[ToolDefinition]:
         """Resolve the tool subset a pipeline stage is allowed to use.
@@ -114,6 +143,54 @@ class ToolRegistry:
             return ToolResult(content=f"Tool execution failed: {exc}", is_error=True)
 
 
+def common_scripts_dir(skills_root: Path) -> Path:
+    """Return the canonical _hyperagent-common/scripts directory for a skills root."""
+    return skills_root / "_hyperagent-common" / "scripts"
+
+
+def refresh_x64dbg_tools(
+    registry: ToolRegistry,
+    clients: list[MCPClient],
+    endpoint: MCPEndpoint,
+    stage_id: str,
+    *,
+    current_client: MCPClient | None = None,
+) -> MCPClient | None:
+    """Refresh x64dbg MCP tools for stages that need them after the guest is ready.
+
+    The debugger MCP server may be unreachable during initial registry build and
+    only become live after prepare-env boots the VM and launches x64dbg. For
+    stages that depend on ``source:x64dbg`` tools, retry discovery just in time.
+    """
+    if stage_id not in _X64DBG_REFRESH_STAGES:
+        return current_client
+    has_tools = getattr(registry, "has_tools", None)
+    if callable(has_tools) and has_tools(_X64DBG_REQUIRED_TOOLS):
+        return current_client
+
+    client, tools = create_x64dbg_tools(endpoint)
+    if not tools:
+        try:
+            client.close()
+        except Exception:
+            logger.warning("Failed to close x64dbg MCP client cleanly", exc_info=True)
+        return current_client
+
+    registry.register_many(tools)
+
+    if current_client is not None and current_client in clients and current_client is not client:
+        idx = clients.index(current_client)
+        clients[idx] = client
+        try:
+            current_client.close()
+        except Exception:
+            logger.warning("Failed to close stale x64dbg MCP client cleanly", exc_info=True)
+    elif client not in clients:
+        clients.append(client)
+
+    return client
+
+
 def build_core_registry(scope: PathScope, scripts_dir=None) -> ToolRegistry:
     """Build a registry pre-populated with core host tools (filesystem, analysis).
 
@@ -141,7 +218,7 @@ def build_full_registry(
     registry = ToolRegistry()
     registry.register_many(create_filesystem_tools(scope))
     registry.register_many(
-        create_analysis_tools(config.skills_root / "_hyperagent-common" / "scripts", scope)
+        create_analysis_tools(common_scripts_dir(config.skills_root), scope)
     )
     registry.register_many(create_vmware_tools(config.vmware, scope))
 

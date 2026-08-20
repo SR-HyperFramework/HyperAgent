@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 
 from hyperagent import pipeline_state
-from hyperagent.engine.checkpoint import CheckpointReached, ContextTracker, write_checkpoint
-from hyperagent.providers.base import LLMProvider, Message
+from hyperagent.engine.checkpoint import CheckpointReached, ContextTracker, compact_messages, write_checkpoint
+from hyperagent.providers.base import CompletionResult, LLMProvider, Message
 
 
 class _CharProvider(LLMProvider):
@@ -22,6 +22,54 @@ class _CharProvider(LLMProvider):
 
     def max_context_tokens(self) -> int:
         return 100
+
+
+class _CompactingProvider(_CharProvider):
+    def __init__(self, summary: str) -> None:
+        self.summary = summary
+        self.calls: list[list[Message]] = []
+
+    def complete(self, messages, *, tools=None, system_prompt="", max_tokens=None,
+                 temperature=None):
+        self.calls.append(list(messages))
+        return CompletionResult(
+            content=self.summary,
+            tool_calls=[],
+            stop_reason="end_turn",
+            input_tokens=11,
+            output_tokens=7,
+            model="test-model",
+        )
+
+
+def test_compact_messages_replaces_history_with_marked_summary():
+    provider = _CompactingProvider("Known facts: static pass found suspicious imports.")
+    messages = [
+        Message(role="user", content="analyze sample"),
+        Message(role="assistant", content="x" * 300),
+    ]
+
+    result = compact_messages(provider, messages, stage_id="02-static-pass1", target_tokens=250)
+
+    assert len(result.messages) == 1
+    assert result.summary == "Known facts: static pass found suspicious imports."
+    assert result.input_tokens == 11
+    assert result.output_tokens == 7
+    assert result.model == "test-model"
+    assert result.original_tokens == 314
+    compacted_text = result.messages[0].content
+    assert isinstance(compacted_text, str)
+    assert "# Compacted conversation state for 02-static-pass1" in compacted_text
+    assert "Known facts" in compacted_text
+    assert provider.calls
+
+
+def test_compact_messages_rejects_empty_summary():
+    provider = _CompactingProvider("   ")
+    messages = [Message(role="user", content="a" * 20), Message(role="assistant", content="b" * 20)]
+
+    with pytest.raises(ValueError, match="empty summary"):
+        compact_messages(provider, messages, stage_id="stage", target_tokens=50)
 
 
 def test_context_tracker_raises_at_threshold():

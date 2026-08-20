@@ -17,6 +17,14 @@ from typing import Any
 
 import yaml
 
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_DEFAULT_SKILLS_ROOT = _REPO_ROOT / "skill"
+
+
+def default_skills_root() -> Path:
+    """Return the checked-in repo skill directory used by the v4 pipeline."""
+    return _DEFAULT_SKILLS_ROOT
+
 
 @dataclass
 class VMwareConfig:
@@ -75,11 +83,24 @@ class ProviderConfig:
 
 
 @dataclass
+class RuntimeConfig:
+    """Runtime controls for trading analysis depth against turnaround time."""
+
+    pipeline_profile: str = "full"
+    skip_dynamic: bool = False
+    skip_intel: bool = False
+    reuse_completed_stages: bool = True
+    start_ida_mcp: str = "auto"
+    fast_max_stage_attempts: int = 2
+
+
+@dataclass
 class HyperAgentConfig:
     """Top-level configuration for HyperAgent v4."""
 
     provider: ProviderConfig = field(default_factory=ProviderConfig)
     vmware: VMwareConfig = field(default_factory=VMwareConfig)
+    runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
 
     # MCP endpoints
     x64dbg_mcp: MCPEndpoint = field(
@@ -90,12 +111,17 @@ class HyperAgentConfig:
     )
 
     # Paths
-    skills_root: Path = field(default_factory=lambda: Path.home() / ".claude" / "skills")
+    skills_root: Path = field(default_factory=default_skills_root)
     reports_root: Path | None = None  # Default: <sample_parent>/reports
 
     # Pipeline
     max_stage_attempts: int = 20
     checkpoint_threshold: float = 0.75
+    compact_enabled: bool = True
+    compact_threshold: float | None = None
+    compact_target_ratio: float = 0.45
+    max_compactions: int = 3
+    max_compaction_tokens: int = 2048
 
     # API keys (non-LLM)
     virustotal_api_key: str = ""
@@ -136,6 +162,7 @@ def load_config(config_path: Path | None = None) -> HyperAgentConfig:
 
     provider_data = file_data.get("provider", {})
     vmware_data = file_data.get("vmware", {})
+    runtime_data = file_data.get("runtime", {})
 
     provider = ProviderConfig(
         name=_env("HYPERAGENT_PROVIDER", provider_data.get("name", "anthropic")),
@@ -178,6 +205,33 @@ def load_config(config_path: Path | None = None) -> HyperAgentConfig:
         ),
     )
 
+    runtime = RuntimeConfig(
+        pipeline_profile=_env(
+            "HYPERAGENT_PIPELINE_PROFILE",
+            runtime_data.get("pipeline_profile", "full"),
+        ),
+        skip_dynamic=_env_bool(
+            "HYPERAGENT_SKIP_DYNAMIC",
+            runtime_data.get("skip_dynamic", False),
+        ),
+        skip_intel=_env_bool(
+            "HYPERAGENT_SKIP_INTEL",
+            runtime_data.get("skip_intel", False),
+        ),
+        reuse_completed_stages=_env_bool(
+            "HYPERAGENT_REUSE_COMPLETED_STAGES",
+            runtime_data.get("reuse_completed_stages", True),
+        ),
+        start_ida_mcp=_env(
+            "HYPERAGENT_START_IDA_MCP",
+            runtime_data.get("start_ida_mcp", "auto"),
+        ),
+        fast_max_stage_attempts=_env_int(
+            "HYPERAGENT_FAST_MAX_STAGE_ATTEMPTS",
+            runtime_data.get("fast_max_stage_attempts", 2),
+        ),
+    )
+
     x64dbg_url = _env(
         "HYPERAGENT_X64DBG_MCP_URL",
         file_data.get("x64dbg_mcp", {}).get("url", "http://192.168.248.169:3000/mcp"),
@@ -189,12 +243,13 @@ def load_config(config_path: Path | None = None) -> HyperAgentConfig:
 
     skills_root_str = _env(
         "HYPERAGENT_SKILLS_ROOT",
-        file_data.get("skills_root", str(Path.home() / ".claude" / "skills")),
+        file_data.get("skills_root", str(default_skills_root())),
     )
 
     return HyperAgentConfig(
         provider=provider,
         vmware=vmware,
+        runtime=runtime,
         x64dbg_mcp=MCPEndpoint(url=x64dbg_url),
         ida_mcp=MCPEndpoint(url=ida_url),
         skills_root=Path(skills_root_str),
@@ -205,6 +260,26 @@ def load_config(config_path: Path | None = None) -> HyperAgentConfig:
         checkpoint_threshold=_env_float(
             "HYPERAGENT_CHECKPOINT_THRESHOLD",
             file_data.get("checkpoint_threshold", 0.75),
+        ),
+        compact_enabled=_env_bool(
+            "HYPERAGENT_COMPACT_ENABLED",
+            file_data.get("compact_enabled", True),
+        ),
+        compact_threshold=_env_float(
+            "HYPERAGENT_COMPACT_THRESHOLD",
+            file_data.get("compact_threshold"),
+        ),
+        compact_target_ratio=_env_float(
+            "HYPERAGENT_COMPACT_TARGET_RATIO",
+            file_data.get("compact_target_ratio", 0.45),
+        ),
+        max_compactions=_env_int(
+            "HYPERAGENT_MAX_COMPACTIONS",
+            file_data.get("max_compactions", 3),
+        ),
+        max_compaction_tokens=_env_int(
+            "HYPERAGENT_MAX_COMPACTION_TOKENS",
+            file_data.get("max_compaction_tokens", 2048),
         ),
         virustotal_api_key=_env(
             "VT_API_KEY",

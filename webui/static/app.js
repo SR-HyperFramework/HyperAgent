@@ -48,46 +48,49 @@
   }
 })();
 
-// --- Report tabs -------------------------------------------------------------
-// Panels render expanded so the page still reads top-to-bottom without JS; this
-// collapses them into tabs once scripting is available.
+// --- Live time counters ------------------------------------------------------
 (() => {
-  const tablist = document.querySelector(".tabs");
-  if (!tablist) return;
+  const counters = document.querySelectorAll("time[data-time-counter][datetime]");
+  if (!counters.length) return;
 
-  const tabs = [...tablist.querySelectorAll(".tab")];
-  const panels = new Map(
-    tabs.map((tab) => [tab.dataset.panel, document.getElementById(tab.dataset.panel)]),
-  );
+  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  const full = new Intl.DateTimeFormat(undefined, { dateStyle: "long", timeStyle: "medium" });
+  const units = [
+    ["year", 31536000],
+    ["month", 2592000],
+    ["week", 604800],
+    ["day", 86400],
+    ["hour", 3600],
+    ["minute", 60],
+    ["second", 1],
+  ];
 
-  function select(name, { updateHash = true } = {}) {
-    if (!panels.has(name)) return;
-    for (const tab of tabs) {
-      const active = tab.dataset.panel === name;
-      tab.setAttribute("aria-selected", active ? "true" : "false");
-      tab.tabIndex = active ? 0 : -1;
-      panels.get(tab.dataset.panel).hidden = !active;
+  function relativeText(when) {
+    const delta = Math.round((when.getTime() - Date.now()) / 1000);
+    const abs = Math.abs(delta);
+    for (const [unit, seconds] of units) {
+      if (abs >= seconds || unit === "second") {
+        return rtf.format(Math.round(delta / seconds), unit);
+      }
     }
-    if (updateHash) history.replaceState(null, "", `#${name}`);
   }
 
-  tablist.addEventListener("click", (event) => {
-    const tab = event.target.closest(".tab");
-    if (tab) select(tab.dataset.panel);
-  });
+  const valid = [];
+  for (const counter of counters) {
+    const when = new Date(counter.dateTime);
+    if (Number.isNaN(when.valueOf())) continue;
+    counter.title = full.format(when);
+    valid.push([counter, when]);
+  }
 
-  tablist.addEventListener("keydown", (event) => {
-    const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
-    if (!step) return;
-    event.preventDefault();
-    const index = tabs.findIndex((tab) => tab.getAttribute("aria-selected") === "true");
-    const next = tabs[(index + step + tabs.length) % tabs.length];
-    select(next.dataset.panel);
-    next.focus();
-  });
+  function update() {
+    for (const [counter, when] of valid) {
+      counter.textContent = relativeText(when);
+    }
+  }
 
-  const fromHash = decodeURIComponent(location.hash.slice(1));
-  select(panels.has(fromHash) ? fromHash : tabs[0].dataset.panel, { updateHash: false });
+  update();
+  setInterval(update, 1000);
 })();
 
 // --- Copy to clipboard -------------------------------------------------------

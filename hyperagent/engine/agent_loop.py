@@ -3,13 +3,17 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..providers.base import LLMProvider, Message
 from ..telemetry.metrics import MetricsCollector
-from ..tools.registry import ToolRegistry
-from .checkpoint import CheckpointReached, ContextTracker
+from ..tools.base import ToolResult
+from ..tools.registry import ToolRegistry, UnauthorizedToolError
+from .checkpoint import CheckpointReached, ContextTracker, compact_messages
 from .injection_guard import build_system_prompt
+
+if TYPE_CHECKING:
+    from ..console import RunConsole
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +30,25 @@ class AgentLoop:
         max_turns: int = 100,
         metrics: MetricsCollector | None = None,
         console_mode: str = "off",
+        run_console: RunConsole | None = None,
+        compact_enabled: bool = True,
+        compact_threshold: float | None = None,
+        compact_target_ratio: float = 0.45,
+        max_compactions: int = 3,
+        max_compaction_tokens: int = 2048,
     ) -> None:
         self.provider = provider
         self.registry = registry
         self.max_turns = max_turns
         self.console_mode = console_mode
+        self._run_console = run_console
         self.tracker = ContextTracker(provider, threshold=checkpoint_threshold)
+        self._checkpoint_threshold = checkpoint_threshold
+        self._compact_enabled = compact_enabled
+        self._compact_threshold = compact_threshold if compact_threshold is not None else checkpoint_threshold
+        self._compact_target_ratio = compact_target_ratio
+        self._max_compactions = max_compactions
+        self._max_compaction_tokens = max_compaction_tokens
         self._metrics = metrics
         self.turns_used = 0
         """Turns consumed by the most recent ``run()`` call."""
@@ -101,22 +118,76 @@ class AgentLoop:
         self.total_output_tokens = 0
         self.last_messages = list(messages)
 
+        compactions_used = 0
+
         for turn in range(1, self.max_turns + 1):
             self.turns_used = turn
 
-            # 1. Enforce context window safety
-            try:
-                self.tracker.check_messages(messages)
-            except CheckpointReached as exc:
-                logger.warning("Checkpoint triggered: %s", exc)
-                if self._metrics is not None:
-                    self._metrics.record_checkpoint(stage_id)
-                self.last_messages = list(messages)
-                raise
+            # 1. Enforce context window safety, compacting before checkpoint fallback.
+            while True:
+                try:
+                    self.tracker.check_messages(messages)
+                    break
+                except CheckpointReached as exc:
+                    if not self._should_compact(messages, compactions_used):
+                        logger.warning("Checkpoint triggered: %s", exc)
+                        if self._metrics is not None:
+                            self._metrics.record_checkpoint(stage_id)
+                        self.last_messages = list(messages)
+                        raise
+
+                    target_tokens = int(self.tracker.max_tokens * self._compact_target_ratio)
+                    try:
+                        if self._run_console is not None:
+                            self._run_console.set_activity("compacting context")
+                        compacted = compact_messages(
+                            self.provider,
+                            messages,
+                            stage_id=stage_id,
+                            target_tokens=target_tokens,
+                            max_summary_tokens=self._max_compaction_tokens,
+                        )
+                    except Exception as compact_exc:
+                        logger.warning(
+                            "Context compaction failed; falling back to checkpoint: %s",
+                            compact_exc,
+                        )
+                        if self._metrics is not None:
+                            self._metrics.record_checkpoint(stage_id)
+                        self.last_messages = list(messages)
+                        raise exc from compact_exc
+
+                    compactions_used += 1
+                    messages = compacted.messages
+                    self.last_messages = list(messages)
+                    self.total_input_tokens += compacted.input_tokens
+                    self.total_output_tokens += compacted.output_tokens
+                    if self._metrics is not None:
+                        self._metrics.record_turn(
+                            stage_id,
+                            input_tokens=compacted.input_tokens,
+                            output_tokens=compacted.output_tokens,
+                            cache_creation_input_tokens=compacted.cache_creation_input_tokens,
+                            cache_read_input_tokens=compacted.cache_read_input_tokens,
+                            provider=compacted.model,
+                        )
+                    logger.info(
+                        "Compacted context for %s: %d -> %d tokens",
+                        stage_id,
+                        compacted.original_tokens,
+                        compacted.compacted_tokens,
+                    )
 
             context_tokens = self.tracker.current_tokens
             context_cap = self.tracker.max_tokens
             context_ratio = (context_tokens / context_cap) if context_cap > 0 else 0.0
+            if self._run_console is not None:
+                self._run_console.set_context(
+                    turn=turn,
+                    max_turns=self.max_turns,
+                    tokens=context_tokens,
+                    cap=context_cap,
+                )
             logger.info(
                 "Agent turn %d/%d (context %d/%d tokens, %.1f%%)",
                 turn,
@@ -124,6 +195,7 @@ class AgentLoop:
                 context_tokens,
                 context_cap,
                 context_ratio * 100,
+                extra={"run_console_skip": self._run_console is not None},
             )
 
             # 2. Get LLM completion
@@ -169,13 +241,30 @@ class AgentLoop:
                 return result.content
 
             # 4. Execute tools requested by LLM
-            tool_results = self._execute_tool_calls(result.tool_calls, stage_id=stage_id)
+            tool_results = self._execute_tool_calls(
+                result.tool_calls,
+                stage_id=stage_id,
+                allowed_tool_names={tool.name for tool in tools},
+            )
             messages.append(Message(role="user", content=tool_results))
 
         logger.warning("Agent loop reached max turns (%d)", self.max_turns)
         return "ERROR: Max iterations reached without a final answer."
 
     # -- Internal Helpers -----------------------------------------------------
+
+    def _should_compact(self, messages: list[Message], compactions_used: int) -> bool:
+        """Return whether an over-threshold history should be compacted."""
+
+        if not self._compact_enabled:
+            return False
+        if compactions_used >= self._max_compactions:
+            return False
+        if len(messages) < 2:
+            return False
+        if self.tracker.max_tokens <= 0:
+            return False
+        return self.tracker.ratio >= self._compact_threshold
 
     def _resolve_tools(self, tool_patterns: list[str]) -> list:
         """Resolve wildcard patterns (e.g. 'vm_*') to registered tools."""
@@ -196,14 +285,25 @@ class AgentLoop:
         self,
         tool_calls: list,
         stage_id: str = "unknown",
+        allowed_tool_names: set[str] | None = None,
     ) -> list[dict[str, Any]]:
         """Run requested tools and format results for the LLM."""
         results = []
         tool_errors = 0
         for tc in tool_calls:
             logger.info("Calling tool: %s", tc.name)
-            res = self.registry.execute(tc.name, tc.arguments)
-            
+            try:
+                if allowed_tool_names is not None and tc.name not in allowed_tool_names:
+                    raise UnauthorizedToolError(stage_id, tc.name, allowed_tool_names)
+                res = self.registry.execute(tc.name, tc.arguments)
+            except UnauthorizedToolError as exc:
+                logger.warning(
+                    "Blocked unauthorized tool call for %s: %s",
+                    stage_id,
+                    tc.name,
+                )
+                res = ToolResult(content=str(exc), is_error=True)
+
             content = res.content
             if res.is_error:
                 logger.warning("Tool %s returned an error", tc.name)
@@ -211,11 +311,14 @@ class AgentLoop:
                 tool_errors += 1
 
             if self.console_mode == "minimal":
-                preview = content.strip().replace("\n", " ")
-                if len(preview) > 200:
-                    preview = preview[:200] + "..."
-                marker = "x" if res.is_error else "="
-                print(f"  {marker} {preview}", file=sys.stderr, flush=True)
+                if self._run_console is not None:
+                    self._run_console.tool_result(content, is_error=res.is_error)
+                else:
+                    preview = content.strip().replace("\n", " ")
+                    if len(preview) > 200:
+                        preview = preview[:200] + "..."
+                    marker = "x" if res.is_error else "="
+                    print(f"  {marker} {preview}", file=sys.stderr, flush=True)
 
             results.append({
                 "type": "tool_result",

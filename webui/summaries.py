@@ -107,12 +107,6 @@ class RunSummary:
         return 0 if value is None else max(0, min(100, round(value * 100)))
 
     @property
-    def confidence_cells(self) -> int:
-        """Filled cells of a ten-cell meter. A segmented readout stays legible
-        at small sizes, where a donut arc reads as a loading spinner."""
-        return round(self.confidence_percent / 10)
-
-    @property
     def confidence_label(self) -> str:
         value = self.executive_summary.get("confidence_label")
         return value if isinstance(value, str) else "unknown"
@@ -123,6 +117,62 @@ class RunSummary:
         if isinstance(value, str) and value.strip():
             return value.strip()
         return self.error or "No summary text recorded."
+
+    @property
+    def plain_language_assessment(self) -> str:
+        value = self.executive_summary.get("plain_language_assessment")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        return "No plain-language assessment was recorded."
+
+    @property
+    def remaining_decision_point(self) -> str | None:
+        value = self.executive_summary.get("remaining_decision_point")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        return None
+
+    @property
+    def sample_sha256(self) -> str:
+        value = self.sample.get("sha256")
+        return value if isinstance(value, str) and value.strip() else self.sha256
+
+    @property
+    def sample_absolute_path(self) -> str | None:
+        value = self.sample.get("absolute_path")
+        return value if isinstance(value, str) and value.strip() else None
+
+    @property
+    def sample_architecture(self) -> str | None:
+        value = self.sample.get("architecture")
+        return value if isinstance(value, str) and value.strip() else None
+
+    @property
+    def sample_packing_or_protection(self) -> str | None:
+        value = self.sample.get("packing_or_protection")
+        return value if isinstance(value, str) and value.strip() else None
+
+    @property
+    def malware_type(self) -> str | None:
+        value = self.classification.get("malware_type")
+        return value if isinstance(value, str) and value.strip() else None
+
+    @property
+    def malware_family(self) -> str | None:
+        value = self.classification.get("malware_family")
+        return value if isinstance(value, str) and value.strip() else None
+
+    @property
+    def family_status(self) -> str:
+        value = self.classification.get("family_status")
+        return value if isinstance(value, str) else "not_applicable"
+
+    @property
+    def overall_assessment(self) -> str:
+        value = self.classification.get("overall_assessment")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        return "No classification assessment was recorded."
 
     def _object_list(self, key: str) -> list[dict[str, Any]]:
         value = self.data.get(key)
@@ -148,7 +198,7 @@ class RunSummary:
 
         def rank(item: dict[str, Any]) -> int:
             priority = item.get("priority")
-            return -priority if isinstance(priority, int) else 1
+            return priority if isinstance(priority, int) else 99
 
         return sorted(self._object_list("recommended_actions"), key=rank)
 

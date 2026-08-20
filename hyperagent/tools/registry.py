@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 from ..config import HyperAgentConfig, MCPEndpoint
 from .analysis_tools import create_analysis_tools
@@ -23,9 +23,11 @@ _FILESYSTEM_TOOLS = [
     "read_file", "write_file", "sha256_file",
     "list_directory", "file_exists", "mkdir",
 ]
-_ANALYSIS_TOOLS = [
-    "upx_unpack", "fetch_vt_report",
-    "normalize_vt_report", "validate_json_output",
+_LOCAL_ANALYSIS_TOOLS = [
+    "upx_unpack", "validate_json_output",
+]
+_INTEL_ENRICHMENT_TOOLS = [
+    "fetch_vt_report", "normalize_vt_report",
 ]
 _X64DBG_REQUIRED_TOOLS = [
     "debug_init",
@@ -50,19 +52,33 @@ STAGE_TOOLS: dict[str, list[str]] = {
         "ida_health_check",
         "validate_json_output",
     ],
-    "02-static-pass1": ["source:ida", *_FILESYSTEM_TOOLS, *_ANALYSIS_TOOLS],
-    "03-unpack": ["source:x64dbg", "vm_*", *_FILESYSTEM_TOOLS, *_ANALYSIS_TOOLS],
-    "04-static-pass2": ["source:ida", *_FILESYSTEM_TOOLS, *_ANALYSIS_TOOLS],
-    "05-dynamic": ["source:x64dbg", "vm_*", *_FILESYSTEM_TOOLS, *_ANALYSIS_TOOLS],
-    "06-intel": [*_ANALYSIS_TOOLS, *_FILESYSTEM_TOOLS],
+    "02-static-pass1": ["source:ida", *_FILESYSTEM_TOOLS, *_LOCAL_ANALYSIS_TOOLS],
+    "03-unpack": ["source:x64dbg", "vm_*", *_FILESYSTEM_TOOLS, *_LOCAL_ANALYSIS_TOOLS],
+    "04-static-pass2": ["source:ida", *_FILESYSTEM_TOOLS, *_LOCAL_ANALYSIS_TOOLS],
+    "05-dynamic": ["source:x64dbg", "vm_*", *_FILESYSTEM_TOOLS, *_LOCAL_ANALYSIS_TOOLS],
+    "06-intel": [*_INTEL_ENRICHMENT_TOOLS, *_FILESYSTEM_TOOLS, "validate_json_output"],
     "07-deepdive": [*_FILESYSTEM_TOOLS],
-    "08-report": [*_FILESYSTEM_TOOLS, *_ANALYSIS_TOOLS],
+    "08-report": ["write_file", "build_report_context"],
     "09-summary": [*_FILESYSTEM_TOOLS],
 }
 
 _X64DBG_REFRESH_STAGES = {
     stage_id for stage_id, patterns in STAGE_TOOLS.items() if "source:x64dbg" in patterns
 }
+
+
+class UnauthorizedToolError(Exception):
+    """Raised when a stage attempts to execute a tool outside its policy."""
+
+    def __init__(self, stage_id: str, tool_name: str, allowed_tools: Iterable[str]) -> None:
+        self.stage_id = stage_id
+        self.tool_name = tool_name
+        self.allowed_tools = tuple(sorted(allowed_tools))
+        super().__init__(
+            "unauthorized_tool_for_stage: "
+            f"stage_id={stage_id!r} tool={tool_name!r} "
+            f"allowed={', '.join(self.allowed_tools) or '<none>'}"
+        )
 
 
 class ToolRegistry:
@@ -122,6 +138,13 @@ class ToolRegistry:
                     break
         return list(resolved.values())
 
+    def execute_for_stage(self, stage_id: str, tool_name: str, arguments: dict[str, Any]) -> ToolResult:
+        """Execute a tool only when it is authorized for the given stage."""
+        allowed_tools = {tool.name for tool in self.get_tools_for_stage(stage_id)}
+        if tool_name not in allowed_tools:
+            raise UnauthorizedToolError(stage_id, tool_name, allowed_tools)
+        return self.execute(tool_name, arguments)
+
     def execute(self, tool_name: str, arguments: dict[str, Any]) -> ToolResult:
         """Execute a tool by name with the given arguments."""
         tool = self._tools.get(tool_name)
@@ -148,6 +171,27 @@ def common_scripts_dir(skills_root: Path) -> Path:
     return skills_root / "_hyperagent-common" / "scripts"
 
 
+def missing_x64dbg_required_tools(registry: ToolRegistry) -> list[str]:
+    """Return required x64dbg wrapper names that are not registered."""
+    get_tool = getattr(registry, "get_tool", None)
+    if callable(get_tool):
+        return [name for name in _X64DBG_REQUIRED_TOOLS if get_tool(name) is None]
+
+    get_all_tools = getattr(registry, "get_all_tools", None)
+    if callable(get_all_tools):
+        registered = {tool.name for tool in get_all_tools()}
+        return [name for name in _X64DBG_REQUIRED_TOOLS if name not in registered]
+
+    return list(_X64DBG_REQUIRED_TOOLS)
+
+
+def _close_mcp_client(client: MCPClient, label: str) -> None:
+    try:
+        client.close()
+    except Exception:
+        logger.warning("Failed to close %s MCP client cleanly", label, exc_info=True)
+
+
 def refresh_x64dbg_tools(
     registry: ToolRegistry,
     clients: list[MCPClient],
@@ -164,16 +208,35 @@ def refresh_x64dbg_tools(
     """
     if stage_id not in _X64DBG_REFRESH_STAGES:
         return current_client
-    has_tools = getattr(registry, "has_tools", None)
-    if callable(has_tools) and has_tools(_X64DBG_REQUIRED_TOOLS):
+    missing_before = missing_x64dbg_required_tools(registry)
+    if not missing_before:
         return current_client
 
     client, tools = create_x64dbg_tools(endpoint)
     if not tools:
-        try:
-            client.close()
-        except Exception:
-            logger.warning("Failed to close x64dbg MCP client cleanly", exc_info=True)
+        _close_mcp_client(client, "x64dbg")
+        logger.warning(
+            "x64dbg MCP discovery returned no tools for %s; missing required wrappers: %s",
+            stage_id,
+            ", ".join(missing_before),
+        )
+        return current_client
+
+    existing_names = {tool.name for tool in registry.get_all_tools()}
+    discovered_names = {tool.name for tool in tools}
+    missing_after = [
+        name for name in _X64DBG_REQUIRED_TOOLS
+        if name not in existing_names and name not in discovered_names
+    ]
+    if missing_after:
+        _close_mcp_client(client, "x64dbg")
+        logger.warning(
+            "x64dbg MCP discovered %d tools for %s but missing required wrappers: %s. Discovered: %s",
+            len(tools),
+            stage_id,
+            ", ".join(missing_after),
+            ", ".join(sorted(discovered_names)) or "<none>",
+        )
         return current_client
 
     registry.register_many(tools)
@@ -181,13 +244,15 @@ def refresh_x64dbg_tools(
     if current_client is not None and current_client in clients and current_client is not client:
         idx = clients.index(current_client)
         clients[idx] = client
-        try:
-            current_client.close()
-        except Exception:
-            logger.warning("Failed to close stale x64dbg MCP client cleanly", exc_info=True)
+        _close_mcp_client(current_client, "stale x64dbg")
     elif client not in clients:
         clients.append(client)
 
+    logger.info(
+        "x64dbg MCP registered required debugger wrappers for %s: %s",
+        stage_id,
+        ", ".join(_X64DBG_REQUIRED_TOOLS),
+    )
     return client
 
 

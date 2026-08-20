@@ -73,7 +73,9 @@ def resolve_claude(requested: str) -> str | None:
 
 def skills_root() -> Path:
     value = os.environ.get("HYPERAGENT_SKILLS_ROOT")
-    return Path(value).expanduser().resolve() if value else (Path.home() / ".claude" / "skills").resolve()
+    if value:
+        return Path(value).expanduser().resolve()
+    return (Path(__file__).resolve().parent / "skill").resolve()
 
 
 def load_pipeline_state_module(root: Path) -> ModuleType:
@@ -199,6 +201,7 @@ def run_pipeline(input_path: Path, claude: str) -> int:
             )
 
             env = os.environ.copy()  # explicit, don't rely on ambient inheritance
+            env["HYPERAGENT_SKILLS_ROOT"] = str(root)
             env["HYPERAGENT_ANALYSIS_DIR"] = str(report_dir)
             env["HYPERAGENT_STATE_PATH"] = str(state_path)
             env["HYPERAGENT_STAGE_ID"] = stage.stage_id

@@ -12,9 +12,9 @@
         href="{{ url_for('static', filename='fonts/source-code-pro.woff2') }}">
   <link rel="stylesheet" href="{{ asset('style.css') }}">
 
-  <!-- Runs before first paint. Flags that JS can collapse the tab panels (they
-       render expanded so the page stays readable without it), and applies a
-       saved theme early enough to avoid a flash of the other one. -->
+  <!-- Runs before first paint. Applies a saved theme early enough to avoid a
+       flash of the other one while still leaving the page readable if JS is
+       unavailable. -->
   <script>
     document.documentElement.className += " js";
     try {

@@ -1,0 +1,3 @@
+{
+  "instruction": "Generate output conforming exactly to schema.json; produce a compact, layperson-friendly JSON summary derived from authoritative Deepdive conclusions and validated upstream artifacts; do not invent or widen claims; do not copy this instruction field into output."
+}

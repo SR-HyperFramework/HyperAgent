@@ -8,9 +8,17 @@ from types import SimpleNamespace
 import pytest
 
 from hyperagent import pipeline_state
-from hyperagent.engine.launcher import STAGES, _artifact_validation_error, _build_stage_prompt, run_pipeline_with_config
+from hyperagent.engine.launcher import (
+    STAGES,
+    _artifact_validation_error,
+    _build_stage_prompt,
+    _selected_stages,
+    run_pipeline_with_config,
+)
+from hyperagent.config import default_skills_root
 from hyperagent.tools.base import ToolDefinition
 from hyperagent.providers.base import CompletionResult, LLMProvider
+from hyperagent.tools.registry import missing_x64dbg_required_tools
 from hyperagent.tools import vmware_tools
 from hyperagent.tools.path_scope import compute_run_scope
 
@@ -24,8 +32,6 @@ class _DummyProvider(LLMProvider):
 
     def max_context_tokens(self) -> int:
         return 100_000
-
-
 @pytest.fixture()
 def sample_file(tmp_path: Path) -> Path:
     sample = tmp_path / "sample.exe"
@@ -50,12 +56,21 @@ def config(tmp_path: Path):
             console_mode="off",
         ),
         vmware=SimpleNamespace(),
+        runtime=SimpleNamespace(
+            pipeline_profile="full",
+            skip_dynamic=False,
+            skip_intel=False,
+            reuse_completed_stages=True,
+            start_ida_mcp="auto",
+            fast_max_stage_attempts=2,
+        ),
         x64dbg_mcp=SimpleNamespace(url="http://127.0.0.1:1/mcp", timeout=2),
         ida_mcp=SimpleNamespace(url="http://127.0.0.1:1/mcp", timeout=2),
     )
 
 
 def _stage_skill_tree(root: Path) -> None:
+    (root / "_hyperagent-common" / "scripts").mkdir(parents=True, exist_ok=True)
     for stage in {stage.skill for stage in STAGES}:
         skill_dir = root / stage
         skill_dir.mkdir(parents=True, exist_ok=True)
@@ -66,7 +81,80 @@ def _stage_skill_tree(root: Path) -> None:
         (skill_dir / "schema.json").write_text('{"type":"object"}', encoding="utf-8")
 
 
-def test_launcher_skips_completed_stage_with_valid_artifact(monkeypatch, sample_file: Path, config):
+def test_default_skills_root_points_at_repo_skill_dir():
+    assert default_skills_root() == Path(__file__).resolve().parents[2] / "skill"
+
+
+def test_selected_stages_supports_runtime_profiles():
+    assert [stage.stage_id for stage in _selected_stages(None)] == [stage.stage_id for stage in STAGES]
+    assert [stage.stage_id for stage in _selected_stages(None, profile="fast")] == [
+        "01-prepare-env",
+        "02-static-pass1",
+        "03-unpack",
+        "04-static-pass2",
+        "07-deepdive",
+        "08-report",
+        "09-summary",
+    ]
+    assert [stage.stage_id for stage in _selected_stages(None, profile="static-only")] == [
+        "01-prepare-env",
+        "02-static-pass1",
+        "03-unpack",
+        "04-static-pass2",
+        "07-deepdive",
+        "08-report",
+        "09-summary",
+    ]
+
+
+def test_selected_stages_applies_skip_flags():
+    selected = _selected_stages(None, skip_dynamic=True, skip_intel=True)
+    assert "05-dynamic" not in {stage.stage_id for stage in selected}
+    assert "06-intel" not in {stage.stage_id for stage in selected}
+
+
+def test_launcher_skips_idalib_mcp_when_profile_does_not_need_ida(monkeypatch, sample_file: Path, config):
+    _stage_skill_tree(config.skills_root)
+    config.runtime.pipeline_profile = "fast"
+    config.runtime.start_ida_mcp = "auto"
+    calls = {"ensure": 0, "stop": 0}
+
+    class _Registry:
+        def get_tools_for_stage(self, _sid):
+            return []
+
+    class _Loop:
+        def __init__(self, *args, **kwargs):
+            self.last_messages = []
+
+        def run(self, **kwargs):
+            out = config.reports_root / ("lazyida" * 8) / f"{kwargs['stage_id']}.json"
+            if kwargs["stage_id"] == "08-report":
+                out = out.with_suffix(".md")
+                out.write_text("# Report", encoding="utf-8")
+            else:
+                out.write_text("{}", encoding="utf-8")
+            pipeline_state.complete(out.parent, kwargs["stage_id"], str(out))
+            return "ok"
+
+    def fail_ensure(_cfg):
+        calls["ensure"] += 1
+        raise AssertionError("IDA MCP should not start for this selected stage set")
+
+    monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: "lazyida" * 8)
+    monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", fail_ensure)
+    monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: calls.__setitem__("stop", calls["stop"] + 1))
+    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg, _scope: (_Registry(), []))
+    monkeypatch.setattr("hyperagent.engine.launcher.create_provider", lambda *a, **k: _DummyProvider())
+    monkeypatch.setattr("hyperagent.engine.launcher.AgentLoop", _Loop)
+
+    result = asyncio.run(run_pipeline_with_config(sample_file, config, stage_id="07-deepdive"))
+
+    assert len(result.stages) == 1
+    assert result.stages[0].stage_status == "completed"
+    assert calls == {"ensure": 0, "stop": 1}
+
+
     _stage_skill_tree(config.skills_root)
     report_dir = config.reports_root / ("a" * 64)
     report_dir.mkdir(parents=True, exist_ok=True)
@@ -140,10 +228,20 @@ def test_launcher_refreshes_x64dbg_tools_before_dynamic_stage(monkeypatch, sampl
     class _Registry:
         def __init__(self):
             self.refresh_calls = []
+            self.tools = {
+                name: ToolDefinition(name=name, description="", parameters={}, handler=lambda **_: None, source="x64dbg")
+                for name in missing_x64dbg_required_tools(None)
+            }
+
+        def get_tool(self, name):
+            return self.tools.get(name)
+
+        def get_all_tools(self):
+            return list(self.tools.values())
 
         def get_tools_for_stage(self, stage_id):
             if stage_id == "05-dynamic":
-                return [ToolDefinition(name="debug_init", description="", parameters={}, handler=lambda **_: None, source="x64dbg")]
+                return list(self.tools.values())
             return []
 
     fake_registry = _Registry()
@@ -172,6 +270,74 @@ def test_launcher_refreshes_x64dbg_tools_before_dynamic_stage(monkeypatch, sampl
     assert len(result.stages) == 1
     assert result.stages[0].stage_status == "completed"
     assert fake_registry.refresh_calls == ["05-dynamic"]
+
+
+def test_launcher_refreshes_x64dbg_tools_on_each_dynamic_attempt(monkeypatch, sample_file: Path, config):
+    _stage_skill_tree(config.skills_root)
+    report_dir = config.reports_root / ("retryx64" * 8)
+    report_dir.mkdir(parents=True, exist_ok=True)
+    pipeline_state.ensure_state(report_dir, "retryx64" * 8, str(sample_file))
+
+    class _Registry:
+        def __init__(self):
+            self.refresh_calls = []
+            self.debug_tools_available = False
+            self.tools = {
+                name: ToolDefinition(name=name, description="", parameters={}, handler=lambda **_: None, source="x64dbg")
+                for name in missing_x64dbg_required_tools(None)
+            }
+
+        def get_tool(self, name):
+            if not self.debug_tools_available:
+                return None
+            return self.tools.get(name)
+
+        def get_all_tools(self):
+            if not self.debug_tools_available:
+                return []
+            return list(self.tools.values())
+
+        def get_tools_for_stage(self, stage_id):
+            if stage_id == "05-dynamic" and self.debug_tools_available:
+                return list(self.tools.values())
+            return []
+
+    fake_registry = _Registry()
+    seen_tools = []
+
+    def fake_refresh(registry, clients, endpoint, stage_id, current_client=None):
+        registry.refresh_calls.append(stage_id)
+        if len(registry.refresh_calls) == 2:
+            registry.debug_tools_available = True
+        return current_client
+
+    monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: "retryx64" * 8)
+    monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg, _scope: (fake_registry, [object(), object()]))
+    monkeypatch.setattr("hyperagent.engine.launcher.refresh_x64dbg_tools", fake_refresh)
+    monkeypatch.setattr("hyperagent.engine.launcher.create_provider", lambda *a, **k: _DummyProvider())
+    monkeypatch.setattr(vmware_tools, "vm_auto_revert_after_dynamic", lambda cfg: None)
+
+    class _Loop:
+        def __init__(self, *args, **kwargs):
+            self.last_messages = []
+
+        def run(self, **kwargs):
+            seen_tools.append(kwargs["stage_tools"])
+            out = report_dir / "05-dynamic.json"
+            out.write_text("{}", encoding="utf-8")
+            pipeline_state.complete(report_dir, "05-dynamic", str(out))
+            return "ok"
+
+    monkeypatch.setattr("hyperagent.engine.launcher.AgentLoop", _Loop)
+
+    result = asyncio.run(run_pipeline_with_config(sample_file, config, stage_id="05-dynamic"))
+    assert len(result.stages) == 1
+    assert result.stages[0].stage_status == "completed"
+    assert fake_registry.refresh_calls == ["05-dynamic", "05-dynamic"]
+    assert len(seen_tools) == 1
+    assert set(seen_tools[0]) == set(missing_x64dbg_required_tools(None))
 
 
 def test_build_stage_prompt_includes_schema_and_common_scripts_paths(sample_file: Path, config):
@@ -219,7 +385,59 @@ def test_build_stage_prompt_omits_schema_line_when_schema_missing(sample_file: P
     assert "Do not write STATE.json directly" in prompt
 
 
-def test_launcher_stops_on_state_drift(monkeypatch, sample_file: Path, config):
+def test_launcher_passes_intel_only_vt_tools(monkeypatch, sample_file: Path, config):
+    _stage_skill_tree(config.skills_root)
+    captured: dict[str, list[str]] = {}
+
+    class _Registry:
+        def get_tools_for_stage(self, stage_id):
+            names = ["write_file"]
+            if stage_id == "06-intel":
+                names.extend(["fetch_vt_report", "normalize_vt_report"])
+            if stage_id == "08-report":
+                names.append("build_report_context")
+            return [
+                ToolDefinition(name=name, description="", parameters={}, handler=lambda **_: None)
+                for name in names
+            ]
+
+    class _Loop:
+        def __init__(self, *args, **kwargs):
+            self.last_messages = []
+
+        def run(self, **kwargs):
+            stage_id = kwargs["stage_id"]
+            captured[stage_id] = kwargs["stage_tools"]
+            out = config.reports_root / ("launchtools" * 6 + "1234") / f"{stage_id}.json"
+            if stage_id == "08-report":
+                out = out.with_suffix(".md")
+            out.parent.mkdir(parents=True, exist_ok=True)
+            if stage_id == "08-report":
+                out.write_text("# Report\n\nDone.", encoding="utf-8")
+            else:
+                out.write_text("{}", encoding="utf-8")
+            pipeline_state.complete(out.parent, stage_id, str(out))
+            return "ok"
+
+    monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: "launchtools" * 6 + "1234")
+    monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg, _scope: (_Registry(), []))
+    monkeypatch.setattr("hyperagent.engine.launcher.create_provider", lambda *a, **k: _DummyProvider())
+    monkeypatch.setattr("hyperagent.engine.launcher.AgentLoop", _Loop)
+
+    intel_result = asyncio.run(run_pipeline_with_config(sample_file, config, stage_id="06-intel"))
+    report_result = asyncio.run(run_pipeline_with_config(sample_file, config, stage_id="08-report"))
+
+    assert intel_result.stages[0].stage_status == "completed"
+    assert report_result.stages[0].stage_status == "completed"
+    assert "fetch_vt_report" in captured["06-intel"]
+    assert "normalize_vt_report" in captured["06-intel"]
+    assert "build_report_context" in captured["08-report"]
+    assert "fetch_vt_report" not in captured["08-report"]
+    assert "normalize_vt_report" not in captured["08-report"]
+
+
     _stage_skill_tree(config.skills_root)
     report_dir = config.reports_root / ("b" * 64)
     report_dir.mkdir(parents=True, exist_ok=True)
@@ -282,11 +500,102 @@ def test_launcher_retries_when_stage_checkpointed(monkeypatch, sample_file: Path
     assert result.stages[0].stage_status == "completed"
 
 
-def test_launcher_fails_when_stage_exits_without_state_update(monkeypatch, sample_file: Path, config):
+def test_launcher_fallback_completes_valid_artifact_after_checkpoint(monkeypatch, caplog, sample_file: Path, config):
+    _stage_skill_tree(config.skills_root)
+    report_dir = config.reports_root / ("ca" * 32)
+    report_dir.mkdir(parents=True, exist_ok=True)
+    pipeline_state.ensure_state(report_dir, "ca" * 32, str(sample_file))
+
+    class _Registry:
+        def get_tools_for_stage(self, _sid):
+            return []
+
+    calls = {"count": 0}
+
+    class _Loop:
+        def __init__(self, *args, **kwargs):
+            self.last_messages = []
+
+        def run(self, **kwargs):
+            calls["count"] += 1
+            if calls["count"] == 1:
+                progress = report_dir / "_state" / "01-prepare-env.progress.md"
+                progress.parent.mkdir(parents=True, exist_ok=True)
+                progress.write_text("resume me", encoding="utf-8")
+                pipeline_state.checkpoint(report_dir, "01-prepare-env", str(progress), "test")
+            else:
+                out = report_dir / "01-prepare-env.json"
+                out.write_text("{}", encoding="utf-8")
+            return "ok"
+
+    monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: "ca" * 32)
+    monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg, _scope: (_Registry(), []))
+    monkeypatch.setattr("hyperagent.engine.launcher.create_provider", lambda *a, **k: _DummyProvider())
+    monkeypatch.setattr("hyperagent.engine.launcher.AgentLoop", _Loop)
+
+    result = asyncio.run(run_pipeline_with_config(sample_file, config, stage_id="01-prepare-env"))
+    assert calls["count"] == 2
+    assert len(result.stages) == 1
+    assert result.stages[0].stage_status == "completed"
+
+    state = pipeline_state.load_state(report_dir)
+    entry = state["stages"]["01-prepare-env"]
+    assert entry["status"] == pipeline_state.STATUS_COMPLETED
+    assert Path(entry["output_path"]) == report_dir / "01-prepare-env.json"
+    assert "launcher fallback" in state["recommend_next_stage"]["reason"]
+    assert "after a resumed attempt exited without updating STATE.json" in caplog.text
+
+
+def test_launcher_retries_when_stage_ends_without_state_update(monkeypatch, caplog, sample_file: Path, config):
     _stage_skill_tree(config.skills_root)
     report_dir = config.reports_root / ("d" * 64)
     report_dir.mkdir(parents=True, exist_ok=True)
     pipeline_state.ensure_state(report_dir, "d" * 64, str(sample_file))
+
+    class _Registry:
+        def get_tools_for_stage(self, _sid):
+            return []
+
+    calls = {"count": 0}
+
+    class _Loop:
+        def __init__(self, *args, **kwargs):
+            self.last_messages = []
+
+        def run(self, **kwargs):
+            calls["count"] += 1
+            if calls["count"] == 2:
+                out = report_dir / "01-prepare-env.json"
+                out.write_text("{}", encoding="utf-8")
+            return "ok"
+
+    monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: "d" * 64)
+    monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg, _scope: (_Registry(), []))
+    monkeypatch.setattr("hyperagent.engine.launcher.create_provider", lambda *a, **k: _DummyProvider())
+    monkeypatch.setattr("hyperagent.engine.launcher.AgentLoop", _Loop)
+
+    result = asyncio.run(run_pipeline_with_config(sample_file, config, stage_id="01-prepare-env"))
+    assert calls["count"] == 2
+    assert len(result.stages) == 1
+    assert result.stages[0].stage_status == "completed"
+
+    state = pipeline_state.load_state(report_dir)
+    entry = state["stages"]["01-prepare-env"]
+    assert entry["status"] == pipeline_state.STATUS_COMPLETED
+    assert Path(entry["output_path"]) == report_dir / "01-prepare-env.json"
+    assert Path(entry["progress_path"]).name == "01-prepare-env.progress.md"
+    assert "ended without artifact/state update; checkpointed" in caplog.text
+
+
+def test_launcher_fails_after_retries_when_stage_never_updates_state(monkeypatch, sample_file: Path, config):
+    _stage_skill_tree(config.skills_root)
+    report_dir = config.reports_root / ("de" * 32)
+    report_dir.mkdir(parents=True, exist_ok=True)
+    pipeline_state.ensure_state(report_dir, "de" * 32, str(sample_file))
 
     class _Registry:
         def get_tools_for_stage(self, _sid):
@@ -299,7 +608,7 @@ def test_launcher_fails_when_stage_exits_without_state_update(monkeypatch, sampl
         def run(self, **kwargs):
             return "ok"
 
-    monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: "d" * 64)
+    monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: "de" * 32)
     monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
     monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
     monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg, _scope: (_Registry(), []))
@@ -345,7 +654,7 @@ def test_launcher_fallback_completes_when_artifact_valid_but_state_not_updated(m
     entry = state["stages"]["01-prepare-env"]
     assert entry["status"] == pipeline_state.STATUS_COMPLETED
     assert Path(entry["output_path"]) == report_dir / "01-prepare-env.json"
-    assert "launcher fallback" in entry["recommend_reason"]
+    assert "launcher fallback" in state["recommend_next_stage"]["reason"]
     assert "launcher auto-completed 01-prepare-env from valid artifact" in caplog.text
     assert "without updating STATE.json" in caplog.text
 
@@ -412,6 +721,75 @@ def test_launcher_fallback_completes_nonempty_report_stage(monkeypatch, sample_f
     assert result.stages[0].stage_status == "completed"
 
 
+def test_launcher_updates_run_console_for_stage_attempt(monkeypatch, sample_file: Path, config):
+    _stage_skill_tree(config.skills_root)
+    config.provider.console_mode = "minimal"
+    report_dir = config.reports_root / ("console" * 8)
+    report_dir.mkdir(parents=True, exist_ok=True)
+    pipeline_state.ensure_state(report_dir, "console" * 8, str(sample_file))
+
+    class _Registry:
+        def get_tools_for_stage(self, _sid):
+            return []
+
+    class _Console:
+        def __init__(self):
+            self.started = False
+            self.finished = False
+            self.transitions = []
+
+        def start(self):
+            self.started = True
+
+        def finish(self):
+            self.finished = True
+
+        def stage_transition(self, **kwargs):
+            self.transitions.append(kwargs)
+
+    console = _Console()
+
+    class _Loop:
+        def __init__(self, *args, **kwargs):
+            self.last_messages = []
+            assert kwargs["run_console"] is console
+            assert kwargs["console_mode"] == "minimal"
+
+        def run(self, **kwargs):
+            out = report_dir / "01-prepare-env.json"
+            out.write_text("{}", encoding="utf-8")
+            pipeline_state.complete(report_dir, "01-prepare-env", str(out))
+            return "ok"
+
+    def fake_create_provider(*args, **kwargs):
+        assert kwargs["run_console"] is console
+        return _DummyProvider()
+
+    monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: "console" * 8)
+    monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg, _scope: (_Registry(), []))
+    monkeypatch.setattr("hyperagent.engine.launcher.create_provider", fake_create_provider)
+    monkeypatch.setattr("hyperagent.engine.launcher.AgentLoop", _Loop)
+
+    result = asyncio.run(run_pipeline_with_config(sample_file, config, stage_id="01-prepare-env", run_console=console))
+
+    assert len(result.stages) == 1
+    assert console.started is True
+    assert console.finished is True
+    assert console.transitions == [
+        {
+            "index": 1,
+            "total": 1,
+            "stage_id": "01-prepare-env",
+            "stage_name": "hyperagent-prepare-env",
+            "attempt": 1,
+            "guarded": False,
+        }
+    ]
+
+
+
 def test_artifact_validation_error_reports_schema_mismatch(tmp_path: Path, config):
     _stage_skill_tree(config.skills_root)
     output = tmp_path / "01-prepare-env.json"
@@ -475,6 +853,7 @@ def test_launcher_reverts_vm_after_dynamic_stage_succeeds(monkeypatch, sample_fi
     monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
     monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
     monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg, _scope: (_Registry(), []))
+    monkeypatch.setattr("hyperagent.engine.launcher.missing_x64dbg_required_tools", lambda _registry: [])
     monkeypatch.setattr("hyperagent.engine.launcher.create_provider", lambda *a, **k: _DummyProvider())
     monkeypatch.setattr("hyperagent.engine.launcher.AgentLoop", _Loop)
 

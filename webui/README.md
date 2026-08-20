@@ -54,7 +54,7 @@ It also runs under the Flask CLI:
 
 | Route | Purpose |
 |---|---|
-| `/` | Report index: scoreboard, results table, verdict/risk/sort filters |
+| `/` | Report index: readable run cards plus verdict/risk/sort filters |
 | `/search?q=` | Header search. A known SHA256 jumps straight to its report; anything else filters the index |
 | `/runs/<sha256>` | Full report for one run |
 | `/api/runs` | JSON index of every discovered run |
@@ -62,26 +62,29 @@ It also runs under the Flask CLI:
 
 ## The report page
 
-Layout follows the familiar public-sandbox report format: a file card with a
-verdict gauge (the ring is coloured by verdict, the number is Deepdive's
-confidence), the sample hash, and identity chips — then tabbed sections.
+The detail view is a top-to-bottom forensic dossier, not a tabbed technical dump.
+It opens with the Deepdive verdict, confidence, risk, and one-sentence headline,
+then shows the sample identity and a plain-language assessment before any lower
+level evidence.
 
-| Tab | Contents |
+| Section | Contents |
 |---|---|
-| Detection | Plain-language assessment, remaining decision point, and the three finding buckets |
-| Details | Basic properties, classification, provenance, upstream stage inputs |
+| Summary | Plain-language assessment and the remaining decision point |
+| Findings | Confirmed findings, caveated findings, and not-supported claims as separate bands |
+| Classification | Conservative malware type, family status, verdict, and risk |
 | Indicators | Confirmed IOCs split into network / host / persistence |
 | Actions | Recommended actions, highest priority first |
-| Limitations | What this run could not establish |
+| Limits | What this run could not establish |
+| Provenance | Summary path, modified time, stage status, and upstream inputs |
 
 The three finding buckets — confirmed, caveated, and **not supported by
-evidence** — stay three visually distinct sections on purpose. The summary stage
-separates them so a reader cannot mistake a caveated or rejected claim for a
-confirmed one, and the UI preserves that separation rather than merging them.
+evidence** — stay visually distinct on purpose. The summary stage separates them
+so a reader cannot mistake a caveated or rejected claim for a confirmed one, and
+the UI preserves that separation rather than merging them.
 
-Tabs are progressive enhancement: the panels render expanded, and JavaScript
-collapses them. With JS off the page is one long readable document. Deep links
-work (`/runs/<sha256>#indicators`).
+JavaScript is not required for report readability. It only enhances timestamps,
+the theme toggle, and copy-to-clipboard buttons. Deep links still work through
+normal anchors such as `/runs/<sha256>#indicators`.
 
 ## Run discovery
 

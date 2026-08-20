@@ -106,7 +106,37 @@ def test_resolve_skill_dir_missing_raises():
         resolve_skill_dir(FIXTURE_ROOT, "does-not-exist")
 
 
-def test_load_stage_skill_convenience_wrapper():
+def test_resolve_skill_dir_rejects_path_traversal():
+    with pytest.raises(ValueError):
+        resolve_skill_dir(FIXTURE_ROOT, "../skill_fixture")
+
+
+def test_resolve_skill_dir_rejects_absolute_path():
+    with pytest.raises(ValueError):
+        resolve_skill_dir(FIXTURE_ROOT, str(FIXTURE_SKILL_DIR))
+
+
+def test_stage_skill_loads_only_requested_directory(tmp_path: Path):
+    report = tmp_path / "hyperagent-report"
+    intel = tmp_path / "hyperagent-intel"
+    report.mkdir()
+    intel.mkdir()
+    report.joinpath("SKILL.md").write_text(
+        "---\nname: hyperagent-report\ndescription: report\n---\n\n# Role\n\nRender only.\n",
+        encoding="utf-8",
+    )
+    intel.joinpath("SKILL.md").write_text(
+        "---\nname: hyperagent-intel\ndescription: intel\n---\n\n# Role\n\nUse fetch_vt_report.\n",
+        encoding="utf-8",
+    )
+
+    doc = load_stage_skill(tmp_path, "hyperagent-report")
+
+    assert doc.name == "hyperagent-report"
+    assert "Render only" in doc.instructions
+    assert "fetch_vt_report" not in doc.instructions
+
+
     doc = load_stage_skill(FIXTURE_ROOT, "skill_fixture")
     assert doc.name == "hyperagent-fixture-stage"
     assert "Runtime Path Contract" not in doc.instructions

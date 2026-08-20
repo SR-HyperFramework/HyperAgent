@@ -18,12 +18,20 @@ import jsonschema
 
 from .. import pipeline_state
 from ..config import HyperAgentConfig
+from ..console import RunConsole
 from ..providers import create_provider
 from ..skills import SkillDoc, load_stage_skill
 from ..telemetry.metrics import MetricsCollector, RunMetrics
 from ..tools import vmware_tools
 from ..tools.path_scope import compute_run_scope
-from ..tools.registry import STAGE_TOOLS, ToolRegistry, build_full_registry, common_scripts_dir, refresh_x64dbg_tools
+from ..tools.registry import (
+    STAGE_TOOLS,
+    ToolRegistry,
+    build_full_registry,
+    common_scripts_dir,
+    missing_x64dbg_required_tools,
+    refresh_x64dbg_tools,
+)
 from .agent_loop import AgentLoop
 from .checkpoint import CheckpointReached, write_checkpoint
 from .mcp_servers import ensure_idalib_mcp, stop_idalib_mcp
@@ -150,7 +158,7 @@ def _build_stage_prompt(
     lines.extend([
         "Operational contract:",
         "- Do not manually discover SKILL.md, schema.json, or validator-script paths; use the resolved paths provided in this prompt.",
-        "- Do not write STATE.json directly; rely on the stage output/state contract instead.",
+        "- Do not write STATE.json directly; write and validate the default stage artifact, then the launcher records completion.",
         "- If a filesystem path is denied by scope policy, treat it as out of bounds instead of searching other roots.",
     ])
     lines.append("Honor the stage output/state contract for this stage.")
@@ -179,11 +187,11 @@ def _resume_prompt_if_any(report_dir: Path, stage_id: str) -> str | None:
     )
 
 
-def _checkpoint_summary(loop: AgentLoop) -> str:
+def _checkpoint_summary(loop: AgentLoop, reason: str = "Resume from the latest completed reasoning state.") -> str:
     parts = [
         "# Checkpoint",
         "",
-        "Resume from the latest completed reasoning state.",
+        reason,
     ]
     last_messages = getattr(loop, "last_messages", [])
     preview_parts: list[str] = []
@@ -197,13 +205,68 @@ def _checkpoint_summary(loop: AgentLoop) -> str:
     return "\n".join(parts)
 
 
-def _selected_stages(stage_id: str | None) -> tuple[Stage, ...]:
+def _runtime_value(config: HyperAgentConfig, name: str, default: Any) -> Any:
+    runtime = getattr(config, "runtime", None)
+    return getattr(runtime, name, default)
+
+
+def _profile_stage_ids(profile: str) -> tuple[str, ...]:
+    normalized = (profile or "full").lower().replace("_", "-")
+    if normalized == "full":
+        return tuple(stage.stage_id for stage in STAGES)
+    if normalized in {"fast", "static-only"}:
+        return (
+            "01-prepare-env",
+            "02-static-pass1",
+            "03-unpack",
+            "04-static-pass2",
+            "07-deepdive",
+            "08-report",
+            "09-summary",
+        )
+    raise ValueError("Unknown pipeline profile: " f"{profile!r}. Valid: full, fast, static-only")
+
+
+def _selected_stages(
+    stage_id: str | None,
+    *,
+    profile: str = "full",
+    skip_dynamic: bool = False,
+    skip_intel: bool = False,
+) -> tuple[Stage, ...]:
     if stage_id is None:
-        return STAGES
-    selected = tuple(stage for stage in STAGES if stage.stage_id == stage_id)
-    if not selected:
-        raise ValueError(f"Unknown stage: {stage_id!r}. Valid: {[stage.stage_id for stage in STAGES]}")
-    return selected
+        selected_ids = list(_profile_stage_ids(profile))
+    else:
+        if stage_id not in {stage.stage_id for stage in STAGES}:
+            raise ValueError(f"Unknown stage: {stage_id!r}. Valid: {[stage.stage_id for stage in STAGES]}")
+        selected_ids = [stage_id]
+
+    if skip_dynamic:
+        selected_ids = [sid for sid in selected_ids if sid != "05-dynamic"]
+    if skip_intel:
+        selected_ids = [sid for sid in selected_ids if sid != "06-intel"]
+
+    by_id = {stage.stage_id: stage for stage in STAGES}
+    return tuple(by_id[stage_id] for stage_id in selected_ids)
+
+
+def _stage_patterns_need_ida(stage_ids: tuple[str, ...]) -> bool:
+    for stage_id in stage_ids:
+        patterns = STAGE_TOOLS.get(stage_id, [])
+        if "source:ida" in patterns or "ida_health_check" in patterns:
+            return True
+    return False
+
+
+def _should_start_idalib_mcp(config: HyperAgentConfig, selected_stages: tuple[Stage, ...]) -> bool:
+    strategy = str(_runtime_value(config, "start_ida_mcp", "auto")).lower()
+    if strategy == "always":
+        return True
+    if strategy == "never":
+        return False
+    if strategy != "auto":
+        raise ValueError("Unknown runtime.start_ida_mcp: " f"{strategy!r}. Valid: auto, always, never")
+    return _stage_patterns_need_ida(tuple(stage.stage_id for stage in selected_stages))
 
 
 async def run_pipeline_with_config(
@@ -213,13 +276,19 @@ async def run_pipeline_with_config(
     run_id: str | None = None,
     *,
     stage_id: str | None = None,
+    run_console: RunConsole | None = None,
 ) -> RunMetrics:
     """Run the HyperAgent pipeline for one sample and return aggregate metrics."""
     sample_path = Path(sample_path).expanduser().resolve()
     if not sample_path.exists():
         raise FileNotFoundError(f"Sample does not exist: {sample_path}")
 
-    selected_stages = _selected_stages(stage_id)
+    selected_stages = _selected_stages(
+        stage_id,
+        profile=_runtime_value(config, "pipeline_profile", "full"),
+        skip_dynamic=bool(_runtime_value(config, "skip_dynamic", False)),
+        skip_intel=bool(_runtime_value(config, "skip_intel", False)),
+    )
     sample_sha256 = _sha256_of(sample_path)
     report_dir = _report_dir_for(sample_path, config)
     scope = compute_run_scope(sample_path, report_dir, config.skills_root)
@@ -233,9 +302,14 @@ async def run_pipeline_with_config(
         ablation_config=(getattr(ablation_config, "name", "FULL") if ablation_config else "FULL"),
     )
 
-    idalib_proc = ensure_idalib_mcp(config)
-    registry, clients = build_full_registry(config, scope)
+    idalib_proc = None
+    clients = []
     try:
+        if run_console is not None:
+            run_console.start()
+
+        idalib_proc = ensure_idalib_mcp(config) if _should_start_idalib_mcp(config, selected_stages) else None
+        registry, clients = build_full_registry(config, scope)
         for index, stage in enumerate(selected_stages, start=1):
             failure_reason: str | None = None
             try:
@@ -258,8 +332,9 @@ async def run_pipeline_with_config(
                 state = pipeline_state.load_state(report_dir)
                 entry = state["stages"][stage.stage_id]
                 stage_output = _resolve_stage_output(report_dir, stage, entry)
+                reuse_completed_stages = bool(_runtime_value(config, "reuse_completed_stages", True))
 
-                if entry["status"] == pipeline_state.STATUS_COMPLETED:
+                if reuse_completed_stages and entry["status"] == pipeline_state.STATUS_COMPLETED:
                     validation_error = _artifact_validation_error(stage, stage_output, skill_doc)
                     if validation_error is None:
                         logger.info(
@@ -276,17 +351,6 @@ async def run_pipeline_with_config(
                     logger.error("[%d/%d] %s", index, len(selected_stages), failure_reason)
                     return metrics.finalize_run()
 
-                x64dbg_client = refresh_x64dbg_tools(
-                    registry,
-                    clients,
-                    config.x64dbg_mcp,
-                    stage.stage_id,
-                    current_client=clients[0] if clients else None,
-                )
-                if x64dbg_client is not None and clients:
-                    clients[0] = x64dbg_client
-                stage_tools = registry.get_tools_for_stage(stage.stage_id)
-                tool_names = [tool.name for tool in stage_tools]
                 model_name = config.provider.stage_models.get(stage.stage_id, config.provider.model)
                 checkpoint_threshold = (
                     config.checkpoint_threshold
@@ -300,28 +364,67 @@ async def run_pipeline_with_config(
 
                 attempts = 0
                 stage_metrics_started = False
+                max_stage_attempts = config.max_stage_attempts
+                profile = str(_runtime_value(config, "pipeline_profile", "full")).lower().replace("_", "-")
+                if profile in {"fast", "static-only"}:
+                    max_stage_attempts = min(
+                        max_stage_attempts,
+                        int(_runtime_value(config, "fast_max_stage_attempts", max_stage_attempts)),
+                    )
                 while True:
                     attempts += 1
-                    if attempts > config.max_stage_attempts:
+                    if attempts > max_stage_attempts:
                         pipeline_state.fail(
                             report_dir,
                             stage.stage_id,
-                            f"did not reach completed after {config.max_stage_attempts} attempts",
+                            f"did not reach completed after {max_stage_attempts} attempts",
                         )
                         if not stage_metrics_started:
                             metrics.start_stage(stage.stage_id)
                             stage_metrics_started = True
                         metrics.finalize_stage(stage.stage_id, status="failed")
                         failure_reason = (
-                            f"{stage.stage_id} did not reach 'completed' after {config.max_stage_attempts} attempts"
+                            f"{stage.stage_id} did not reach 'completed' after {max_stage_attempts} attempts"
                         )
                         logger.error("[%d/%d] %s", index, len(selected_stages), failure_reason)
                         return metrics.finalize_run()
+
+                    x64dbg_client = refresh_x64dbg_tools(
+                        registry,
+                        clients,
+                        config.x64dbg_mcp,
+                        stage.stage_id,
+                        current_client=clients[0] if clients else None,
+                    )
+                    if x64dbg_client is not None and clients:
+                        clients[0] = x64dbg_client
+                    stage_tools = registry.get_tools_for_stage(stage.stage_id)
+                    tool_names = [tool.name for tool in stage_tools]
+                    missing_x64dbg = []
+                    if "source:x64dbg" in STAGE_TOOLS.get(stage.stage_id, []):
+                        missing_x64dbg = missing_x64dbg_required_tools(registry)
+                        if missing_x64dbg:
+                            logger.warning(
+                                "Resolved %s without required x64dbg wrappers; missing: %s",
+                                stage.stage_id,
+                                ", ".join(missing_x64dbg),
+                            )
+                            tool_names = [
+                                name for name in tool_names
+                                if name != "x64dbg_health_check"
+                            ]
+                    logger.debug(
+                        "Resolved tools for %s attempt %d: %s",
+                        stage.stage_id,
+                        attempts,
+                        ", ".join(tool_names),
+                    )
 
                     provider = create_provider(
                         config.provider,
                         model=model_name,
                         cache_enabled=cache_enabled,
+                        run_console=run_console,
                     )
                     loop = AgentLoop(
                         provider,
@@ -329,10 +432,58 @@ async def run_pipeline_with_config(
                         checkpoint_threshold=checkpoint_threshold,
                         metrics=metrics,
                         console_mode=config.provider.console_mode,
+                        run_console=run_console,
+                        compact_enabled=(
+                            getattr(config, "compact_enabled", True)
+                            and (not ablation_config or ablation_config.checkpoint_enabled)
+                        ),
+                        compact_threshold=getattr(config, "compact_threshold", None),
+                        compact_target_ratio=getattr(config, "compact_target_ratio", 0.45),
+                        max_compactions=getattr(config, "max_compactions", 3),
+                        max_compaction_tokens=getattr(config, "max_compaction_tokens", 2048),
                     )
                     if not stage_metrics_started:
                         metrics.start_stage(stage.stage_id, provider=getattr(provider, "_model", ""))
                         stage_metrics_started = True
+
+                    if run_console is not None:
+                        run_console.stage_transition(
+                            index=index,
+                            total=len(selected_stages),
+                            stage_id=stage.stage_id,
+                            stage_name=stage.skill,
+                            attempt=attempts,
+                            guarded=stage.reads_sample_content,
+                        )
+                    if missing_x64dbg:
+                        progress_path = write_checkpoint(
+                            report_dir,
+                            stage.stage_id,
+                            (
+                                "x64dbg MCP is reachable only partially or not yet fully initialized. "
+                                f"Required debugger wrappers are missing: {', '.join(missing_x64dbg)}. "
+                                "Resume this stage after the guest x64dbg MCP exposes the full debugger tool set."
+                            ),
+                            "required x64dbg debugger wrappers missing",
+                        )
+                        logger.warning(
+                            "[%d/%d] %s missing x64dbg debugger wrappers; checkpointed at %s and retrying.",
+                            index,
+                            len(selected_stages),
+                            stage.stage_id,
+                            progress_path,
+                        )
+                        continue
+                    logger.info(
+                        "[%d/%d] Running %s (stage_id=%s, attempt=%d, guarded=%s)",
+                        index,
+                        len(selected_stages),
+                        stage.skill,
+                        stage.stage_id,
+                        attempts,
+                        stage.reads_sample_content,
+                        extra={"run_console_skip": run_console is not None},
+                    )
 
                     stage_prompt = _build_stage_prompt(
                         sample_path,
@@ -345,16 +496,6 @@ async def run_pipeline_with_config(
                     resume_prompt = _resume_prompt_if_any(report_dir, stage.stage_id)
                     if resume_prompt:
                         stage_prompt = f"{stage_prompt}\n\n{resume_prompt}"
-
-                    logger.info(
-                        "[%d/%d] Running %s (stage_id=%s, attempt=%d, guarded=%s)",
-                        index,
-                        len(selected_stages),
-                        stage.skill,
-                        stage.stage_id,
-                        attempts,
-                        stage.reads_sample_content,
-                    )
 
                     try:
                         loop.run(
@@ -378,16 +519,6 @@ async def run_pipeline_with_config(
                     stage_output = _resolve_stage_output(report_dir, stage, entry)
                     status = entry.get("status") or pipeline_state.STATUS_PENDING
 
-                    if status == pipeline_state.STATUS_RUNNING:
-                        logger.info(
-                            "[%d/%d] %s checkpointed at %s; resuming.",
-                            index,
-                            len(selected_stages),
-                            stage.stage_id,
-                            entry.get("progress_path"),
-                        )
-                        continue
-
                     if status == pipeline_state.STATUS_COMPLETED:
                         validation_error = _artifact_validation_error(stage, stage_output, skill_doc)
                         if validation_error is None:
@@ -403,6 +534,27 @@ async def run_pipeline_with_config(
                         logger.error("[%d/%d] %s", index, len(selected_stages), failure_reason)
                         return metrics.finalize_run()
 
+                    if status == pipeline_state.STATUS_RUNNING:
+                        fallback_output = _fallback_complete_if_valid(report_dir, stage, skill_doc)
+                        if fallback_output is not None:
+                            logger.warning(
+                                "[%d/%d] launcher auto-completed %s from valid artifact at %s after a resumed attempt exited without updating STATE.json",
+                                index,
+                                len(selected_stages),
+                                stage.stage_id,
+                                fallback_output,
+                            )
+                            metrics.finalize_stage(stage.stage_id, status="completed")
+                            break
+                        logger.info(
+                            "[%d/%d] %s checkpointed at %s; resuming.",
+                            index,
+                            len(selected_stages),
+                            stage.stage_id,
+                            entry.get("progress_path"),
+                        )
+                        continue
+
                     fallback_output = _fallback_complete_if_valid(report_dir, stage, skill_doc)
                     if fallback_output is not None:
                         logger.warning(
@@ -414,6 +566,27 @@ async def run_pipeline_with_config(
                         )
                         metrics.finalize_stage(stage.stage_id, status="completed")
                         break
+
+                    if attempts < config.max_stage_attempts:
+                        progress_path = write_checkpoint(
+                            report_dir,
+                            stage.stage_id,
+                            _checkpoint_summary(
+                                loop,
+                                "The previous attempt ended normally but did not write a valid final "
+                                "artifact or update STATE.json. Resume from the recent conversation, "
+                                "finish the required artifact, validate it, and mark this stage completed.",
+                            ),
+                            "resume after agent ended without writing a valid artifact or updating STATE.json",
+                        )
+                        logger.warning(
+                            "[%d/%d] %s ended without artifact/state update; checkpointed at %s and retrying.",
+                            index,
+                            len(selected_stages),
+                            stage.stage_id,
+                            progress_path,
+                        )
+                        continue
 
                     pipeline_state.fail(
                         report_dir,
@@ -436,5 +609,7 @@ async def run_pipeline_with_config(
             except Exception:
                 logger.warning("Failed to close MCP client cleanly", exc_info=True)
         stop_idalib_mcp(idalib_proc)
+        if run_console is not None:
+            run_console.finish()
 
     return metrics.finalize_run()

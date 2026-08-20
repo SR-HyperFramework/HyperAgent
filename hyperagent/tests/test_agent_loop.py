@@ -132,6 +132,45 @@ def test_run_reports_tool_error_without_raising():
     assert "kaboom" in tool_result["content"]
 
 
+def test_run_blocks_tool_calls_not_allowed_for_stage():
+    executed = []
+    registry = ToolRegistry()
+    registry.register(
+        ToolDefinition(
+            name="fetch_vt_report",
+            description="should not run",
+            parameters={},
+            handler=lambda **kwargs: executed.append(kwargs) or ToolResult(content="fetched"),
+        )
+    )
+    provider = _ScriptedProvider([
+        CompletionResult(
+            content="",
+            tool_calls=[ToolCall(id="tc1", name="fetch_vt_report", arguments={"file_id": "a" * 64})],
+            stop_reason="tool_use",
+            input_tokens=1,
+            output_tokens=1,
+        ),
+        CompletionResult(content="recovered", tool_calls=[], stop_reason="end_turn", input_tokens=1, output_tokens=1),
+    ])
+    loop = AgentLoop(provider, registry)
+
+    result = loop.run(
+        skill_instructions="report",
+        initial_prompt="render report",
+        stage_tools=[],
+        stage_id="08-report",
+    )
+
+    assert result == "recovered"
+    assert executed == []
+    tool_result = provider.calls[1][-1].content[0]
+    assert tool_result["is_error"] is True
+    assert "unauthorized_tool_for_stage" in tool_result["content"]
+    assert "08-report" in tool_result["content"]
+    assert "fetch_vt_report" in tool_result["content"]
+
+
 def test_run_seeds_conversation_with_initial_messages():
     provider = _ScriptedProvider([
         CompletionResult(content="done", tool_calls=[], stop_reason="end_turn",
@@ -185,8 +224,83 @@ def test_run_raises_checkpoint_reached_when_threshold_exceeded():
     assert provider.calls == []
     assert loop.last_messages[0].content == "x" * 20
 
+def test_run_compacts_context_before_checkpointing():
+    provider = _ScriptedProvider([
+        CompletionResult(content="facts summarized", tool_calls=[], stop_reason="end_turn",
+                         input_tokens=30, output_tokens=10, model="compact-model"),
+        CompletionResult(content="all done", tool_calls=[], stop_reason="end_turn",
+                         input_tokens=12, output_tokens=4, model="answer-model"),
+    ], max_tokens=500)
+    seed = [Message(role="assistant", content="x" * 300)]
+    loop = AgentLoop(
+        provider,
+        ToolRegistry(),
+        checkpoint_threshold=0.5,
+        compact_target_ratio=0.9,
+    )
 
-def test_run_stops_at_max_turns_with_error_marker():
+    result = loop.run(
+        skill_instructions="test",
+        initial_prompt="continue",
+        stage_tools=[],
+        stage_id="02-static-pass1",
+        initial_messages=seed,
+    )
+
+    assert result == "all done"
+    assert len(provider.calls) == 2
+    second_call_text = provider.calls[1][0].content
+    assert isinstance(second_call_text, str)
+    assert "# Compacted conversation state for 02-static-pass1" in second_call_text
+    assert "facts summarized" in second_call_text
+    assert loop.total_input_tokens == 42
+    assert loop.total_output_tokens == 14
+
+
+def test_run_checkpoint_behavior_unchanged_when_compaction_disabled():
+    provider = _ScriptedProvider([], max_tokens=10)
+    loop = AgentLoop(
+        provider,
+        ToolRegistry(),
+        checkpoint_threshold=0.5,
+        compact_enabled=False,
+    )
+
+    with pytest.raises(CheckpointReached):
+        loop.run(
+            skill_instructions="test",
+            initial_prompt="x" * 20,
+            stage_tools=[],
+        )
+
+    assert provider.calls == []
+
+
+def test_run_raises_checkpoint_when_compaction_remains_too_large():
+    provider = _ScriptedProvider([
+        CompletionResult(content="y" * 80, tool_calls=[], stop_reason="end_turn",
+                         input_tokens=30, output_tokens=10),
+    ], max_tokens=100)
+    seed = [Message(role="assistant", content="x" * 80)]
+    loop = AgentLoop(
+        provider,
+        ToolRegistry(),
+        checkpoint_threshold=0.5,
+        compact_target_ratio=0.4,
+    )
+
+    with pytest.raises(CheckpointReached):
+        loop.run(
+            skill_instructions="test",
+            initial_prompt="continue",
+            stage_tools=[],
+            initial_messages=seed,
+        )
+
+    assert len(provider.calls) == 1
+
+
+
     results = [
         CompletionResult(
             content="",
@@ -270,3 +384,47 @@ def test_run_logs_context_window_usage_next_to_turn_counter(caplog):
         )
 
     assert "Agent turn 1/100 (context 4/200 tokens, 2.0%)" in caplog.text
+
+
+class _FakeRunConsole:
+    def __init__(self) -> None:
+        self.context_calls = []
+        self.tool_results = []
+
+    def set_context(self, **kwargs):
+        self.context_calls.append(kwargs)
+
+    def tool_result(self, content, *, is_error=False):
+        self.tool_results.append((content, is_error))
+
+
+def test_run_updates_minimal_console_context_and_tool_results():
+    provider = _ScriptedProvider([
+        CompletionResult(
+            content="",
+            tool_calls=[ToolCall(id="tc1", name="echo", arguments={"msg": "hi"})],
+            stop_reason="tool_use",
+            input_tokens=20,
+            output_tokens=8,
+        ),
+        CompletionResult(content="finished", tool_calls=[], stop_reason="end_turn",
+                          input_tokens=15, output_tokens=6),
+    ], max_tokens=200)
+    console = _FakeRunConsole()
+    loop = AgentLoop(
+        provider,
+        _registry_with_echo_tool(),
+        console_mode="minimal",
+        run_console=console,  # type: ignore[arg-type]
+    )
+
+    result = loop.run(
+        skill_instructions="test",
+        initial_prompt="abcd",
+        stage_tools=["echo"],
+    )
+
+    assert result == "finished"
+    assert console.context_calls[0] == {"turn": 1, "max_turns": 100, "tokens": 4, "cap": 200}
+    assert console.context_calls[1]["turn"] == 2
+    assert console.tool_results == [("echoed:hi", False)]

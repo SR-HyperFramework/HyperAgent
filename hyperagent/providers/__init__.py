@@ -1,7 +1,7 @@
 """LLM provider factory."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .anthropic_provider import DEFAULT_MODEL as DEFAULT_ANTHROPIC_MODEL
 from .anthropic_provider import AnthropicProvider
@@ -10,6 +10,7 @@ from .openai_provider import OpenAIProvider
 
 if TYPE_CHECKING:
     from ..config import ProviderConfig
+    from ..console import RunConsole
 
 __all__ = [
     "CompletionResult",
@@ -38,6 +39,7 @@ def create_provider(
     *,
     model: str = "",
     cache_enabled: bool = True,
+    run_console: RunConsole | None = None,
 ) -> LLMProvider:
     """Instantiate the LLM provider described by *config*.
 
@@ -50,6 +52,8 @@ def create_provider(
         provider default.
     cache_enabled:
         Whether provider-level prompt caching should be enabled where supported.
+    run_console:
+        Optional console renderer for minimal live output.
     """
     provider_cls = _PROVIDERS.get(config.name)
     if provider_cls is None:
@@ -59,7 +63,7 @@ def create_provider(
     if not config.api_key:
         raise ValueError(f"No API key configured for provider {config.name!r}")
 
-    kwargs: dict[str, object] = {
+    kwargs: dict[str, Any] = {
         "api_key": config.api_key,
         "model": model or config.model or _DEFAULT_MODELS[config.name],
         "max_output_tokens": config.max_output_tokens,
@@ -69,6 +73,7 @@ def create_provider(
         kwargs["extended_thinking"] = config.extended_thinking
         kwargs["thinking_budget_tokens"] = config.thinking_budget_tokens
         kwargs["console_mode"] = config.console_mode
+        kwargs["run_console"] = run_console
         if config.base_url:
             kwargs["base_url"] = config.base_url
     # Only backends that still accept sampling parameters get one. Anthropic

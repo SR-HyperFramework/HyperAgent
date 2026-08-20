@@ -1,0 +1,132 @@
+{
+  "schema_version": "1.0",
+  "stage": "summary",
+  "sample": {
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "file_name": "sample.exe",
+    "absolute_path": "C:/analysis/sample.exe",
+    "architecture": "x86",
+    "packing_or_protection": "No strong packing evidence was confirmed."
+  },
+  "status": "completed",
+  "executive_summary": {
+    "verdict": "inconclusive",
+    "confidence": 0.5,
+    "confidence_label": "medium",
+    "risk_level": "medium",
+    "one_sentence_summary": "The sample shows loader-like behavior, but the available evidence does not prove a full malicious payload chain.",
+    "plain_language_assessment": "The current analysis supports a suspicious loader-style workflow, but important payload behavior is still unresolved. Defenders should treat the sample as risky, while keeping family attribution and final impact claims caveated until stronger local evidence is available.",
+    "remaining_decision_point": "Validate the prepared transfer target."
+  },
+  "confirmed_findings": [
+    {
+      "id": "summary.loader.preparation",
+      "title": "Loader-style staging activity was supported",
+      "summary": "The reconciled analysis supports a staged loader workflow instead of a clean benign utility path.",
+      "source_refs": [
+        "07-deepdive.json:executive_assessment",
+        "07-deepdive.json:final_claim_policy.allowed_claims"
+      ]
+    }
+  ],
+  "findings_with_caveats": [
+    {
+      "id": "summary.payload.unresolved",
+      "title": "Payload behavior remains unresolved",
+      "summary": "The sample may contain a later-stage payload or transfer step that was not fully validated during the run.",
+      "caveat": "Do not claim final payload capability until the unresolved transfer target is validated locally.",
+      "source_refs": [
+        "07-deepdive.json:executive_assessment.remaining_decision_point",
+        "07-deepdive.json:final_claim_policy.caveated_claims"
+      ]
+    },
+    {
+      "id": "summary.family.caveated",
+      "title": "Family attribution is still caveated",
+      "summary": "Public-source naming suggests a possible family label, but that attribution was not confirmed locally.",
+      "caveat": "Treat the family name as follow-up context, not confirmed identity.",
+      "source_refs": [
+        "06-intel.json:claim_checks.cc.family-loader-label",
+        "07-deepdive.json:final_claim_policy.caveated_claims"
+      ]
+    }
+  ],
+  "not_supported_claims": [
+    {
+      "id": "summary.ransomware.unsupported",
+      "claim": "The sample is confirmed ransomware.",
+      "reason": "Deepdive explicitly prohibited this claim because the current evidence does not support ransomware behavior.",
+      "source_refs": [
+        "07-deepdive.json:final_claim_policy.prohibited_claims"
+      ]
+    }
+  ],
+  "classification": {
+    "malware_type": "loader",
+    "malware_family": "ExampleLoader",
+    "family_status": "caveated",
+    "overall_assessment": "The sample is best described as a suspicious loader-like artifact with unresolved downstream behavior."
+  },
+  "confirmed_iocs": {
+    "network": [
+      {
+        "value": "http://update.example.invalid/gate",
+        "label": "Outbound update URL",
+        "note": "Locally observed during dynamic execution and later corroborated publicly.",
+        "source_refs": [
+          "05-dynamic.json:iocs.network",
+          "06-intel.json:ioc_correlation.matched_local"
+        ]
+      }
+    ],
+    "host": [
+      {
+        "value": "Global\\UpdaterLock",
+        "label": "Mutex",
+        "note": "Locally observed, but not publicly corroborated.",
+        "source_refs": [
+          "05-dynamic.json:iocs.host",
+          "07-deepdive.json:finding_reviews"
+        ]
+      }
+    ],
+    "persistence": []
+  },
+  "recommended_actions": [
+    {
+      "id": "action.validate-transfer-target",
+      "priority": 1,
+      "target": "Prepared transfer target",
+      "action": "Validate the unresolved transfer target in a controlled follow-up analysis before making higher-confidence impact claims.",
+      "reason": "This is the highest-value remaining decision point in the reconciled analysis.",
+      "source_refs": [
+        "07-deepdive.json:executive_assessment.remaining_decision_point",
+        "07-deepdive.json:investigation_targets"
+      ]
+    },
+    {
+      "id": "action.monitor-update-url",
+      "priority": 2,
+      "target": "update.example.invalid",
+      "action": "Monitor or block the confirmed outbound update URL while the sample remains under investigation.",
+      "reason": "The URL was locally observed and is safe to surface as a defender-facing IOC.",
+      "source_refs": [
+        "05-dynamic.json:iocs.network",
+        "07-deepdive.json:final_claim_policy.allowed_claims"
+      ]
+    }
+  ],
+  "limitations": [
+    "The summary was simplified for non-expert readers and does not replace the authoritative Deepdive artifact.",
+    "Family attribution remains caveated because public naming did not become confirmed local evidence.",
+    "External-only indicators were intentionally excluded from confirmed IOC lists."
+  ],
+  "upstream_inputs": [
+    "01-prepare-env.json",
+    "02-static-pass1.json",
+    "05-dynamic.json",
+    "06-intel.json",
+    "07-deepdive.json",
+    "08-report.md"
+  ]
+}

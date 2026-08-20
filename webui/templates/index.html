@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import ratio, stamp %}
+{% from "_macros.html" import ratio, stamp, time_counter %}
 {% block title %}Reports &middot; HyperAgent{% endblock %}
 
 {% block content %}
@@ -54,7 +54,7 @@
 {% endif %}
 
 {% if not runs %}
-  <section class="blank">
+  <section class="blank empty-card">
     {% if total_runs %}
       <h2>No Report Matches</h2>
       <p>{{ total_runs }} {{ 'report exists' if total_runs == 1 else 'reports exist' }} in this corpus. Widen the filters or clear the search.</p>
@@ -66,61 +66,59 @@
     {% endif %}
   </section>
 {% else %}
-  <div class="board">
-    <div class="board-scroll">
-      <table class="grid">
-        <thead>
-          <tr>
-            <th class="k-mark"><span class="sr-only">Verdict</span></th>
-            <th class="k-sample">Sample</th>
-            <th class="k-ratio">Assessment</th>
-            <th class="k-risk">Risk</th>
-            <th class="k-tally">Findings</th>
-            <th class="k-stamp">Analysed</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for run in runs %}
-          <tr class="sev-{{ run.verdict }} {{ 'is-broken' if not run.ok }}">
-            <td class="k-mark"><span class="dot" aria-hidden="true"></span></td>
+  <section class="run-list" aria-label="Analysis reports">
+    {% for run in runs %}
+    <article class="run-card sev-{{ run.verdict }} {{ 'is-broken' if not run.ok }}">
+      <a class="run-card-link" href="{{ url_for('run_detail', sha256=run.sha256) }}">
+        <div class="run-card-top">
+          <div class="run-card-ident">
+            <p class="run-card-name">{{ run.file_name }}</p>
+            <code class="run-card-hash" translate="no">{{ run.sha256 }}</code>
+          </div>
+          {{ ratio(run) }}
+        </div>
 
-            <td class="k-sample">
-              <a class="target" href="{{ url_for('run_detail', sha256=run.sha256) }}">
-                {% if run.display_name %}
-                  <span class="target-name">{{ run.display_name }}</span>
-                  <code class="target-hash" translate="no">{{ run.sha256 }}</code>
-                {% else %}
-                  <code class="target-hash target-hash-solo" translate="no">{{ run.sha256 }}</code>
-                {% endif %}
-              </a>
-              <p class="target-line">{{ run.headline }}</p>
-              {% if run.ok %}
-              <div class="tags">
-                {% if run.sample.architecture %}<span class="tag" translate="no">{{ run.sample.architecture }}</span>{% endif %}
-                {% if run.classification.malware_type %}<span class="tag tag-wide">{{ run.classification.malware_type }}</span>{% endif %}
-                {% if run.status != 'completed' %}<span class="tag tag-flag">stage {{ run.status }}</span>{% endif %}
-              </div>
-              {% endif %}
-            </td>
+        <p class="run-card-headline">{{ run.headline }}</p>
 
-            <td class="k-ratio">{{ ratio(run) }}</td>
-            <td class="k-risk"><span class="risk risk-{{ run.risk_level }}">{{ run.risk_level }}</span></td>
+        {% if run.ok %}
+        <div class="tags run-tags">
+          {% if run.sample_architecture %}<span class="tag" translate="no">{{ run.sample_architecture }}</span>{% endif %}
+          {% if run.malware_type %}<span class="tag tag-wide">{{ run.malware_type }}</span>{% endif %}
+          {% if run.status != 'completed' %}<span class="tag tag-flag">stage {{ run.status }}</span>{% endif %}
+        </div>
+        {% else %}
+        <p class="run-card-note">{{ run.error }}</p>
+        {% endif %}
 
-            <td class="k-tally">
-              <dl class="tally">
-                <div><dd class="t-conf">{{ run.finding_counts.confirmed }}</dd><dt>confirmed</dt></div>
-                <div><dd class="t-cav">{{ run.finding_counts.caveated }}</dd><dt>caveated</dt></div>
-                <div><dd class="t-rej">{{ run.finding_counts.not_supported }}</dd><dt>rejected</dt></div>
-                <div><dd>{{ run.ioc_count }}</dd><dt>IOCs</dt></div>
-              </dl>
-            </td>
-
-            <td class="k-stamp">{{ stamp(run.modified_at) }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
+        <dl class="run-card-meta">
+          <div>
+            <dt>Risk</dt>
+            <dd><span class="risk risk-{{ run.risk_level }}">{{ run.risk_level }}</span></dd>
+          </div>
+          <div>
+            <dt>Confirmed</dt>
+            <dd>{{ run.finding_counts.confirmed }}</dd>
+          </div>
+          <div>
+            <dt>Caveated</dt>
+            <dd>{{ run.finding_counts.caveated }}</dd>
+          </div>
+          <div>
+            <dt>Rejected</dt>
+            <dd>{{ run.finding_counts.not_supported }}</dd>
+          </div>
+          <div>
+            <dt>IOCs</dt>
+            <dd>{{ run.ioc_count }}</dd>
+          </div>
+          <div>
+            <dt>Age</dt>
+            <dd>{{ time_counter(run.modified_at) }}</dd>
+          </div>
+        </dl>
+      </a>
+    </article>
+    {% endfor %}
+  </section>
 {% endif %}
 {% endblock %}

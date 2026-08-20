@@ -4,11 +4,15 @@ from __future__ import annotations
 import logging
 import sys
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import anthropic
 
 from .base import CompletionResult, LLMProvider, Message, ToolCall
+from ..console import preview_json_or_text
+
+if TYPE_CHECKING:
+    from ..console import RunConsole
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +58,7 @@ class AnthropicProvider(LLMProvider):
         extended_thinking: bool = False,
         thinking_budget_tokens: int = 4096,
         console_mode: str = "off",
+        run_console: RunConsole | None = None,
     ) -> None:
         client_kwargs: dict[str, Any] = {"api_key": api_key}
         if base_url:
@@ -67,6 +72,7 @@ class AnthropicProvider(LLMProvider):
         self._extended_thinking = extended_thinking
         self._thinking_budget_tokens = thinking_budget_tokens
         self._console_mode = console_mode
+        self._run_console = run_console
         self._token_cache: dict[str, int] = {}
         self._context_window: int | None = None
 
@@ -197,8 +203,18 @@ class AnthropicProvider(LLMProvider):
                     if self._console_mode == "full":
                         self._drain_stream_to_console(stream)
                     elif self._console_mode == "minimal":
-                        self._drain_stream_to_console_minimal(stream)
+                        self._drain_stream_to_console_minimal(stream, run_console=self._run_console)
                     return stream.get_final_message()
+            except AssertionError as exc:
+                last_error = exc
+                delay = self._retry_base_delay * (2 ** (attempt - 1))
+                logger.warning(
+                    "Anthropic stream ended without a final message (attempt %d/%d) — retrying in %.1fs",
+                    attempt,
+                    self._max_retries,
+                    delay,
+                )
+                time.sleep(delay)
             except (
                 anthropic.RateLimitError,
                 anthropic.InternalServerError,
@@ -267,7 +283,7 @@ class AnthropicProvider(LLMProvider):
         print(file=sys.stderr, flush=True)
 
     @staticmethod
-    def _drain_stream_to_console_minimal(stream: Any) -> None:
+    def _drain_stream_to_console_minimal(stream: Any, run_console: RunConsole | None = None) -> None:
         """Print concise, labeled stream output to stderr.
 
         Assistant prose streams live under a text label, thinking appears under
@@ -277,6 +293,7 @@ class AnthropicProvider(LLMProvider):
         open_type: str | None = None
         tool_name: str | None = None
         tool_json = ""
+        thinking_text = ""
         text_label_open = False
         for event in stream:
             if event.type == "content_block_start":
@@ -285,37 +302,63 @@ class AnthropicProvider(LLMProvider):
                 if open_type == "tool_use":
                     tool_name = block.name
                     tool_json = ""
+                    if run_console is not None:
+                        run_console.set_activity("tool")
                 elif open_type == "text":
-                    print(f"{_styled_output_label('text')} ", end="", file=sys.stderr, flush=True)
+                    if run_console is not None:
+                        run_console.assistant_label()
+                    else:
+                        print(f"{_styled_output_label('text')} ", end="", file=sys.stderr, flush=True)
                     text_label_open = True
                 elif open_type == "thinking":
-                    print(f"{_styled_output_label('thinking')} ", end="", file=sys.stderr, flush=True)
+                    thinking_text = ""
+                    if run_console is not None:
+                        run_console.set_activity("thinking")
+                    else:
+                        print(f"{_styled_output_label('thinking')} ", end="", file=sys.stderr, flush=True)
             elif event.type == "thinking" and open_type == "thinking":
-                print(event.thinking, end="", file=sys.stderr, flush=True)
+                if run_console is not None:
+                    thinking_text += event.thinking
+                else:
+                    print(event.thinking, end="", file=sys.stderr, flush=True)
             elif event.type == "text" and open_type == "text":
-                print(event.text, end="", file=sys.stderr, flush=True)
+                if run_console is not None:
+                    run_console.write_inline(event.text)
+                else:
+                    print(event.text, end="", file=sys.stderr, flush=True)
             elif event.type == "input_json" and open_type == "tool_use":
                 tool_json += event.partial_json
             elif event.type == "content_block_stop":
                 if open_type == "tool_use" and tool_name:
-                    args_preview = tool_json.strip()
-                    if len(args_preview) > 200:
-                        args_preview = args_preview[:200] + "..."
-                    print(
-                        f"\n{_styled_output_label('tool_use', f' {tool_name}({args_preview})')}",
-                        file=sys.stderr,
-                        flush=True,
-                    )
+                    if run_console is not None:
+                        run_console.tool_call(tool_name, tool_json)
+                    else:
+                        args_preview = preview_json_or_text(tool_json, max_chars=200)
+                        print(
+                            f"\n{_styled_output_label('tool_use', f' {tool_name}({args_preview})')}",
+                            file=sys.stderr,
+                            flush=True,
+                        )
                 elif open_type == "text":
-                    print(file=sys.stderr, flush=True)
+                    if run_console is not None:
+                        run_console.write_inline("\n")
+                    else:
+                        print(file=sys.stderr, flush=True)
                     text_label_open = False
                 elif open_type == "thinking":
-                    print(file=sys.stderr, flush=True)
+                    if run_console is not None:
+                        run_console.thinking(thinking_text)
+                    else:
+                        print(file=sys.stderr, flush=True)
                 open_type = None
                 tool_name = None
                 tool_json = ""
+                thinking_text = ""
         if text_label_open:
-            print(file=sys.stderr, flush=True)
+            if run_console is not None:
+                run_console.write_inline("\n")
+            else:
+                print(file=sys.stderr, flush=True)
 
     @staticmethod
     def _to_api_messages(messages: list[Message]) -> list[dict[str, Any]]:

@@ -5,11 +5,13 @@ Live API tests are skipped unless ``ANTHROPIC_API_KEY`` is set.
 from __future__ import annotations
 
 import os
+from io import StringIO
 from types import SimpleNamespace
 
 import pytest
 
 from hyperagent.config import ProviderConfig
+from hyperagent.console import RunConsole
 from hyperagent.providers import (
     DEFAULT_ANTHROPIC_MODEL,
     AnthropicProvider,
@@ -93,6 +95,12 @@ def test_create_provider_stage_model_override():
     assert create_provider(cfg, model="claude-y")._model == "claude-y"
 
 
+def test_create_provider_passes_run_console_to_anthropic():
+    console = RunConsole(stream=StringIO())
+    provider = create_provider(ProviderConfig(name="anthropic", api_key="sk-test"), run_console=console)
+    assert provider._run_console is console
+
+
 def test_create_provider_rejects_unknown_name():
     with pytest.raises(ValueError, match="Unknown provider"):
         create_provider(ProviderConfig(name="bedrock", api_key="k"))
@@ -154,6 +162,48 @@ def test_context_usage_ratio():
     provider = _CharProvider()
     messages = [Message(role="user", content="x" * 250)]
     assert provider.context_usage_ratio(messages) == pytest.approx(0.25)
+
+
+def test_stream_final_message_assertion_is_retried(monkeypatch):
+    provider = create_provider(
+        ProviderConfig(name="anthropic", api_key="sk-test")
+    )
+    provider._max_retries = 2
+    monkeypatch.setattr("hyperagent.providers.anthropic_provider.time.sleep", lambda _: None)
+
+    final = SimpleNamespace(
+        content=[SimpleNamespace(type="text", text="ok")],
+        usage=SimpleNamespace(input_tokens=1, output_tokens=1),
+        stop_reason="end_turn",
+        model="claude-test",
+    )
+
+    class _Stream:
+        calls = 0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def get_final_message(self):
+            _Stream.calls += 1
+            if _Stream.calls == 1:
+                raise AssertionError("missing final message snapshot")
+            return final
+
+    class _Messages:
+        @staticmethod
+        def stream(**kwargs):
+            return _Stream()
+
+    provider._client = type("_C", (), {"messages": _Messages()})()
+
+    result = provider.complete([Message(role="user", content="hi")])
+
+    assert result.content == "ok"
+    assert _Stream.calls == 2
 
 
 # -- live API ---------------------------------------------------------------
@@ -226,6 +276,30 @@ def test_minimal_console_output_uses_distinct_labels(capsys):
     assert "💬 assistant" in stderr
     assert "🛠 tool lookup({\"q\":\"abc\"})" in stderr
 
+
+def test_minimal_console_output_uses_run_console_and_collapses_tool_args():
+    stream = StringIO()
+    console = RunConsole(stream=stream, preview_chars=80)
+    events = [
+        SimpleNamespace(type="content_block_start", content_block=SimpleNamespace(type="thinking")),
+        SimpleNamespace(type="thinking", thinking="plan" * 40),
+        SimpleNamespace(type="content_block_stop"),
+        SimpleNamespace(type="content_block_start", content_block=SimpleNamespace(type="text")),
+        SimpleNamespace(type="text", text="answer"),
+        SimpleNamespace(type="content_block_stop"),
+        SimpleNamespace(type="content_block_start", content_block=SimpleNamespace(type="tool_use", name="lookup")),
+        SimpleNamespace(type="input_json", partial_json='{"q":"' + "A" * 120 + '"}'),
+        SimpleNamespace(type="content_block_stop"),
+    ]
+
+    AnthropicProvider._drain_stream_to_console_minimal(events, run_console=console)
+
+    output = stream.getvalue()
+    assert "\033[" not in output
+    assert "🧠 plan" in output
+    assert "💬 assistant answer" in output
+    assert "🛠 tool lookup(" in output
+    assert "collapsed" in output
 
 
 @live

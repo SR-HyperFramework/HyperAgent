@@ -2,9 +2,9 @@
 {% block title %}Not found &middot; HyperAgent Reports{% endblock %}
 
 {% block content %}
-<section class="empty">
+<section class="blank empty-card">
   <h1>Nothing here</h1>
   <p>{{ message }}</p>
-  <p><a class="button" href="{{ url_for('index') }}">Back to all runs</a></p>
+  <p><a class="btn" href="{{ url_for('index') }}">Back to all runs</a></p>
 </section>
 {% endblock %}

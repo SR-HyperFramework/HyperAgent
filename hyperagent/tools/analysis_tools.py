@@ -49,8 +49,8 @@ def _get_scripts_dir(scripts_dir: str | Path | None = None) -> Path:
     """Resolve the directory containing the `_hyperagent-common` helper scripts.
 
     Resolution order: explicit argument -> ``HYPERAGENT_SCRIPTS_DIR`` env ->
-    ``HYPERAGENT_SKILLS_ROOT`` env (or ``~/.claude/skills`` default) joined
-    with the ``_hyperagent-common/scripts`` layout used by the real skill.
+    ``HYPERAGENT_SKILLS_ROOT`` env (or repo ``skill/`` default) joined with the
+    ``_hyperagent-common/scripts`` layout used by the checked-in skills.
     """
     if scripts_dir:
         return Path(scripts_dir)
@@ -59,9 +59,8 @@ def _get_scripts_dir(scripts_dir: str | Path | None = None) -> Path:
     if env_scripts_dir:
         return Path(env_scripts_dir)
 
-    skills_root = os.environ.get("HYPERAGENT_SKILLS_ROOT") or str(
-        Path.home() / ".claude" / "skills"
-    )
+    repo_skills = Path(__file__).resolve().parents[2] / "skill"
+    skills_root = os.environ.get("HYPERAGENT_SKILLS_ROOT") or str(repo_skills)
     return Path(skills_root) / "_hyperagent-common" / "scripts"
 
 
@@ -205,6 +204,40 @@ def _make_validate_json_output(scripts_dir: Path, scope: PathScope):
     return validate_json_output
 
 
+def _make_build_report_context(scripts_dir: Path, scope: PathScope):
+    def build_report_context(report_dir: str = "", output_path: str = "", **_kw) -> ToolResult:
+        """Run build_report_context.py."""
+        if not report_dir:
+            return ToolResult(content="report_dir required", is_error=True)
+
+        script_path = scripts_dir / "build_report_context.py"
+        if not script_path.exists():
+            return ToolResult(content=f"Script not found: {script_path}", is_error=True)
+
+        try:
+            scoped_report_dir = scope.check_read(report_dir)
+            scoped_output = (
+                scope.check_write(output_path)
+                if output_path
+                else scope.check_write(str(scoped_report_dir / "08-report.context.md"))
+            )
+        except PathScopeError as exc:
+            return ToolResult(content=str(exc), is_error=True)
+
+        return _run_bounded(
+            [
+                sys.executable,
+                str(script_path),
+                str(scoped_report_dir),
+                "-o",
+                str(scoped_output),
+            ],
+            cwd=str(scoped_report_dir),
+        )
+
+    return build_report_context
+
+
 def create_analysis_tools(scripts_dir: str | Path | None = None, scope: PathScope | None = None) -> list[ToolDefinition]:
     """Return bounded analysis tool definitions.
 
@@ -279,6 +312,21 @@ def create_analysis_tools(scripts_dir: str | Path | None = None, scope: PathScop
                 ],
             },
             handler=_make_normalize_vt_report(resolved_scripts_dir, scope),
+            source="analysis",
+        ),
+        ToolDefinition(
+            name="build_report_context",
+            description="Validate upstream report inputs and build a compact 08-report context briefing. "
+                        "Writes Markdown to output_path and returns the same compact briefing inline.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "report_dir": {"type": "string", "description": "reports/<sha256> directory"},
+                    "output_path": {"type": "string", "description": "Where to write the compact Markdown briefing"},
+                },
+                "required": ["report_dir"],
+            },
+            handler=_make_build_report_context(resolved_scripts_dir, scope),
             source="analysis",
         ),
         ToolDefinition(

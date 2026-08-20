@@ -32,9 +32,14 @@ def create_x64dbg_tools(endpoint: MCPEndpoint) -> tuple[MCPClient, list[ToolDefi
     )
     try:
         tools = client.get_tool_definitions()
-    except ConnectionError as exc:
-        logger.warning("x64dbg MCP unreachable at %s: %s", endpoint.url, exc)
+    except (ConnectionError, RuntimeError, ValueError) as exc:
+        logger.warning("x64dbg MCP tool discovery failed at %s: %s", endpoint.url, exc)
         return client, []
+    logger.info(
+        "x64dbg MCP discovered %d tools: %s",
+        len(tools),
+        ", ".join(sorted(t.name for t in tools)) or "<none>",
+    )
     return client, [dataclasses.replace(t, source="x64dbg") for t in tools]
 
 

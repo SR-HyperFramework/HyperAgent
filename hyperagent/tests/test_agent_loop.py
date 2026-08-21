@@ -5,7 +5,7 @@ import logging
 
 import pytest
 
-from hyperagent.engine.agent_loop import AgentLoop
+from hyperagent.engine.agent_loop import AgentLoop, ModelRefusal
 from hyperagent.engine.checkpoint import CheckpointReached
 from hyperagent.providers.base import CompletionResult, LLMProvider, Message, ToolCall
 from hyperagent.telemetry.metrics import MetricsCollector
@@ -428,3 +428,93 @@ def test_run_updates_minimal_console_context_and_tool_results():
     assert console.context_calls[0] == {"turn": 1, "max_turns": 100, "tokens": 4, "cap": 200}
     assert console.context_calls[1]["turn"] == 2
     assert console.tool_results == [("echoed:hi", False)]
+
+
+# -- refusal handling --------------------------------------------------------
+
+
+def test_refusal_raises_instead_of_returning_empty_final_text():
+    """A refusal must not look like a clean finish.
+
+    Anthropic sends stop_reason="refusal" with no content and no tool calls,
+    which is shape-identical to a normal end_turn. Returned as-is it becomes an
+    empty final answer and the launcher reports a generic "no artifact" failure,
+    losing the reason.
+    """
+    provider = _ScriptedProvider([
+        CompletionResult(content="", tool_calls=[], stop_reason="refusal",
+                          input_tokens=12, output_tokens=0),
+    ])
+    loop = AgentLoop(provider, ToolRegistry())
+
+    with pytest.raises(ModelRefusal) as excinfo:
+        loop.run(
+            skill_instructions="test",
+            initial_prompt="analyse this",
+            stage_tools=[],
+            stage_id="02-static-pass1",
+        )
+
+    assert excinfo.value.stage_id == "02-static-pass1"
+    assert excinfo.value.turn == 1
+
+
+def test_refusal_is_recorded_distinctly_in_metrics(tmp_path):
+    """Refusal must be separable from other failures in the telemetry.
+
+    A corpus sweep needs to report a refusal rate; folded into the generic
+    failure count it silently biases recall, because refusals cluster on the
+    most overtly malicious samples rather than falling uniformly.
+    """
+    provider = _ScriptedProvider([
+        CompletionResult(content="", tool_calls=[], stop_reason="refusal"),
+    ])
+    collector = MetricsCollector(
+        run_id="run1", sample_sha256="a" * 64, output_path=tmp_path / "telemetry.jsonl",
+    )
+    collector.start_stage("05-dynamic")
+    loop = AgentLoop(provider, ToolRegistry(), metrics=collector)
+
+    with pytest.raises(ModelRefusal):
+        loop.run(
+            skill_instructions="test",
+            initial_prompt="go",
+            stage_tools=[],
+            stage_id="05-dynamic",
+        )
+
+    sm = collector.get_stage("05-dynamic")
+    assert sm is not None
+    assert sm.refused is True
+    assert collector.finalize_run().refused_stages == ["05-dynamic"]
+
+
+def test_refusal_does_not_retry_within_the_loop():
+    """One refusal, one API call: the same prompt refuses again at full cost."""
+    provider = _ScriptedProvider([
+        CompletionResult(content="", tool_calls=[], stop_reason="refusal"),
+        CompletionResult(content="second call", tool_calls=[], stop_reason="end_turn"),
+    ])
+    loop = AgentLoop(provider, ToolRegistry())
+
+    with pytest.raises(ModelRefusal):
+        loop.run(skill_instructions="t", initial_prompt="go", stage_tools=[])
+
+    assert len(provider.calls) == 1
+
+
+def test_max_tokens_stop_is_warned_about(caplog):
+    """A truncated turn must not pass silently as a deliberate final answer."""
+    provider = _ScriptedProvider([
+        CompletionResult(content="half a sen", tool_calls=[], stop_reason="max_tokens"),
+    ])
+    loop = AgentLoop(provider, ToolRegistry())
+
+    with caplog.at_level(logging.WARNING):
+        result = loop.run(
+            skill_instructions="t", initial_prompt="go", stage_tools=[],
+            stage_id="08-report",
+        )
+
+    assert result == "half a sen"
+    assert any("truncated" in r.getMessage() for r in caplog.records)

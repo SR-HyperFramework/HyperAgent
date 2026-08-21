@@ -118,7 +118,10 @@ def vm_tools(scope: PathScope):
 def fake_subprocess(monkeypatch):
     calls: list[list[str]] = []
 
-    def fake_run(cmd, capture_output, text, timeout, cwd=None, shell=False):
+    def fake_run(cmd, *args, **kwargs):
+        # Mirrors subprocess.run's tolerance for keyword arguments: pinning the
+        # exact signature makes this double fail on any added kwarg, which
+        # reads as a bug in the caller rather than a stale stub.
         calls.append(cmd)
         return _Completed(stdout="ok")
 

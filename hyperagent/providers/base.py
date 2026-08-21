@@ -62,15 +62,18 @@ class CompletionResult:
     cache_creation_input_tokens: int = 0
     """Tokens written to Anthropic's prompt cache this turn (billed at 1.25× rate).
 
-    Non-zero only on the first turn of a stage (or after cache expiry).  Always
-    zero for providers that do not support prompt caching.
+    Non-zero on most turns, not just the first: the cache breakpoint moves to
+    the end of the message history each turn, so each turn writes the growth
+    since the previous one. Always zero for providers that do not support
+    prompt caching.
     """
 
     cache_read_input_tokens: int = 0
     """Tokens read from Anthropic's prompt cache this turn (billed at 0.10× rate).
 
-    Non-zero on turns 2…N of a stage when the system prompt is stable and cached.
-    Always zero for providers that do not support prompt caching.
+    Non-zero on turns 2…N of a stage, covering the system prompt plus every
+    earlier turn of the conversation. Always zero for providers that do not
+    support prompt caching.
     """
 
     model: str = ""

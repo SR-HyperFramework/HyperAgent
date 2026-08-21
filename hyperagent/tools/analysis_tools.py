@@ -24,6 +24,14 @@ def _run_bounded(
             cmd_parts,
             capture_output=True,
             text=True,
+            # Without an explicit encoding, text mode decodes with the system
+            # locale — cp1252 on a Windows host — while the helper scripts all
+            # write UTF-8. Every non-ASCII byte then reaches the model as
+            # mojibake, and the strings this pipeline reads out of samples are
+            # exactly where non-ASCII shows up. errors="replace" keeps a
+            # malformed byte from killing an otherwise good tool result.
+            encoding="utf-8",
+            errors="replace",
             timeout=timeout,
             cwd=cwd,
             shell=False,

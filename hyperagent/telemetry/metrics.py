@@ -127,8 +127,19 @@ class StageMetrics:
     checkpoint_triggered: bool = False
     """Whether this stage raised a ``CheckpointReached`` exception."""
 
+    refused: bool = False
+    """Whether the model declined to answer (``stop_reason == "refusal"``).
+
+    Tracked separately from ``tool_errors`` and from a plain failed stage
+    because a refusal is *missing data with a cause*, not a crash: the sample
+    tripped a safety classifier. Left folded into the generic failure count, a
+    corpus run would silently drop exactly the most overtly malicious samples
+    and report an inflated recall over whatever survived.
+    """
+
     stage_status: str = "running"
-    """Final status: ``"completed"``, ``"checkpointed"``, ``"failed"``."""
+    """Final status: ``"completed"``, ``"checkpointed"``, ``"failed"``,
+    ``"refused"``."""
 
     # -- detection quality (populated post-evaluation) ------------------------
 
@@ -237,6 +248,7 @@ class StageMetrics:
             "tool_calls":                    self.tool_calls,
             "tool_errors":                   self.tool_errors,
             "checkpoint_triggered":          self.checkpoint_triggered,
+            "refused":                       self.refused,
             "wall_time_seconds":             round(self.wall_time_seconds, 3),
             "stage_status":                  self.stage_status,
             "evaluation": {
@@ -317,6 +329,16 @@ class RunMetrics:
         return 2 * p * r / (p + r) if (p + r) > 0 else 0.0
 
     @property
+    def refused_stages(self) -> list[str]:
+        """Stage ids where the model declined to answer.
+
+        Surfaced at run level so a corpus sweep can separate "the pipeline
+        judged this benign" from "the pipeline was never allowed to judge it".
+        Conflating the two biases every aggregate downstream.
+        """
+        return [s.stage_id for s in self.stages if s.refused]
+
+    @property
     def overall_cache_savings_percent(self) -> float:
         no_cache = sum(s.effective_cost_no_cache_usd for s in self.stages)
         cached = sum(s.effective_cost_usd for s in self.stages)
@@ -340,6 +362,7 @@ class RunMetrics:
             "aggregate_recall":          round(self.aggregate_recall, 4),
             "aggregate_f1":              round(self.aggregate_f1, 4),
             "stage_count":               len(self.stages),
+            "refused_stages":            self.refused_stages,
         }
 
 
@@ -449,6 +472,12 @@ class MetricsCollector:
         if sm is not None:
             sm.checkpoint_triggered = True
 
+    def record_refusal(self, stage_id: str) -> None:
+        """Mark that the model declined to answer for this stage."""
+        sm = self._stages.get(stage_id)
+        if sm is not None:
+            sm.refused = True
+
     # -- Stage finalization ---------------------------------------------------
 
     def finalize_stage(
@@ -467,7 +496,9 @@ class MetricsCollector:
         stage_id:
             The stage being finalized (e.g. ``"05-dynamic"``).
         status:
-            ``"completed"``, ``"checkpointed"``, or ``"failed"``.
+            ``"completed"``, ``"checkpointed"``, ``"failed"``, or ``"refused"``.
+            ``"refused"`` is kept apart from ``"failed"`` because it is the one
+            failure mode that correlates with the sample's label.
         true_positives, false_positives, false_negatives:
             Detection quality counters, populated when a ground-truth record
             is available for this sample.  Pass 0 for real-time operation

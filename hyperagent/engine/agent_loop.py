@@ -19,6 +19,32 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class ModelRefusal(Exception):
+    """The model declined to answer for safety reasons.
+
+    Anthropic returns ``stop_reason: "refusal"`` with no content and no tool
+    calls. Without this exception the loop reads that as a clean finish and
+    hands the launcher an empty final answer, which then fails as a generic
+    "stage produced no artifact" — indistinguishable from a tool crash or a
+    context overflow.
+
+    That distinction matters more here than in most applications. Refusals are
+    not uniformly distributed over a malware corpus: they cluster on the
+    samples whose content most strongly trips a safety classifier, which are
+    disproportionately the overtly malicious ones. Scoring a corpus that
+    silently lost those samples reports a recall measured on the easy
+    remainder.
+    """
+
+    def __init__(self, stage_id: str, turn: int) -> None:
+        self.stage_id = stage_id
+        self.turn = turn
+        super().__init__(
+            f"model refused to answer during {stage_id} at turn {turn}; "
+            "no artifact was produced"
+        )
+
+
 class AgentLoop:
     """Orchestrates the tool-calling loop for a single LLM stage."""
 
@@ -221,6 +247,30 @@ class AgentLoop:
                     provider=result.model,
                 )
             # -----------------------------------------------------------------
+
+            # 2b. A refusal ends the stage immediately. Retrying is pointless —
+            # the same prompt over the same sample refuses again — so raise
+            # rather than let the launcher burn its retry budget on it.
+            if result.stop_reason == "refusal":
+                logger.error(
+                    "Model refused to answer during %s at turn %d; aborting stage",
+                    stage_id,
+                    turn,
+                )
+                if self._metrics is not None:
+                    self._metrics.record_refusal(stage_id)
+                self.last_messages = list(messages)
+                raise ModelRefusal(stage_id, turn)
+
+            if result.stop_reason == "max_tokens":
+                # The model was cut off mid-answer. Whatever it did say is a
+                # fragment, so flag it rather than let a truncated turn read as
+                # a deliberate one.
+                logger.warning(
+                    "Turn %d of %s hit max_tokens; output is truncated",
+                    turn,
+                    stage_id,
+                )
 
             # Anthropic returns content alongside tool_calls if it wants to speak
             content_blocks: list[dict[str, Any]] = list(result.thinking_blocks)

@@ -8,6 +8,8 @@ from types import SimpleNamespace
 import pytest
 
 from hyperagent import pipeline_state
+from hyperagent.engine import launcher
+from hyperagent.skills import SkillDoc
 from hyperagent.engine.launcher import (
     STAGES,
     _artifact_validation_error,
@@ -893,3 +895,68 @@ def test_launcher_reverts_vm_after_dynamic_stage_fails(monkeypatch, sample_file:
     assert len(result.stages) == 1
     assert result.stages[0].stage_status == "failed"
     assert revert_calls == [config.vmware]
+
+
+# -- ablation: telling downstream stages what was withheld --------------------
+
+
+class _Ablation:
+    def __init__(self, name, skip_stages):
+        self.name = name
+        self.skip_stages = skip_stages
+
+
+def _stage(stage_id):
+    return next(s for s in launcher.STAGES if s.stage_id == stage_id)
+
+
+def test_ablated_note_names_only_upstream_skips():
+    """A2 disables 05-dynamic, so 07-deepdive must be told and 03-unpack must not."""
+    cfg = _Ablation("A2_no_dynamic", ["05-dynamic"])
+
+    downstream = "\n".join(launcher._ablated_upstream_note(_stage("07-deepdive"), cfg))
+    upstream = launcher._ablated_upstream_note(_stage("03-unpack"), cfg)
+
+    assert "05-dynamic" in downstream
+    assert "A2_no_dynamic" in downstream
+    assert upstream == []
+
+
+def test_ablated_note_is_empty_without_skips():
+    """A4/A5/A6 change no stage set, so nothing is announced."""
+    cfg = _Ablation("A4_no_cache", [])
+    assert launcher._ablated_upstream_note(_stage("07-deepdive"), cfg) == []
+
+
+def test_ablated_note_frames_absence_as_run_profile_not_error():
+    """The wording decides whether the ablation measures information or plumbing.
+
+    Deepdive's claim policy correctly refuses to assert behaviour it has no
+    evidence for. If a withheld artifact reads as a blocker, every A1/A2 run
+    collapses to an inconclusive verdict, which scores as benign — a recall drop
+    that reflects the policy rather than the contribution of the missing stage.
+    """
+    note = "\n".join(
+        launcher._ablated_upstream_note(
+            _stage("07-deepdive"), _Ablation("A1_no_static", ["02-static-pass1", "04-static-pass2"])
+        )
+    ).lower()
+
+    assert "not as an error" in note and "not as a blocker" in note
+    assert "do not invent replacement findings" in note
+    assert "limitations" in note
+
+
+def test_build_stage_prompt_carries_the_ablation_note(tmp_path):
+    prompt = launcher._build_stage_prompt(
+        tmp_path / "sample.exe",
+        tmp_path / "reports" / ("a" * 64),
+        _stage("07-deepdive"),
+        tmp_path / "STATE.json",
+        SkillDoc(name="hyperagent-deepdive", description="d", instructions="x"),
+        tmp_path / "skills",
+        _Ablation("A2_no_dynamic", ["05-dynamic"]),
+    )
+
+    assert "05-dynamic" in prompt
+    assert "Run profile: A2_no_dynamic" in prompt

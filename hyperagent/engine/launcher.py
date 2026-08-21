@@ -32,7 +32,7 @@ from ..tools.registry import (
     missing_x64dbg_required_tools,
     refresh_x64dbg_tools,
 )
-from .agent_loop import AgentLoop
+from .agent_loop import AgentLoop, ModelRefusal
 from .checkpoint import CheckpointReached, write_checkpoint
 from .mcp_servers import ensure_idalib_mcp, stop_idalib_mcp
 
@@ -135,6 +135,55 @@ def _fallback_complete_if_valid(report_dir: Path, stage: Stage, skill_doc: Skill
     return output_path
 
 
+def _ablated_upstream_note(stage: Stage, ablation_config: Any) -> list[str]:
+    """Tell a stage which upstream artifacts were withheld on purpose.
+
+    Without this the ablation measures the wrong thing. Skipping a stage
+    deletes its artifact, and the downstream skills list several of those as
+    required inputs with no "when present" qualifier — so the agent meets a
+    missing file it was told to expect. Deepdive's claim policy then does
+    exactly what it should and refuses to assert behaviour it has no evidence
+    for, the verdict falls to ``inconclusive``, and ``verdict_is_malicious``
+    reads that as benign.
+
+    The A1/A2 columns would then show a large recall drop that says nothing
+    about how much static or dynamic analysis contributes. It only restates
+    that the claim policy blocks conclusions without evidence, which is true by
+    construction. An ablation has to degrade the pipeline's *information*, not
+    break its plumbing, so the run profile is announced and the stage is asked
+    to reason from a smaller evidence set and record the limitation.
+    """
+    skipped = list(getattr(ablation_config, "skip_stages", []) or [])
+    if not skipped:
+        return []
+
+    order = {s.stage_id: i for i, s in enumerate(STAGES)}
+    upstream = [
+        stage_id
+        for stage_id in skipped
+        if order.get(stage_id, len(STAGES)) < order.get(stage.stage_id, 0)
+    ]
+    if not upstream:
+        return []
+
+    name = getattr(ablation_config, "name", "ablation")
+    lines = [
+        f"Run profile: {name}. The following upstream stages were disabled for "
+        "this run, so their artifacts do not exist:",
+    ]
+    lines.extend(f"- {stage_id}" for stage_id in upstream)
+    lines.extend([
+        "Treat those inputs as not collected in this run profile, not as an "
+        "error and not as a blocker.",
+        "Proceed with the evidence that is present, state the missing coverage "
+        "in the limitations of your artifact, and scope your claims to what the "
+        "remaining evidence supports.",
+        "Do not invent replacement findings, and do not stop to look for the "
+        "missing files.",
+    ])
+    return lines
+
+
 def _build_stage_prompt(
     sample_path: Path,
     report_dir: Path,
@@ -142,6 +191,7 @@ def _build_stage_prompt(
     state_path: Path,
     skill_doc: SkillDoc,
     skills_root: Path,
+    ablation_config: Any = None,
 ) -> str:
     lines = [
         f"Analyze sample: {sample_path}",
@@ -161,6 +211,8 @@ def _build_stage_prompt(
         "- Do not write STATE.json directly; write and validate the default stage artifact, then the launcher records completion.",
         "- If a filesystem path is denied by scope policy, treat it as out of bounds instead of searching other roots.",
     ])
+    if ablation_config is not None:
+        lines.extend(_ablated_upstream_note(stage, ablation_config))
     lines.append("Honor the stage output/state contract for this stage.")
     return "\n".join(lines)
 
@@ -492,6 +544,7 @@ async def run_pipeline_with_config(
                         state_path,
                         skill_doc,
                         config.skills_root,
+                        ablation_config,
                     )
                     resume_prompt = _resume_prompt_if_any(report_dir, stage.stage_id)
                     if resume_prompt:
@@ -513,6 +566,17 @@ async def run_pipeline_with_config(
                             _checkpoint_summary(loop),
                             "context threshold",
                         )
+                    except ModelRefusal as exc:
+                        # Deterministic for a given sample+prompt, so the retry
+                        # loop would only refuse again at full token cost. Fail
+                        # the run here, and record the cause distinctly so a
+                        # corpus sweep can report a refusal rate instead of
+                        # burying these in the generic failure count.
+                        pipeline_state.fail(report_dir, stage.stage_id, str(exc))
+                        metrics.finalize_stage(stage.stage_id, status="refused")
+                        failure_reason = f"{stage.stage_id} refused: {exc}"
+                        logger.error("[%d/%d] %s", index, len(selected_stages), failure_reason)
+                        return metrics.finalize_run()
 
                     state = pipeline_state.load_state(report_dir)
                     entry = state["stages"][stage.stage_id]

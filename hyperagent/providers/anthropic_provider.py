@@ -88,6 +88,8 @@ class AnthropicProvider(LLMProvider):
         temperature: float | None = None,
     ) -> CompletionResult:
         api_messages = self._to_api_messages(messages)
+        if self._cache_enabled:
+            api_messages = self._with_history_cache_breakpoint(api_messages)
 
         # Accepted for interface compatibility, never forwarded: a non-default
         # temperature is a 400 on Claude Opus 4.7 and later. Steer with the
@@ -122,7 +124,10 @@ class AnthropicProvider(LLMProvider):
                 "text": system_prompt,
             }
             if self._cache_enabled:
-                # Use prompt caching: system prompt is stable within a stage run.
+                # First of two breakpoints: the system prompt is constant for
+                # the whole stage. The second sits at the end of the message
+                # history (see _with_history_cache_breakpoint), which is where
+                # the tokens actually accumulate.
                 system_block["cache_control"] = {"type": "ephemeral"}
             kwargs["system"] = [system_block]
 
@@ -367,6 +372,55 @@ class AnthropicProvider(LLMProvider):
         for msg in messages:
             result.append({"role": msg.role, "content": msg.content})
         return result
+
+    @staticmethod
+    def _with_history_cache_breakpoint(
+        api_messages: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """Mark the end of the conversation as a prompt-cache breakpoint.
+
+        Caching a stage's system prompt alone leaves most of the bill on the
+        table. The system block is a few thousand tokens and constant; the
+        message history is the part that grows, because every artifact the
+        stage reads lands in a tool result and is then resent on every
+        subsequent turn. A stage that reads six upstream artifacts carries tens
+        of thousands of tokens for the rest of its run.
+
+        Anthropic matches caches by prefix, so a breakpoint at the current end
+        of the history makes turn N+1 read everything through turn N from cache
+        at 0.1x and pay full rate only on the delta. The breakpoint moves
+        forward each turn; earlier positions stay hittable, so moving it does
+        not invalidate what was already written.
+
+        Returns a copy: the blocks handed in belong to the caller's live
+        conversation state, and a ``cache_control`` key left behind on them
+        would be resent as history on every later turn.
+        """
+        if not api_messages:
+            return api_messages
+
+        last = api_messages[-1]
+        content = last.get("content")
+
+        if isinstance(content, str):
+            if not content:
+                return api_messages
+            blocks: list[Any] = [{"type": "text", "text": content}]
+        elif isinstance(content, list) and content:
+            blocks = list(content)
+        else:
+            return api_messages
+
+        tail = blocks[-1]
+        if not isinstance(tail, dict):
+            return api_messages
+        # Thinking blocks round-trip with a signature that covers their exact
+        # wire shape, so leave them untouched and cache from the block before.
+        if tail.get("type") in ("thinking", "redacted_thinking"):
+            return api_messages
+
+        blocks[-1] = {**tail, "cache_control": {"type": "ephemeral"}}
+        return [*api_messages[:-1], {**last, "content": blocks}]
 
     @staticmethod
     def _parse_response(response: anthropic.types.Message) -> CompletionResult:

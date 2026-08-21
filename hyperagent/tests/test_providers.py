@@ -315,3 +315,114 @@ def test_single_turn_completion():
     assert "PONG" in result.content
     assert result.stop_reason == "end_turn"
     assert result.input_tokens > 0 and result.output_tokens > 0
+
+
+# -- prompt-cache breakpoints ------------------------------------------------
+
+
+def _capture_request(provider, messages, **kwargs) -> dict:
+    """Run complete() far enough to capture the outgoing request kwargs."""
+    captured: dict = {}
+
+    class _StopCall(Exception):
+        pass
+
+    class _Messages:
+        @staticmethod
+        def stream(**kw):
+            captured.update(kw)
+            raise _StopCall
+
+    provider._client = type("_C", (), {"messages": _Messages()})()
+    with pytest.raises(_StopCall):
+        provider.complete(messages, **kwargs)
+    return captured
+
+
+def test_cache_breakpoint_is_placed_on_the_end_of_history():
+    """The growing part of the prompt is the history, so cache it too.
+
+    Caching only the system block leaves the tokens that actually accumulate —
+    every upstream artifact the stage read, resent on every later turn — billed
+    at full rate for the whole stage.
+    """
+    provider = create_provider(ProviderConfig(name="anthropic", api_key="sk-test"))
+    messages = [
+        Message(role="user", content="start"),
+        Message(role="assistant", content=[{"type": "text", "text": "thinking about it"}]),
+        Message(role="user", content=[
+            {"type": "tool_result", "tool_use_id": "t1", "content": "a" * 100},
+            {"type": "tool_result", "tool_use_id": "t2", "content": "b" * 100},
+        ]),
+    ]
+
+    captured = _capture_request(provider, messages, system_prompt="rules")
+
+    assert captured["system"][0]["cache_control"] == {"type": "ephemeral"}
+    sent = captured["messages"]
+    assert sent[-1]["content"][-1]["cache_control"] == {"type": "ephemeral"}
+    # Exactly one breakpoint in the history: Anthropic allows at most four, and
+    # earlier positions stay hittable without being marked again.
+    marked = [
+        block
+        for msg in sent
+        if isinstance(msg["content"], list)
+        for block in msg["content"]
+        if isinstance(block, dict) and "cache_control" in block
+    ]
+    assert len(marked) == 1
+
+
+def test_cache_breakpoint_does_not_mutate_caller_messages():
+    """The blocks belong to the agent loop's live history.
+
+    A cache_control key left on them would be replayed as part of the
+    conversation on every later turn, planting stale breakpoints throughout.
+    """
+    provider = create_provider(ProviderConfig(name="anthropic", api_key="sk-test"))
+    block = {"type": "tool_result", "tool_use_id": "t1", "content": "payload"}
+    messages = [Message(role="user", content=[block])]
+
+    _capture_request(provider, messages)
+
+    assert "cache_control" not in block
+    assert messages[0].content == [block]
+
+
+def test_cache_breakpoint_skipped_when_caching_disabled():
+    """A4_no_cache has to actually remove caching, or the ablation measures nothing."""
+    provider = create_provider(
+        ProviderConfig(name="anthropic", api_key="sk-test"), cache_enabled=False
+    )
+    messages = [Message(role="user", content=[{"type": "text", "text": "hello"}])]
+
+    captured = _capture_request(provider, messages, system_prompt="rules")
+
+    assert "cache_control" not in captured["system"][0]
+    assert "cache_control" not in captured["messages"][-1]["content"][-1]
+
+
+def test_cache_breakpoint_never_lands_on_a_thinking_block():
+    """Thinking blocks round-trip under a signature covering their wire shape."""
+    provider = create_provider(ProviderConfig(name="anthropic", api_key="sk-test"))
+    messages = [
+        Message(role="assistant", content=[
+            {"type": "thinking", "thinking": "...", "signature": "sig"},
+        ]),
+    ]
+
+    captured = _capture_request(provider, messages)
+
+    assert "cache_control" not in captured["messages"][-1]["content"][-1]
+
+
+def test_string_content_is_promoted_to_a_cacheable_block():
+    """The first turn of every stage is a plain string prompt."""
+    provider = create_provider(ProviderConfig(name="anthropic", api_key="sk-test"))
+
+    captured = _capture_request(provider, [Message(role="user", content="analyse this")])
+
+    block = captured["messages"][-1]["content"][-1]
+    assert block["type"] == "text"
+    assert block["text"] == "analyse this"
+    assert block["cache_control"] == {"type": "ephemeral"}

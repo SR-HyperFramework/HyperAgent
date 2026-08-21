@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import json
 import sys
 from typing import TYPE_CHECKING, Any
 
@@ -36,6 +37,7 @@ class AgentLoop:
         compact_target_ratio: float = 0.45,
         max_compactions: int = 3,
         max_compaction_tokens: int = 2048,
+        message_repeat_limit: int = 3,
     ) -> None:
         self.provider = provider
         self.registry = registry
@@ -49,6 +51,7 @@ class AgentLoop:
         self._compact_target_ratio = compact_target_ratio
         self._max_compactions = max_compactions
         self._max_compaction_tokens = max_compaction_tokens
+        self._message_repeat_limit = max(2, message_repeat_limit)
         self._metrics = metrics
         self.turns_used = 0
         """Turns consumed by the most recent ``run()`` call."""
@@ -234,6 +237,28 @@ class AgentLoop:
 
             messages.append(Message(role="assistant", content=content_blocks))
 
+            # Break model hallucination loops before executing the same response forever.
+            if self._message_repeat_count(messages) >= self._message_repeat_limit:
+                logger.warning(
+                    "Repeated assistant message detected for %s; refreshing the turn.",
+                    stage_id,
+                )
+                print(
+                    f"[message-guard] repeated assistant message detected for {stage_id}; refreshing turn",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                messages.append(Message(
+                    role="user",
+                    content=(
+                        "[SYSTEM REFRESH] Your previous response repeated an earlier response. "
+                        "Do not restate the plan. Continue with exactly one new tool call or "
+                        "return a concise final result."
+                    ),
+                ))
+                self.last_messages = list(messages)
+                continue
+
             # 3. Check stopping condition
             if result.stop_reason != "tool_use" and not result.tool_calls:
                 logger.info("Agent finished (stop_reason=%s)", result.stop_reason)
@@ -253,9 +278,23 @@ class AgentLoop:
 
     # -- Internal Helpers -----------------------------------------------------
 
+    def _message_repeat_count(self, messages: list[Message]) -> int:
+        """Return the count of the newest assistant message fingerprint."""
+        assistants = [m for m in messages if m.role == "assistant"]
+        if not assistants:
+            return 0
+        newest = self._message_fingerprint(assistants[-1])
+        return sum(self._message_fingerprint(message) == newest for message in assistants)
+
+    @staticmethod
+    def _message_fingerprint(message: Message) -> str:
+        content = message.content
+        if isinstance(content, str):
+            return content.strip()
+        return json.dumps(content, sort_keys=True, separators=(",", ":"), default=str)
+
     def _should_compact(self, messages: list[Message], compactions_used: int) -> bool:
         """Return whether an over-threshold history should be compacted."""
-
         if not self._compact_enabled:
             return False
         if compactions_used >= self._max_compactions:

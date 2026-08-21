@@ -885,8 +885,13 @@ class TestMCPDegradation:
                 t.name for t in registry.get_all_tools()
                 if t.source in ("x64dbg", "ida")
             }
-            assert mcp_named == {"x64dbg_health_check", "ida_health_check"}
-            assert len(clients) == 2
+            assert mcp_named == {
+                "x64dbg_health_check",
+                "ida_health_check",
+                "idalib_open",
+                "idalib_health",
+            }
+            assert len(clients) == 3
         finally:
             for c in clients:
                 c.close()

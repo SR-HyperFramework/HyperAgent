@@ -77,11 +77,19 @@ If the environment is already prepared, continue without extra setup.
 
 ## Static Analysis Readiness
 
-- confirm the native IDA MCP surface is available by calling `ida_health_check`
-- do not probe plugin paths or invent wrapper scripts for IDA availability checks
+Before checking IDA health, initialize the local IDA library session for the current sample:
+
+1. Call `idalib_open` with the absolute sample path and `run_auto_analysis=true`.
+2. Wait for the open/analysis call to return its session or database binding.
+3. Only then call `idalib_health({})` against that initialized session.
+4. If the IDA library session is already open for the same sample, reuse it rather than opening a duplicate session.
+
+Do not call `idalib_health({})` before `idalib_open`; a health probe without an opened database can report a false unavailable state. Do not probe plugin paths or invent wrapper scripts for IDA availability checks.
+
+- confirm the native IDA MCP surface is available by calling `idalib_open` followed by `idalib_health({})`
 - confirm the sample path is accessible for the static workflow
-- if `ida_health_check` fails but the sample path is readable and launcher-side local `idalib` fallback is available, record `static_environment.status = "partial"` with a recoverable `ida_mcp` blocker instead of treating the whole static workflow as failed
-- if neither IDA MCP nor any local static fallback is available, record `static_environment.status = "blocked"` with `[STATIC-ENV-ERR] <where it is stuck>` in the blocker description
+- if `idalib_health({})` fails after a successful `idalib_open`, record `static_environment.status = "partial"` with a recoverable `ida_mcp` blocker instead of treating the whole static workflow as failed
+- if `idalib_open` fails, or neither the IDA MCP nor any local static fallback is available, record `static_environment.status = "blocked"` with `[STATIC-ENV-ERR] <where it is stuck>` in the blocker description
 
 Use `[STATIC-ENV-ERR]` only as a short human blocker tag inside `blockers[].description`; it is not a JSON enum. Keep the message short and name the exact dependency or path that is inaccessible.
 

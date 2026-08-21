@@ -10,7 +10,7 @@ from ..config import HyperAgentConfig, MCPEndpoint
 from .analysis_tools import create_analysis_tools
 from .base import ToolDefinition, ToolResult
 from .filesystem_tools import create_filesystem_tools
-from .ida_tools import create_ida_tools, ida_health_check_tool
+from .ida_tools import create_ida_tools, ida_health_check_tool, ida_lifecycle_tools
 from .mcp_client import MCPClient
 from .path_scope import PathScope
 from .vmware_tools import create_vmware_tools
@@ -49,6 +49,8 @@ STAGE_TOOLS: dict[str, list[str]] = {
         "vm_*",
         *_FILESYSTEM_TOOLS,
         "x64dbg_health_check",
+        "idalib_open",
+        "idalib_health",
         "ida_health_check",
         "validate_json_output",
     ],
@@ -289,10 +291,12 @@ def build_full_registry(
 
     registry.register(x64dbg_health_check_tool(config.x64dbg_mcp))
     registry.register(ida_health_check_tool(config.ida_mcp))
+    ida_lifecycle_client, ida_lifecycle = ida_lifecycle_tools(config.ida_mcp, scope=scope)
+    registry.register_many(ida_lifecycle)
 
     x64dbg_client, x64dbg_tools = create_x64dbg_tools(config.x64dbg_mcp)
     ida_client, ida_tools = create_ida_tools(config.ida_mcp, scope=scope)
     registry.register_many(x64dbg_tools)
     registry.register_many(ida_tools)
 
-    return registry, [x64dbg_client, ida_client]
+    return registry, [x64dbg_client, ida_client, ida_lifecycle_client]

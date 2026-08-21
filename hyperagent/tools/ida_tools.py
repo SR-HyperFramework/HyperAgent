@@ -75,6 +75,62 @@ def create_ida_tools(
     return client, [dataclasses.replace(t, source="ida") for t in tools]
 
 
+def ida_lifecycle_tools(
+    endpoint: MCPEndpoint,
+    *,
+    scope: PathScope | None = None,
+) -> tuple[MCPClient, list[ToolDefinition]]:
+    """Expose explicit idalib open/health calls for environment preparation."""
+    client = MCPClient(
+        endpoint_url=endpoint.url,
+        health_url=endpoint.url.rsplit("/", 1)[0] + "/",
+        timeout=endpoint.timeout,
+        client_name="hyperagent",
+    )
+
+    def open_handler(input_path: str = "", run_auto_analysis: bool = True, **_kwargs: Any) -> ToolResult:
+        if not input_path:
+            return ToolResult(content="input_path is required", is_error=True)
+        try:
+            path = str(scope.check_read(input_path)) if scope is not None else input_path
+            return ToolResult(content=client.call_tool("idalib_open", {
+                "input_path": path,
+                "run_auto_analysis": run_auto_analysis,
+            }))
+        except (PathScopeError, Exception) as exc:
+            return ToolResult(content=f"IDA library open failed: {exc}", is_error=True)
+
+    def health_handler(**_kwargs: Any) -> ToolResult:
+        try:
+            return ToolResult(content=client.call_tool("idalib_health", {}))
+        except Exception as exc:
+            return ToolResult(content=f"IDA library health check failed: {exc}", is_error=True)
+
+    return client, [
+        ToolDefinition(
+            name="idalib_open",
+            description="Open and auto-analyze a sample in the IDA library session.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "input_path": {"type": "string"},
+                    "run_auto_analysis": {"type": "boolean", "default": True},
+                },
+                "required": ["input_path"],
+            },
+            handler=open_handler,
+            source="ida",
+        ),
+        ToolDefinition(
+            name="idalib_health",
+            description="Check the initialized IDA library session.",
+            parameters={"type": "object", "properties": {}},
+            handler=health_handler,
+            source="ida",
+        ),
+    ]
+
+
 def ida_health_check_tool(endpoint: MCPEndpoint) -> ToolDefinition:
     """Standalone health-check tool for IDA Pro MCP availability."""
     def handler(**_kwargs) -> ToolResult:

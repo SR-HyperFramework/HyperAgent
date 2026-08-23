@@ -33,7 +33,7 @@ from ..tools.registry import (
     refresh_x64dbg_tools,
 )
 from .agent_loop import AgentLoop, ModelRefusal
-from .checkpoint import CheckpointReached, write_checkpoint
+from .checkpoint import CheckpointReached, compact_messages, write_checkpoint
 from .mcp_servers import ensure_idalib_mcp, stop_idalib_mcp
 
 logger = logging.getLogger(__name__)
@@ -257,6 +257,47 @@ def _checkpoint_summary(loop: AgentLoop, reason: str = "Resume from the latest c
     return "\n".join(parts)
 
 
+def _checkpoint_summary_or_compact(
+    loop: AgentLoop,
+    provider: Any,
+    stage_id: str,
+    config: HyperAgentConfig,
+    reason: str = "Resume from the latest completed reasoning state.",
+) -> str:
+    """Between-attempt checkpoint text: a real semantic summary when possible.
+
+    ``_checkpoint_summary`` alone only keeps the last 4 messages (500 chars
+    each), so a fresh attempt starts having "forgotten" whatever the previous
+    attempt discovered (OEP location, working breakpoints, dead ends already
+    tried) -- forcing costly rediscovery every retry. ``compact_messages``
+    already does this well for mid-attempt context-limit compaction; reuse it
+    here so it also survives a full attempt boundary. Falls back to the crude
+    last-4-messages summary if compaction itself fails (e.g. too little
+    history to compact), mirroring agent_loop.py's own fallback behavior.
+    """
+    last_messages = getattr(loop, "last_messages", [])
+    try:
+        target_tokens = int(
+            provider.max_context_tokens() * getattr(config, "compact_target_ratio", 0.45)
+        )
+        compacted = compact_messages(
+            provider,
+            last_messages,
+            stage_id=stage_id,
+            target_tokens=target_tokens,
+            max_summary_tokens=getattr(config, "max_compaction_tokens", 2048),
+        )
+    except Exception as exc:
+        logger.warning(
+            "Checkpoint compaction failed for %s; falling back to raw message preview: %s",
+            stage_id,
+            exc,
+        )
+        return _checkpoint_summary(loop, reason)
+
+    return "\n".join(["# Checkpoint", "", reason, "", "## Prior progress (compacted)", compacted.summary])
+
+
 def _runtime_value(config: HyperAgentConfig, name: str, default: Any) -> Any:
     runtime = getattr(config, "runtime", None)
     return getattr(runtime, name, default)
@@ -416,7 +457,9 @@ async def run_pipeline_with_config(
 
                 attempts = 0
                 stage_metrics_started = False
-                max_stage_attempts = config.max_stage_attempts
+                max_stage_attempts = getattr(config, "stage_max_attempts", {}).get(
+                    stage.stage_id, config.max_stage_attempts
+                )
                 profile = str(_runtime_value(config, "pipeline_profile", "full")).lower().replace("_", "-")
                 if profile in {"fast", "static-only"}:
                     max_stage_attempts = min(
@@ -563,7 +606,7 @@ async def run_pipeline_with_config(
                         write_checkpoint(
                             report_dir,
                             stage.stage_id,
-                            _checkpoint_summary(loop),
+                            _checkpoint_summary_or_compact(loop, provider, stage.stage_id, config),
                             "context threshold",
                         )
                     except ModelRefusal as exc:
@@ -631,14 +674,17 @@ async def run_pipeline_with_config(
                         metrics.finalize_stage(stage.stage_id, status="completed")
                         break
 
-                    if attempts < config.max_stage_attempts:
+                    if attempts < max_stage_attempts:
                         progress_path = write_checkpoint(
                             report_dir,
                             stage.stage_id,
-                            _checkpoint_summary(
+                            _checkpoint_summary_or_compact(
                                 loop,
+                                provider,
+                                stage.stage_id,
+                                config,
                                 "The previous attempt ended normally but did not write a valid final "
-                                "artifact or update STATE.json. Resume from the recent conversation, "
+                                "artifact or update STATE.json. Resume from the prior progress below, "
                                 "finish the required artifact, validate it, and mark this stage completed.",
                             ),
                             "resume after agent ended without writing a valid artifact or updating STATE.json",

@@ -19,7 +19,7 @@ from hyperagent.engine.launcher import (
 )
 from hyperagent.config import default_skills_root
 from hyperagent.tools.base import ToolDefinition
-from hyperagent.providers.base import CompletionResult, LLMProvider
+from hyperagent.providers.base import CompletionResult, LLMProvider, Message
 from hyperagent.tools.registry import missing_x64dbg_required_tools
 from hyperagent.tools import vmware_tools
 from hyperagent.tools.path_scope import compute_run_scope
@@ -620,6 +620,43 @@ def test_launcher_fails_after_retries_when_stage_never_updates_state(monkeypatch
     result = asyncio.run(run_pipeline_with_config(sample_file, config, stage_id="01-prepare-env"))
     assert len(result.stages) == 1
     assert result.stages[0].stage_status == "failed"
+
+
+def test_checkpoint_summary_or_compact_uses_compaction_when_possible(config):
+    from types import SimpleNamespace as _SN
+
+    from hyperagent.engine.launcher import _checkpoint_summary_or_compact
+
+    class _SummarizingProvider(_DummyProvider):
+        def complete(self, messages, *, tools=None, system_prompt="", max_tokens=None, temperature=None):
+            return CompletionResult(
+                content="Found OEP at 0x401000; breakpoint on VirtualAlloc worked.",
+                tool_calls=[],
+                stop_reason="end_turn",
+            )
+
+    loop = _SN(
+        last_messages=[
+            Message(role="user", content="Analyze sample: " + "x" * 2000),
+            Message(role="assistant", content="Stepping through the unpacking stub. " * 50),
+        ]
+    )
+    summary = _checkpoint_summary_or_compact(loop, _SummarizingProvider(), "05-dynamic", config)
+    assert "Found OEP at 0x401000" in summary
+    assert "## Prior progress (compacted)" in summary
+
+
+def test_checkpoint_summary_or_compact_falls_back_when_compaction_not_possible(config):
+    from types import SimpleNamespace as _SN
+
+    from hyperagent.engine.launcher import _checkpoint_summary_or_compact
+
+    # A single message is not enough conversation history to compact, so
+    # compact_messages raises and this should fall back to the raw preview.
+    loop = _SN(last_messages=[Message(role="user", content="only one message")])
+    summary = _checkpoint_summary_or_compact(loop, _DummyProvider(), "05-dynamic", config)
+    assert "## Recent conversation" in summary
+    assert "## Prior progress (compacted)" not in summary
 
 
 def test_launcher_fallback_completes_when_artifact_valid_but_state_not_updated(monkeypatch, caplog, sample_file: Path, config):

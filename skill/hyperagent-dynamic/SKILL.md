@@ -82,6 +82,32 @@ Use:
 
 Recalculate ASLR after every restart.
 
+#### DLL and service-DLL samples
+
+If the sample is a DLL (check `binary_profile.format` in the Pass 1/2 artifact), do not open the raw DLL path directly in x64dbg. That triggers x64dbg's built-in generic DLL-loader feature, which auto-generates and launches its own stub process (visible in `module_list`/process view as `DLLLoader<bits>_<hex>.exe`). This stub has been confirmed, by direct inspection of a stuck session, to sit indefinitely inside a `GetMessage`-style wait: `debug_get_state` reports `state: "running"` (not paused/stopped) with RIP parked at the return address of a `win32u.dll` syscall stub, `stack_get_trace` fails with "Debugger must be paused", and the process has a surprisingly large GUI module set (`user32.dll`, `gdi32full.dll`, `textshaping.dll`) for a "simple loader" — consistent with an interactive dialog that never receives input under headless automation. Issuing more `debug_run` calls does not unstick it; it is not a breakpoint to step past, it is a message-loop wait with nothing to deliver the message. Do not spend stage attempts retrying this.
+
+Instead, use `skill/hyperagent-dynamic/scripts/svchost_stub.c` (build once on host with `build_svchost_stub.bat`, which needs MSVC Build Tools' x86 cross target — `vcvarsamd64_x86.bat`). Deploy the compiled `svchost_stub32.exe` into the guest **renamed to `svchost.exe`**, then debug it as a normal EXE debuggee (`debug_init` on the stub's guest path, sample DLL path as its argv[1]) — this is the well-tested x64dbg EXE-debugging path, with none of the raw-DLL-loader's quirks. The rename satisfies `GetModuleFileNameW`/`GetModuleFileNameA`-based host-identity gates some service DLLs use to check they're running under a real `svchost.exe` process (confirmed present in at least one sample via static analysis: `GetModuleFileNameW` → lowercase → `wcsstr(..., L"svchost.exe")`). The harness also calls `SvchostPushServiceGlobals` (if exported) and `ServiceMain` directly, so a real Windows service registration is never needed — that would mutate guest SCM/registry state outside the normal snapshot-revert boundary for no guaranteed benefit anyway, since it still wouldn't satisfy a gate that validates real SCM-provided globals content rather than just the process name.
+
+This does not cover every case:
+- If a gate validates real SCM globals content (not just the host process name), the harness's `NULL` globals pointer will not satisfy it. Fall back to the breakpoint-patch technique below.
+- **`LoadLibraryExW` failing with `GetLastError() == 126` (`ERROR_MOD_NOT_FOUND`) is very likely a deploy-naming issue, not an anti-analysis PE defect.** This was directly reproduced and root-caused: the guest copy had been deployed under a bare-SHA256 filename with no `.dll` extension. `LoadLibraryExW`'s loader path resolution (and some import/manifest handling) can fail to resolve a module that lacks a recognized extension even when the file bytes are byte-identical to the host original and the PE is structurally normal. Fix: deploy the sample DLL into the guest with an explicit `.dll` extension (e.g. `wksvc.dll`, not the bare hash) before pointing the harness's argv[1] at it. Re-verify: if `LoadLibraryExW` still fails 126 after the rename, then treat it as a genuine unresolved case — record the exact `GetLastError` value plus hash-verification/PE-header evidence, and write the stage artifact with `status: "blocked"` rather than retrying further.
+
+If the harness does successfully load the module, apply the gate-bypass technique once the sample module is loaded and its base is known:
+1. Rebase the gating function's static address (from the Pass 1/2 findings) to the runtime base.
+2. Set a breakpoint at the comparison instruction or the function's return.
+3. Force the outcome with `register_set` (e.g. set the return register to the "match"/success value) or `memory_write` (patch the compared bytes/flag), rather than trying to make the check pass honestly.
+4. Continue execution and confirm the gated logic (bot loop / worker thread) actually starts — do not assume the patch worked just because execution continued past the gate.
+
+Document the exact patched address and which static finding it corresponds to in the artifact evidence.
+
+#### Samples that fail to launch at all (process never appears, or exit code `0xC0000135`)
+
+Before assuming a debugger-tooling or anti-analysis problem, check whether the sample simply cannot start on a stock guest because a non-system import DLL is missing. Symptoms: `debug_init`/CLI-arg launch reports no error, but `debug_get_state` stays `"stopped"`, `module_get_main` errors "Failed to get main module info", and the target process never shows up in the guest process list at all (not even briefly) — or, if run outside the debugger for a quick check, the process exits with code `-1073741515` / `0xC0000135` (`STATUS_DLL_NOT_FOUND`).
+
+This was directly reproduced and root-caused for a MinGW-w64-built sample (`mkoctfile`, GCC 4.9.4 toolchain build): its import table (check with the same PE-import listing used in static analysis, or `imports` in the Pass 1/2 artifact) named `libgcc_s_seh-1.dll` and `libstdc++-6.dll` — standard MinGW runtime DLLs that are not present on a stock Windows image and were not deployed alongside the bare sample file. `libgcc_s_seh-1.dll` and `libstdc++-6.dll` both transitively import `libwinpthread-1.dll` too, so all three are needed together. Deploying the sample copy alone into the guest desktop is not enough for a non-self-contained binary — check the import table for any DLL that is not a standard Windows system DLL before concluding the sample is broken or evasive.
+
+Fix: `skill/hyperagent-dynamic/scripts/runtime_deps/` in this skill directory carries a cached, verified-working copy of `libgcc_s_seh-1.dll`, `libstdc++-6.dll`, and `libwinpthread-1.dll` (x64, MinGW-w64 ABI). These are within the normal skills-root read scope, so `vm_copy_to_guest` can deploy them directly (`host_path` under `skills_root/hyperagent-dynamic/scripts/runtime_deps/...`) — you cannot reach arbitrary host paths like a system-wide MinGW install, only `skills_root`, the sample's own folder, and the report directory. Copy whichever of the three the import table actually references into the **same guest folder as the sample** (e.g. the Desktop) before launching. Re-verify the sample now runs/attaches cleanly before proceeding; do not keep retrying the raw launch without this check first. If the missing DLL is not one of these three (a different toolchain's runtime, e.g. MSVC redistributable or .NET), there is currently no cached copy — record the exact missing-DLL evidence (import table entry, exit code/GetLastError) and write the stage artifact with `status: "blocked"` rather than burning further attempts guessing.
+
 ### 2. VM Preparation
 
 Before execution, prepare isolated guest state with VMware Workstation automation.
@@ -146,10 +172,13 @@ Validate:
 - debugger checks
 - timing checks
 - gate values
+- host-identity gates (process name / parent process / service-hosting checks — see "DLL and service-DLL samples" above)
 
 Patch:
 - failing flags
 - failing branches
+
+Use `register_set` or `memory_write` to force the patched value; use `breakpoint_set_condition` when the patch should only apply on a specific hit rather than every pass through the address.
 
 ### 5. API Resolver Tracing (delegate to subagent)
 

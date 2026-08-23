@@ -222,6 +222,7 @@
           "type": "string"
         },
         "report_use": {
+          "description": "How this CLAIM CHECK finding should be used in the report. Not the same field as enrichment_candidate.usage below (different object, different allowed values) -- do not mix the two enums.",
           "enum": [
             "supporting_context",
             "caveat_only",
@@ -317,6 +318,7 @@
           "maximum": 1
         },
         "usage": {
+          "description": "How this ENRICHMENT CANDIDATE (external label/context, not a verified claim) should be treated downstream. Not the same field as claim_check.report_use above (different object, different allowed values) -- 'followup_only' is a report_use value and is NOT valid here.",
           "enum": [
             "context_only",
             "needs_local_confirmation",

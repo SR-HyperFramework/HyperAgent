@@ -122,6 +122,22 @@ Verify the install:
 python -m pytest hyperagent/tests/ -q
 ```
 
+### Moving to a new machine
+
+To transfer this repo (source + the gitignored `resource/` tool binaries) to
+another Windows machine without dragging along `venv/`, `.git` history, or
+secrets:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\package_for_transfer.ps1
+```
+
+This builds `HyperAgent-transfer.zip` next to the repo. Copy it to the target
+machine, extract it, and follow [`SETUP_NEW_MACHINE.md`](SETUP_NEW_MACHINE.md)
+— it has a ready-to-paste prompt for the agent on that machine (runs
+`bootstrap.ps1`, reports what's missing) plus a manual-install checklist for
+IDA Pro/x64dbg/VMware and a list of secrets/env vars to bring over yourself.
+
 ## 5. Configuration
 
 Config resolves in this order (highest priority first): environment

@@ -116,6 +116,8 @@ class HyperAgentConfig:
 
     # Pipeline
     max_stage_attempts: int = 20
+    # Per-stage overrides: stage_id -> max attempts (falls back to max_stage_attempts)
+    stage_max_attempts: dict[str, int] = field(default_factory=dict)
     checkpoint_threshold: float = 0.75
     compact_enabled: bool = True
     compact_threshold: float | None = None
@@ -257,6 +259,7 @@ def load_config(config_path: Path | None = None) -> HyperAgentConfig:
             "HYPERAGENT_MAX_STAGE_ATTEMPTS",
             file_data.get("max_stage_attempts", 20),
         ),
+        stage_max_attempts=file_data.get("stage_max_attempts", {}),
         checkpoint_threshold=_env_float(
             "HYPERAGENT_CHECKPOINT_THRESHOLD",
             file_data.get("checkpoint_threshold", 0.75),

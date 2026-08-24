@@ -64,6 +64,65 @@ def vm_auto_revert_after_dynamic(config: VMwareConfig) -> ToolResult:
     )
 
 
+def vm_auto_recover_dynamic_env(
+    config: VMwareConfig, sample_path: Path, scope: PathScope
+) -> ToolResult:
+    """Re-establish a VM-dependent stage's guest debugger session from scratch.
+
+    Host-side safety hook for the launcher, not an LLM-callable tool. Mirrors
+    01-prepare-env's own "Dynamic Analysis Readiness" recovery order (see
+    skill/hyperagent-prepare-env/SKILL.md) step for step: revert, boot, wait
+    for the guest, copy the sample in, launch the debugger with it.
+
+    Needed because 01-prepare-env's readiness check only ever runs once per
+    sample and is then marked "completed" in STATE.json -- but the guest
+    session it establishes is not durable (another sample's post-dynamic
+    revert, a host reboot, or a manual VM stop all invalidate it). When a
+    later VM-dependent stage (03-unpack/05-dynamic) then finds x64dbg
+    unreachable, nothing else in a resumed run would otherwise notice or
+    recover, since 01-prepare-env itself is skipped as already-done.
+    """
+    for label, args, timeout in (
+        ("revertToSnapshot", ["-T", "ws", "revertToSnapshot", config.vmx_path, config.snapshot_name], config.command_timeout),
+        ("start", ["-T", "ws", "start", config.vmx_path, "nogui"], config.startup_timeout),
+        ("getGuestIPAddress", ["-T", "ws", "getGuestIPAddress", config.vmx_path, "-wait"], config.startup_timeout),
+    ):
+        result = _run_vmrun(args, timeout=timeout)
+        if result.is_error:
+            return ToolResult(content=f"vm auto-recovery: {label} failed: {result.content}", is_error=True)
+
+    try:
+        scoped_host_path = scope.check_read(str(sample_path))
+    except PathScopeError as exc:
+        return ToolResult(content=f"vm auto-recovery: {exc}", is_error=True)
+
+    guest_filename = scoped_host_path.name
+    guest_path = f"{config.guest_desktop}\\{guest_filename}"
+    try:
+        file_size = scoped_host_path.stat().st_size
+    except OSError:
+        file_size = 0
+    copy_timeout = max(config.command_timeout, config.startup_timeout, int(file_size / (1024 * 1024)) * 5)
+
+    copy_result = _run_vmrun(
+        ["-T", "ws", "-gu", config.guest_user, "-gp", config.guest_password,
+         "CopyFileFromHostToGuest", config.vmx_path, str(scoped_host_path), guest_path],
+        timeout=copy_timeout,
+    )
+    if copy_result.is_error:
+        return ToolResult(content=f"vm auto-recovery: copy to guest failed: {copy_result.content}", is_error=True)
+
+    launch_result = _run_vmrun(
+        ["-T", "ws", "-gu", config.guest_user, "-gp", config.guest_password,
+         "runProgramInGuest", config.vmx_path, "-noWait", config.guest_debugger, guest_path],
+        timeout=config.command_timeout,
+    )
+    if launch_result.is_error:
+        return ToolResult(content=f"vm auto-recovery: debugger launch failed: {launch_result.content}", is_error=True)
+
+    return ToolResult(content=f"vm auto-recovery: VM booted and x64dbg launched with {guest_filename}")
+
+
 def create_vmware_tools(config: VMwareConfig, scope: PathScope) -> list[ToolDefinition]:
     """Build VMware tool definitions from the current config."""
     vmx = config.vmx_path

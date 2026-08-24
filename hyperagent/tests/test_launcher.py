@@ -320,6 +320,12 @@ def test_launcher_refreshes_x64dbg_tools_on_each_dynamic_attempt(monkeypatch, sa
     monkeypatch.setattr("hyperagent.engine.launcher.refresh_x64dbg_tools", fake_refresh)
     monkeypatch.setattr("hyperagent.engine.launcher.create_provider", lambda *a, **k: _DummyProvider())
     monkeypatch.setattr(vmware_tools, "vm_auto_revert_after_dynamic", lambda cfg: None)
+    recovery_calls = []
+    monkeypatch.setattr(
+        vmware_tools,
+        "vm_auto_recover_dynamic_env",
+        lambda cfg, sample_path, scope: recovery_calls.append(1) or SimpleNamespace(is_error=False, content="stub"),
+    )
 
     class _Loop:
         def __init__(self, *args, **kwargs):
@@ -338,6 +344,7 @@ def test_launcher_refreshes_x64dbg_tools_on_each_dynamic_attempt(monkeypatch, sa
     assert len(result.stages) == 1
     assert result.stages[0].stage_status == "completed"
     assert fake_registry.refresh_calls == ["05-dynamic", "05-dynamic"]
+    assert len(recovery_calls) == 1
     assert len(seen_tools) == 1
     assert set(seen_tools[0]) == set(missing_x64dbg_required_tools(None))
 
@@ -920,7 +927,13 @@ def test_launcher_reverts_vm_after_dynamic_stage_fails(monkeypatch, sample_file:
             return "ok"
 
     revert_calls: list[object] = []
+    recovery_calls: list[object] = []
     monkeypatch.setattr(vmware_tools, "vm_auto_revert_after_dynamic", lambda cfg: revert_calls.append(cfg))
+    monkeypatch.setattr(
+        vmware_tools,
+        "vm_auto_recover_dynamic_env",
+        lambda cfg, sample_path, scope: recovery_calls.append(1) or SimpleNamespace(is_error=True, content="stub: still missing"),
+    )
     monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: "f" * 64)
     monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
     monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
@@ -932,6 +945,10 @@ def test_launcher_reverts_vm_after_dynamic_stage_fails(monkeypatch, sample_file:
     assert len(result.stages) == 1
     assert result.stages[0].stage_status == "failed"
     assert revert_calls == [config.vmware]
+    # Capped at _MAX_VM_AUTO_RECOVERY_ATTEMPTS even though every attempt still
+    # reports x64dbg missing -- later attempts fall through to the plain
+    # checkpoint-and-retry path instead of re-reverting the VM every time.
+    assert len(recovery_calls) == launcher._MAX_VM_AUTO_RECOVERY_ATTEMPTS
 
 
 # -- ablation: telling downstream stages what was withheld --------------------

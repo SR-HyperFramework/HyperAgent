@@ -74,6 +74,7 @@ def create_provider(
         kwargs["thinking_budget_tokens"] = config.thinking_budget_tokens
         kwargs["console_mode"] = config.console_mode
         kwargs["run_console"] = run_console
+        kwargs["context_window_override"] = config.context_window_override
         if config.base_url:
             kwargs["base_url"] = config.base_url
     # Only backends that still accept sampling parameters get one. Anthropic

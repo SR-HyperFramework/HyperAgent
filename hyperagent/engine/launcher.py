@@ -38,6 +38,14 @@ from .mcp_servers import ensure_idalib_mcp, stop_idalib_mcp
 
 logger = logging.getLogger(__name__)
 
+#: Cap on host-side VM/x64dbg auto-recovery attempts per guarded stage run.
+#: Kept low and separate from ``max_stage_attempts``: once the guest session
+#: is genuinely re-established, further wrappers-missing failures are a real
+#: problem (bad debugger path, crashing x64dbg, etc.), not a stale VM, and
+#: should fall through to the normal checkpoint-and-retry path rather than
+#: repeatedly reverting a VM that keeps coming back broken.
+_MAX_VM_AUTO_RECOVERY_ATTEMPTS = 1
+
 try:
     from experiments.ablation_runner import AblationConfig
 except Exception:  # pragma: no cover - experiments package may be absent/broken
@@ -456,6 +464,7 @@ async def run_pipeline_with_config(
                 cache_enabled = True if not ablation_config else ablation_config.cache_enabled
 
                 attempts = 0
+                vm_recovery_attempts = 0
                 stage_metrics_started = False
                 max_stage_attempts = getattr(config, "stage_max_attempts", {}).get(
                     stage.stage_id, config.max_stage_attempts
@@ -551,6 +560,30 @@ async def run_pipeline_with_config(
                             guarded=stage.reads_sample_content,
                         )
                     if missing_x64dbg:
+                        if vm_recovery_attempts < _MAX_VM_AUTO_RECOVERY_ATTEMPTS:
+                            vm_recovery_attempts += 1
+                            logger.warning(
+                                "[%d/%d] %s missing x64dbg debugger wrappers; attempting automatic "
+                                "VM/debugger recovery (%d/%d) before retrying.",
+                                index,
+                                len(selected_stages),
+                                stage.stage_id,
+                                vm_recovery_attempts,
+                                _MAX_VM_AUTO_RECOVERY_ATTEMPTS,
+                            )
+                            recovery_result = vmware_tools.vm_auto_recover_dynamic_env(
+                                config.vmware, sample_path, scope
+                            )
+                            logger.warning(
+                                "[%d/%d] %s automatic VM recovery %s: %s",
+                                index,
+                                len(selected_stages),
+                                stage.stage_id,
+                                "failed" if recovery_result.is_error else "succeeded",
+                                recovery_result.content,
+                            )
+                            continue
+
                         progress_path = write_checkpoint(
                             report_dir,
                             stage.stage_id,

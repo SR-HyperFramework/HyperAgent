@@ -59,6 +59,7 @@ class AnthropicProvider(LLMProvider):
         thinking_budget_tokens: int = 4096,
         console_mode: str = "off",
         run_console: RunConsole | None = None,
+        context_window_override: int | None = None,
     ) -> None:
         client_kwargs: dict[str, Any] = {"api_key": api_key}
         if base_url:
@@ -66,6 +67,7 @@ class AnthropicProvider(LLMProvider):
         self._client = anthropic.Anthropic(**client_kwargs)
         self._model = model
         self._max_output_tokens = max_output_tokens
+        self._context_window_override = context_window_override
         self._max_retries = max_retries
         self._retry_base_delay = retry_base_delay
         self._cache_enabled = cache_enabled
@@ -172,7 +174,14 @@ class AnthropicProvider(LLMProvider):
         fraction of this number, so an under-reported window makes every stage
         checkpoint and restart far earlier than it needs to — which inflates
         both wall-clock time and token spend without any visible error.
+
+        ``context_window_override`` skips the lookup entirely: some gateways
+        don't implement ``models.retrieve()`` in a shape this SDK understands,
+        so the call always fails there and this is the only way to stop paying
+        for (and logging) a request that can never succeed.
         """
+        if self._context_window_override is not None:
+            return self._context_window_override
         if self._context_window is None:
             try:
                 self._context_window = self._client.models.retrieve(

@@ -80,6 +80,12 @@ class ProviderConfig:
     thinking/text/tool-call deltas as they arrive)."""
     # Per-stage model overrides: stage_id -> model name
     stage_models: dict[str, str] = field(default_factory=dict)
+    context_window_override: int | None = None
+    """Skip the runtime ``models.retrieve()`` context-window lookup and use this
+    value instead. Needed behind gateways (e.g. 9Router) whose ``/v1/models/<id>``
+    shape that call expects doesn't exist, so the lookup always fails and the
+    provider silently falls back to a conservative 200k -- checkpointing far
+    earlier than the model's real window supports."""
 
 
 @dataclass
@@ -190,6 +196,11 @@ def load_config(config_path: Path | None = None) -> HyperAgentConfig:
             "HYPERAGENT_CONSOLE_MODE", provider_data.get("console_mode", "off")
         ),
         stage_models=provider_data.get("stage_models", {}),
+        context_window_override=(
+            int(os.environ["HYPERAGENT_CONTEXT_WINDOW"])
+            if os.environ.get("HYPERAGENT_CONTEXT_WINDOW")
+            else provider_data.get("context_window_override")
+        ),
     )
 
     vmware = VMwareConfig(

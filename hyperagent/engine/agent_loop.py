@@ -323,8 +323,27 @@ class AgentLoop:
             )
             messages.append(Message(role="user", content=tool_results))
 
-        logger.warning("Agent loop reached max turns (%d)", self.max_turns)
-        return "ERROR: Max iterations reached without a final answer."
+        # Reaching max_turns falls out of the for-loop rather than looping back
+        # to the step-1 checkpoint check, so without this the final turn's
+        # tool results (just appended above) are never re-measured against the
+        # context threshold and no checkpoint is written -- the launcher's
+        # next attempt starts from a blank slate, silently discarding however
+        # much work this attempt did. Raising CheckpointReached routes this
+        # through the same write_checkpoint/compaction path as a real
+        # context-threshold hit, so the next attempt resumes from a summary
+        # instead of from scratch.
+        self.last_messages = list(messages)
+        logger.warning(
+            "Agent loop reached max turns (%d); checkpointing for retry", self.max_turns
+        )
+        if self._metrics is not None:
+            self._metrics.record_checkpoint(stage_id)
+        max_tokens = self.tracker.max_tokens
+        raise CheckpointReached(
+            f"reached max turns ({self.max_turns}) without a final answer",
+            self.tracker.current_tokens,
+            (self.tracker.current_tokens / max_tokens) if max_tokens else 0.0,
+        )
 
     # -- Internal Helpers -----------------------------------------------------
 

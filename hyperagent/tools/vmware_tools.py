@@ -9,6 +9,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from ..config import VMwareConfig
@@ -119,6 +120,14 @@ def vm_auto_recover_dynamic_env(
     )
     if launch_result.is_error:
         return ToolResult(content=f"vm auto-recovery: debugger launch failed: {launch_result.content}", is_error=True)
+
+    # x64dbg's MCP listener isn't up the instant runProgramInGuest returns --
+    # the process still has to start and bind its port. Without this wait, the
+    # very next attempt's MCP discovery hits it mid-startup and gets a bare
+    # connection refusal, burning an entire guarded-stage attempt on nothing.
+    # Mirrors the 30s wait skill/hyperagent-prepare-env/SKILL.md already
+    # mandates before probing x64dbg-mcp after a fresh launch.
+    time.sleep(30)
 
     return ToolResult(content=f"vm auto-recovery: VM booted and x64dbg launched with {guest_filename}")
 

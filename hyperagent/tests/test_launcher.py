@@ -629,6 +629,60 @@ def test_launcher_fails_after_retries_when_stage_never_updates_state(monkeypatch
     assert result.stages[0].stage_status == "failed"
 
 
+def test_launcher_force_finalizes_after_exhausting_attempts(monkeypatch, caplog, sample_file: Path, config):
+    _stage_skill_tree(config.skills_root)
+    report_dir = config.reports_root / ("f" * 64)
+    report_dir.mkdir(parents=True, exist_ok=True)
+    pipeline_state.ensure_state(report_dir, "f" * 64, str(sample_file))
+
+    class _Registry:
+        def get_tools_for_stage(self, _sid):
+            return []
+
+    calls = {"count": 0}
+
+    class _Loop:
+        def __init__(self, *args, **kwargs):
+            self.last_messages = []
+
+        def run(self, **kwargs):
+            calls["count"] += 1
+            if calls["count"] <= config.max_stage_attempts:
+                # Every regular attempt checkpoints but never finishes, same
+                # as a stage that keeps overflowing context or hitting a
+                # flaky tool -- burning the whole attempt budget with nothing
+                # to show for it.
+                progress = report_dir / "_state" / "01-prepare-env.progress.md"
+                progress.parent.mkdir(parents=True, exist_ok=True)
+                progress.write_text(f"attempt {calls['count']} notes", encoding="utf-8")
+                pipeline_state.checkpoint(report_dir, "01-prepare-env", str(progress), "test")
+            else:
+                # The forced finalize round succeeds where the real attempts
+                # didn't: it just writes down what's already known.
+                out = report_dir / "01-prepare-env.json"
+                out.write_text("{}", encoding="utf-8")
+            return "ok"
+
+    monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: "f" * 64)
+    monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg, _scope: (_Registry(), []))
+    monkeypatch.setattr("hyperagent.engine.launcher.create_provider", lambda *a, **k: _DummyProvider())
+    monkeypatch.setattr("hyperagent.engine.launcher.AgentLoop", _Loop)
+
+    result = asyncio.run(run_pipeline_with_config(sample_file, config, stage_id="01-prepare-env"))
+
+    assert calls["count"] == config.max_stage_attempts + 1
+    assert len(result.stages) == 1
+    assert result.stages[0].stage_status == "completed"
+
+    state = pipeline_state.load_state(report_dir)
+    entry = state["stages"]["01-prepare-env"]
+    assert entry["status"] == pipeline_state.STATUS_COMPLETED
+    assert Path(entry["output_path"]) == report_dir / "01-prepare-env.json"
+    assert "force-finalized" in caplog.text
+
+
 def test_checkpoint_summary_or_compact_uses_compaction_when_possible(config):
     from types import SimpleNamespace as _SN
 

@@ -300,7 +300,7 @@ def test_run_raises_checkpoint_when_compaction_remains_too_large():
     assert len(provider.calls) == 1
 
 
-
+def test_run_raises_checkpoint_when_max_turns_reached():
     results = [
         CompletionResult(
             content="",
@@ -313,14 +313,21 @@ def test_run_raises_checkpoint_when_compaction_remains_too_large():
     provider = _ScriptedProvider(results)
     loop = AgentLoop(provider, _registry_with_echo_tool(), max_turns=3)
 
-    result = loop.run(
-        skill_instructions="test",
-        initial_prompt="loop forever",
-        stage_tools=["echo"],
-    )
+    with pytest.raises(CheckpointReached):
+        loop.run(
+            skill_instructions="test",
+            initial_prompt="loop forever",
+            stage_tools=["echo"],
+        )
 
-    assert result == "ERROR: Max iterations reached without a final answer."
     assert loop.turns_used == 3
+    # The 3rd turn's tool results (appended after the last completion) must
+    # survive into last_messages so the launcher's checkpoint captures them,
+    # instead of checkpointing from what existed before the final turn ran.
+    assert loop.last_messages[-1].role == "user"
+    assert loop.last_messages[-1].content == [
+        {"type": "tool_result", "tool_use_id": "tc2", "content": "echoed:2", "is_error": False}
+    ]
 
 
 def test_run_records_turn_metrics_via_metrics_collector(tmp_path):

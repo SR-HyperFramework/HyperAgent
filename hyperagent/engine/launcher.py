@@ -46,6 +46,34 @@ logger = logging.getLogger(__name__)
 #: repeatedly reverting a VM that keeps coming back broken.
 _MAX_VM_AUTO_RECOVERY_ATTEMPTS = 1
 
+#: Extra bounded rounds tried once a stage exhausts its whole
+#: ``max_stage_attempts`` budget, before giving up on it entirely. Each round
+#: writes its own checkpoint on failure, so a round that still overflows
+#: context hands the next one an even more compacted summary to work from.
+_MAX_FINALIZE_ATTEMPTS = 2
+
+#: Turn budget for a finalize round. Its only job is to transcribe an
+#: already-checkpointed summary into a schema-valid artifact, not to keep
+#: investigating, so it needs far fewer turns than a real attempt.
+_FINALIZE_MAX_TURNS = 8
+
+_FINALIZE_DIRECTIVE = (
+    "\n\n[FINAL ATTEMPT -- WRITE NOW]\n"
+    "The attempt budget for this stage is exhausted. Do not call any more "
+    "exploratory, debugging, or environment tools, and do not keep "
+    "investigating. Your only remaining job is to write the stage's output "
+    "artifact right now, using everything already discovered in the "
+    "checkpoint summary above.\n"
+    "- Populate every field the schema requires; an incomplete artifact is "
+    "not acceptable a second time.\n"
+    "- For anything that was not confirmed, use the schema's own uncertainty "
+    "vocabulary (e.g. status values like partial/blocked/unknown, low "
+    "confidence scores, and entries in limitations) instead of asserting a "
+    "conclusion you have no evidence for.\n"
+    "- Call validate_json_output before finishing, exactly as the skill "
+    "instructs, and stop as soon as it returns VALID."
+)
+
 try:
     from experiments.ablation_runner import AblationConfig
 except Exception:  # pragma: no cover - experiments package may be absent/broken
@@ -306,6 +334,98 @@ def _checkpoint_summary_or_compact(
     return "\n".join(["# Checkpoint", "", reason, "", "## Prior progress (compacted)", compacted.summary])
 
 
+def _force_finalize_stage(
+    *,
+    report_dir: Path,
+    stage: Stage,
+    skill_doc: SkillDoc,
+    sample_path: Path,
+    state_path: Path,
+    config: HyperAgentConfig,
+    registry: ToolRegistry,
+    tool_names: list[str],
+    include_injection_guard: bool,
+    cache_enabled: bool,
+    checkpoint_threshold: float,
+    model_name: str,
+    run_console: RunConsole | None,
+    metrics: MetricsCollector,
+    ablation_config: Any,
+    index: int,
+    total: int,
+) -> Path | None:
+    """Turn whatever a stage already discovered into a real artifact instead
+    of discarding it once the attempt budget is gone.
+
+    Every prior attempt in this run now ends via ``CheckpointReached`` (see
+    agent_loop.py), so by the time ``max_stage_attempts`` is exhausted there
+    is almost always a checkpointed progress summary on disk -- the work just
+    never made it into a validated artifact (context overflow, a flaky tool
+    call, an environment hiccup mid-turn). Failing the whole sample here
+    throws that work away. Instead, run a couple of small, tightly bounded
+    rounds whose only job is to transcribe the checkpoint into a schema-valid
+    artifact, using the schema's own partial/blocked/unknown vocabulary for
+    whatever was never confirmed rather than fabricating a finished analysis.
+    """
+    base_prompt = _build_stage_prompt(
+        sample_path, report_dir, stage, state_path, skill_doc, config.skills_root, ablation_config,
+    )
+
+    for finalize_attempt in range(1, _MAX_FINALIZE_ATTEMPTS + 1):
+        resume_prompt = _resume_prompt_if_any(report_dir, stage.stage_id)
+        prompt = base_prompt
+        if resume_prompt:
+            prompt = f"{prompt}\n\n{resume_prompt}"
+        prompt = f"{prompt}{_FINALIZE_DIRECTIVE}"
+
+        provider = create_provider(
+            config.provider, model=model_name, cache_enabled=cache_enabled, run_console=run_console,
+        )
+        loop = AgentLoop(
+            provider,
+            registry,
+            checkpoint_threshold=checkpoint_threshold,
+            max_turns=_FINALIZE_MAX_TURNS,
+            metrics=metrics,
+            console_mode=config.provider.console_mode,
+            run_console=run_console,
+            compact_enabled=getattr(config, "compact_enabled", True),
+            compact_threshold=getattr(config, "compact_threshold", None),
+            compact_target_ratio=getattr(config, "compact_target_ratio", 0.45),
+            max_compactions=getattr(config, "max_compactions", 3),
+            max_compaction_tokens=getattr(config, "max_compaction_tokens", 2048),
+        )
+        logger.warning(
+            "[%d/%d] %s exhausted its attempt budget; forcing a finalize pass (%d/%d) from checkpointed progress",
+            index, total, stage.stage_id, finalize_attempt, _MAX_FINALIZE_ATTEMPTS,
+        )
+        try:
+            loop.run(
+                skill_instructions=skill_doc.instructions,
+                initial_prompt=prompt,
+                stage_tools=tool_names,
+                reads_sample_content=stage.reads_sample_content,
+                stage_id=stage.stage_id,
+                include_injection_guard=include_injection_guard,
+            )
+        except CheckpointReached:
+            write_checkpoint(
+                report_dir,
+                stage.stage_id,
+                _checkpoint_summary_or_compact(loop, provider, stage.stage_id, config),
+                "context threshold during forced finalize",
+            )
+            continue
+        except ModelRefusal:
+            return None
+
+        fallback_output = _fallback_complete_if_valid(report_dir, stage, skill_doc)
+        if fallback_output is not None:
+            return fallback_output
+
+    return None
+
+
 def _runtime_value(config: HyperAgentConfig, name: str, default: Any) -> Any:
     runtime = getattr(config, "runtime", None)
     return getattr(runtime, name, default)
@@ -478,17 +598,50 @@ async def run_pipeline_with_config(
                 while True:
                     attempts += 1
                     if attempts > max_stage_attempts:
-                        pipeline_state.fail(
-                            report_dir,
-                            stage.stage_id,
-                            f"did not reach completed after {max_stage_attempts} attempts",
-                        )
                         if not stage_metrics_started:
                             metrics.start_stage(stage.stage_id)
                             stage_metrics_started = True
+                        finalize_output = _force_finalize_stage(
+                            report_dir=report_dir,
+                            stage=stage,
+                            skill_doc=skill_doc,
+                            sample_path=sample_path,
+                            state_path=state_path,
+                            config=config,
+                            registry=registry,
+                            tool_names=tool_names,
+                            include_injection_guard=include_injection_guard,
+                            cache_enabled=cache_enabled,
+                            checkpoint_threshold=checkpoint_threshold,
+                            model_name=model_name,
+                            run_console=run_console,
+                            metrics=metrics,
+                            ablation_config=ablation_config,
+                            index=index,
+                            total=len(selected_stages),
+                        )
+                        if finalize_output is not None:
+                            logger.warning(
+                                "[%d/%d] %s force-finalized from checkpointed progress after "
+                                "exhausting %d attempts",
+                                index,
+                                len(selected_stages),
+                                stage.stage_id,
+                                max_stage_attempts,
+                            )
+                            metrics.finalize_stage(stage.stage_id, status="completed")
+                            break
+
+                        pipeline_state.fail(
+                            report_dir,
+                            stage.stage_id,
+                            f"did not reach completed after {max_stage_attempts} attempts "
+                            "(forced finalize also failed)",
+                        )
                         metrics.finalize_stage(stage.stage_id, status="failed")
                         failure_reason = (
-                            f"{stage.stage_id} did not reach 'completed' after {max_stage_attempts} attempts"
+                            f"{stage.stage_id} did not reach 'completed' after {max_stage_attempts} "
+                            "attempts (forced finalize also failed)"
                         )
                         logger.error("[%d/%d] %s", index, len(selected_stages), failure_reason)
                         return metrics.finalize_run()
@@ -730,6 +883,37 @@ async def run_pipeline_with_config(
                             progress_path,
                         )
                         continue
+
+                    if attempts >= max_stage_attempts:
+                        finalize_output = _force_finalize_stage(
+                            report_dir=report_dir,
+                            stage=stage,
+                            skill_doc=skill_doc,
+                            sample_path=sample_path,
+                            state_path=state_path,
+                            config=config,
+                            registry=registry,
+                            tool_names=tool_names,
+                            include_injection_guard=include_injection_guard,
+                            cache_enabled=cache_enabled,
+                            checkpoint_threshold=checkpoint_threshold,
+                            model_name=model_name,
+                            run_console=run_console,
+                            metrics=metrics,
+                            ablation_config=ablation_config,
+                            index=index,
+                            total=len(selected_stages),
+                        )
+                        if finalize_output is not None:
+                            logger.warning(
+                                "[%d/%d] %s force-finalized after exiting without checkpointing or "
+                                "completing on its last attempt",
+                                index,
+                                len(selected_stages),
+                                stage.stage_id,
+                            )
+                            metrics.finalize_stage(stage.stage_id, status="completed")
+                            break
 
                     pipeline_state.fail(
                         report_dir,

@@ -59,9 +59,9 @@ STAGE_TOOLS: dict[str, list[str]] = {
     "04-static-pass2": ["source:ida", *_FILESYSTEM_TOOLS, *_LOCAL_ANALYSIS_TOOLS],
     "05-dynamic": ["source:x64dbg", "vm_*", *_FILESYSTEM_TOOLS, *_LOCAL_ANALYSIS_TOOLS],
     "06-intel": [*_INTEL_ENRICHMENT_TOOLS, *_FILESYSTEM_TOOLS, "validate_json_output"],
-    "07-deepdive": [*_FILESYSTEM_TOOLS],
+    "07-deepdive": [*_FILESYSTEM_TOOLS, "validate_json_output"],
     "08-report": ["write_file", "build_report_context"],
-    "09-summary": [*_FILESYSTEM_TOOLS],
+    "09-summary": [*_FILESYSTEM_TOOLS, "validate_json_output"],
 }
 
 _X64DBG_REFRESH_STAGES = {

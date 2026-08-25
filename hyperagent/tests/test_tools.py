@@ -735,6 +735,7 @@ class TestStageToolResolution:
         assert names == {
             "read_file", "write_file", "sha256_file",
             "list_directory", "file_exists", "mkdir",
+            "validate_json_output",
         }
 
     def test_report_stage_prefers_compact_context_tool(self, registry):

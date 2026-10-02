@@ -1,5 +1,9 @@
 # HyperAgent
 
+<div align="center">
+  <img src="https://cdn.h26v.io.vn/1790958328577-f3519f0ae12a26ce.png" alt="HyperAgent Dashboard" width="800"/>
+</div>
+
 HyperAgent is a malware-analysis pipeline. Point it at a sample, it runs the
 sample through a fixed sequence of stages — environment prep, static analysis,
 unpacking, dynamic analysis, threat-intel lookups, deep-dive reasoning,
@@ -101,7 +105,7 @@ Quick bootstrap on a new Windows machine:
 powershell -ExecutionPolicy Bypass -File .\bootstrap.ps1
 ```
 
-The script creates `venv/`, installs the package with `pip install -e .`, runs Python smoke checks, and reports whether host-side extras like `vmrun`, `idalib-mcp`, `upx`, and the checked-in stage skill directories under `skill/` are available. It does **not** install VMware, IDA Pro, or x64dbg MCP for you.
+The script creates `venv/`, installs the package with `pip install -e .`, runs Python smoke checks, and reports whether host-side extras like `vmrun`, `idalib-mcp`, `upx`, and the checked-in stage skill directories under `skill/` are available. It also looks for `vmrun` in the default VMware install locations and writes a commented `~/.hyperagent/config.yaml` template if none exists. It does **not** install VMware, IDA Pro, or x64dbg MCP for you.
 
 Manual install remains:
 
@@ -116,6 +120,9 @@ Optional script flags:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\bootstrap.ps1 -InstallDev -RunTests
 ```
+
+- `-InstallTools` installs `upx` through `winget` and saves a discovered VMware directory to the user `PATH`.
+- `-Strict` exits with code 1 if `vmrun`, `idalib-mcp`, `upx`, or any stage skill directory is missing.
 
 Then set your API key for the current shell:
 

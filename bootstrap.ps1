@@ -1,7 +1,12 @@
 param(
     [string]$VenvDir = "venv",
     [switch]$InstallDev,
-    [switch]$RunTests
+    [switch]$RunTests,
+    # Install what can be installed unattended (upx via winget) and persist a
+    # discovered VMware directory to the user PATH.
+    [switch]$InstallTools,
+    # Exit non-zero when a required tool or stage skill is missing.
+    [switch]$Strict
 )
 
 $ErrorActionPreference = "Stop"
@@ -95,6 +100,121 @@ function Test-ExternalCommand([string]$Name, [string]$NeededFor) {
     }
 }
 
+function Add-ToPath([string]$Directory, [switch]$Persist) {
+    $entries = $env:Path -split ";"
+    if ($entries -notcontains $Directory) {
+        $env:Path = "$env:Path;$Directory"
+    }
+    if ($Persist) {
+        $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+        if ([string]::IsNullOrEmpty($userPath)) {
+            $userPath = ""
+        }
+        if (($userPath -split ";") -notcontains $Directory) {
+            $newPath = if ($userPath) { "$userPath;$Directory" } else { $Directory }
+            [Environment]::SetEnvironmentVariable("Path", $newPath, "User")
+            Write-Host "Added $Directory to the user PATH (open a new shell to pick it up)."
+        }
+    }
+}
+
+function Update-SessionPath() {
+    # Pick up PATH entries added by an installer without restarting the shell.
+    $known = $env:Path -split ";"
+    foreach ($scope in "Machine", "User") {
+        $value = [Environment]::GetEnvironmentVariable("Path", $scope)
+        if ([string]::IsNullOrEmpty($value)) { continue }
+        foreach ($entry in ($value -split ";")) {
+            if ($entry -and ($known -notcontains $entry)) {
+                $env:Path = "$env:Path;$entry"
+                $known += $entry
+            }
+        }
+    }
+}
+
+# hyperagent resolves a bare `vmrun` via PATH, so a VMware install that is not
+# on PATH looks missing even though it is present. Returns the install dir only
+# when vmrun exists on disk but is not resolvable yet.
+function Find-VmrunDirectory() {
+    if (Resolve-CommandPath "vmrun") {
+        return $null
+    }
+
+    $candidates = @()
+    $registryKey = "HKLM:\SOFTWARE\WOW6432Node\VMware, Inc.\VMware Workstation"
+    $registry = Get-ItemProperty -Path $registryKey -ErrorAction SilentlyContinue
+    if ($registry -and ($registry.PSObject.Properties.Name -contains "InstallPath")) {
+        $candidates += $registry.InstallPath
+    }
+    foreach ($base in @(${env:ProgramFiles(x86)}, $env:ProgramFiles)) {
+        if ($base) {
+            $candidates += Join-Path $base "VMware\VMware Workstation"
+        }
+    }
+
+    foreach ($candidate in $candidates) {
+        if ($candidate -and (Test-Path (Join-Path $candidate "vmrun.exe"))) {
+            return $candidate.TrimEnd("\")
+        }
+    }
+    return $null
+}
+
+function Install-Upx() {
+    $winget = Resolve-CommandPath "winget"
+    if (-not $winget) {
+        Write-Warning "winget not found; install upx manually (https://upx.github.io/)."
+        return
+    }
+
+    & $winget install --id upx.upx --exact --silent --accept-package-agreements --accept-source-agreements
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "winget could not install upx (exit code $LASTEXITCODE)."
+        return
+    }
+    Update-SessionPath
+}
+
+function Ensure-ConfigTemplate([string]$ConfigPath) {
+    if (Test-Path $ConfigPath) {
+        Write-Host "Config exists, leaving it untouched: $ConfigPath"
+        return
+    }
+
+    $configDir = Split-Path -Parent $ConfigPath
+    if (-not (Test-Path $configDir)) {
+        New-Item -ItemType Directory -Path $configDir -Force | Out-Null
+    }
+
+    # Everything is commented out so the file is valid until the user opts in.
+    # Secrets (API keys, guest password) belong in environment variables.
+    $template = @'
+# HyperAgent configuration. Environment variables override these values.
+# Uncomment and fill in what you need. Keep API keys in the environment.
+
+# provider:
+#   name: "anthropic"
+#   model: ""
+
+# vmware:                      # required for the 05-dynamic stage
+#   vmx_path: "C:\\VMs\\analysis\\analysis.vmx"
+#   snapshot_name: "clean"
+#   guest_user: ""
+#   guest_desktop: ""
+#   guest_debugger: ""
+#   # guest_password: set HYPERAGENT_GUEST_PASSWORD instead
+
+# ida_mcp:
+#   url: "http://localhost:13337/mcp"
+
+# x64dbg_mcp:
+#   url: "http://<guest-ip>:3000/mcp"
+'@
+    Set-Content -Path $ConfigPath -Value $template -Encoding UTF8
+    Write-Host "Created config template: $ConfigPath"
+}
+
 function Test-SkillDirectories([string]$RootPath, [string[]]$SkillDirs) {
     $results = @()
     foreach ($skillDir in $SkillDirs) {
@@ -128,6 +248,15 @@ if ($RunTests) {
 }
 
 Write-Step "Checking external tools"
+$vmrunDir = Find-VmrunDirectory
+if ($vmrunDir) {
+    Write-Host "vmrun found at $vmrunDir but not on PATH; adding it."
+    Add-ToPath -Directory $vmrunDir -Persist:$InstallTools
+}
+if ($InstallTools -and -not (Resolve-CommandPath "upx")) {
+    Write-Host "Installing upx with winget"
+    Install-Upx
+}
 $toolChecks = @(
     (Test-ExternalCommand -Name "vmrun" -NeededFor "VMware guest control for 05-dynamic"),
     (Test-ExternalCommand -Name "idalib-mcp" -NeededFor "Host-side local IDA MCP bootstrap"),
@@ -149,6 +278,9 @@ foreach ($skill in $skillChecks) {
     Write-Host ("[{0}] {1} -> {2}" -f $status, $skill.Name, $skill.Path) -ForegroundColor $color
 }
 
+Write-Step "Preparing config file"
+Ensure-ConfigTemplate -ConfigPath $DefaultConfigPath
+
 Write-Step "Manual configuration still needed"
 if ([string]::IsNullOrWhiteSpace($env:ANTHROPIC_API_KEY)) {
     Write-Warning "ANTHROPIC_API_KEY is not set. Real pipeline runs will fail until you export it."
@@ -165,3 +297,15 @@ Write-Step "Next steps"
 Write-Host ("  {0}\Scripts\Activate.ps1" -f $ResolvedVenvDir)
 Write-Host "  hyperagent analyze C:\path\to\sample.exe"
 Write-Host "  hyperagent analyze C:\path\to\sample.exe --stage 01-prepare-env"
+
+$missingTools = @($toolChecks | Where-Object { -not $_.Found } | ForEach-Object { $_.Name })
+$missingSkills = @($skillChecks | Where-Object { -not $_.Found } | ForEach-Object { $_.Name })
+$missing = @($missingTools + $missingSkills)
+if ($missing.Count -gt 0) {
+    $summary = "Missing: " + ($missing -join ", ")
+    if ($Strict) {
+        Write-Host "`n$summary" -ForegroundColor Red
+        exit 1
+    }
+    Write-Warning "$summary (rerun with -Strict to fail on this)."
+}

@@ -420,7 +420,7 @@ class AgentLoop:
 
             if self.console_mode == "minimal":
                 if self._run_console is not None:
-                    self._run_console.tool_result(content, is_error=res.is_error)
+                    self._run_console.tool_result(content, is_error=res.is_error, name=tc.name)
                 else:
                     preview = content.strip().replace("\n", " ")
                     if len(preview) > 200:

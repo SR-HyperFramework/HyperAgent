@@ -88,7 +88,14 @@ def test_default_skills_root_points_at_repo_skill_dir():
 
 
 def test_selected_stages_supports_runtime_profiles():
-    assert [stage.stage_id for stage in _selected_stages(None)] == [stage.stage_id for stage in STAGES]
+    # External enrichment is opt-in, so the default profile is every stage
+    # except 06-intel; only the "intel" profile runs the complete set.
+    assert [stage.stage_id for stage in _selected_stages(None)] == [
+        stage.stage_id for stage in STAGES if stage.stage_id != "06-intel"
+    ]
+    assert [stage.stage_id for stage in _selected_stages(None, profile="intel")] == [
+        stage.stage_id for stage in STAGES
+    ]
     assert [stage.stage_id for stage in _selected_stages(None, profile="fast")] == [
         "01-prepare-env",
         "02-static-pass1",
@@ -98,21 +105,134 @@ def test_selected_stages_supports_runtime_profiles():
         "08-report",
         "09-summary",
     ]
+    # static-only is single-pass: without 03-unpack there is no recovered
+    # artifact for 04-static-pass2 to analyze.
     assert [stage.stage_id for stage in _selected_stages(None, profile="static-only")] == [
         "01-prepare-env",
         "02-static-pass1",
-        "03-unpack",
-        "04-static-pass2",
         "07-deepdive",
         "08-report",
         "09-summary",
     ]
+    assert [stage.stage_id for stage in _selected_stages(None, profile="dynamic-only")] == [
+        "01-prepare-env",
+        "05-dynamic",
+        "07-deepdive",
+        "08-report",
+        "09-summary",
+    ]
+    assert [stage.stage_id for stage in _selected_stages(None, profile="dynamic_only")] == [
+        stage.stage_id for stage in _selected_stages(None, profile="dynamic-only")
+    ]
+
+
+def test_selected_stages_rejects_unknown_profile():
+    with pytest.raises(ValueError, match="dynamic-only"):
+        _selected_stages(None, profile="runtime")
 
 
 def test_selected_stages_applies_skip_flags():
-    selected = _selected_stages(None, skip_dynamic=True, skip_intel=True)
+    selected = _selected_stages(None, profile="intel", skip_dynamic=True, skip_intel=True)
     assert "05-dynamic" not in {stage.stage_id for stage in selected}
     assert "06-intel" not in {stage.stage_id for stage in selected}
+
+
+def test_dynamic_only_profile_runs_reporting_chain_and_leaves_other_stages_pending(
+    monkeypatch, sample_file: Path, config
+):
+    _stage_skill_tree(config.skills_root)
+    config.runtime.pipeline_profile = "dynamic-only"
+    config.runtime.start_ida_mcp = "auto"
+    stage_hash = "dynonly1" * 8
+    report_dir = config.reports_root / stage_hash
+    reverts = []
+
+    class _Registry:
+        def get_tools_for_stage(self, _sid):
+            return []
+
+    class _Loop:
+        def __init__(self, *args, **kwargs):
+            self.last_messages = []
+
+        def run(self, **kwargs):
+            stage_id = kwargs["stage_id"]
+            out = report_dir / f"{stage_id}.json"
+            if stage_id == "08-report":
+                out = out.with_suffix(".md")
+                out.write_text("# Report", encoding="utf-8")
+            else:
+                out.write_text("{}", encoding="utf-8")
+            pipeline_state.complete(report_dir, stage_id, str(out))
+            return "ok"
+
+    monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: stage_hash)
+    monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg, _scope: (_Registry(), []))
+    monkeypatch.setattr(
+        "hyperagent.engine.launcher.refresh_x64dbg_tools",
+        lambda registry, clients, endpoint, stage_id, current_client=None: current_client,
+    )
+    monkeypatch.setattr("hyperagent.engine.launcher.missing_x64dbg_required_tools", lambda _registry: [])
+    monkeypatch.setattr("hyperagent.engine.launcher.create_provider", lambda *a, **k: _DummyProvider())
+    monkeypatch.setattr("hyperagent.engine.launcher.AgentLoop", _Loop)
+    monkeypatch.setattr(vmware_tools, "vm_auto_revert_after_dynamic", lambda cfg: reverts.append(1))
+
+    result = asyncio.run(run_pipeline_with_config(sample_file, config))
+
+    assert [stage.stage_id for stage in result.stages] == [
+        "01-prepare-env",
+        "05-dynamic",
+        "07-deepdive",
+        "08-report",
+        "09-summary",
+    ]
+    assert all(stage.stage_status == "completed" for stage in result.stages)
+    assert reverts == [1]
+
+    stages = pipeline_state.load_state(report_dir)["stages"]
+    for skipped in ("02-static-pass1", "03-unpack", "04-static-pass2", "06-intel"):
+        assert stages[skipped]["status"] == pipeline_state.STATUS_PENDING
+        assert not stages[skipped].get("output_path")
+
+
+def test_dynamic_only_profile_uses_targeted_attempt_cap(monkeypatch, sample_file: Path, config):
+    _stage_skill_tree(config.skills_root)
+    config.runtime.pipeline_profile = "dynamic-only"
+    config.max_stage_attempts = 5
+    config.runtime.fast_max_stage_attempts = 1
+    stage_hash = "dyncap01" * 8
+    report_dir = config.reports_root / stage_hash
+    calls = {"count": 0}
+
+    class _Registry:
+        def get_tools_for_stage(self, _sid):
+            return []
+
+    class _Loop:
+        def __init__(self, *args, **kwargs):
+            self.last_messages = []
+
+        def run(self, **kwargs):
+            # Never writes an artifact, so the stage burns its whole budget.
+            calls["count"] += 1
+            return "ok"
+
+    monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: stage_hash)
+    monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg, _scope: (_Registry(), []))
+    monkeypatch.setattr("hyperagent.engine.launcher.create_provider", lambda *a, **k: _DummyProvider())
+    monkeypatch.setattr("hyperagent.engine.launcher.AgentLoop", _Loop)
+
+    result = asyncio.run(run_pipeline_with_config(sample_file, config, stage_id="01-prepare-env"))
+
+    assert [stage.stage_status for stage in result.stages] == ["failed"]
+    # One capped regular attempt, then the bounded forced-finalize rounds --
+    # not the five attempts config.max_stage_attempts would otherwise allow.
+    assert calls["count"] == 1 + launcher._MAX_FINALIZE_ATTEMPTS
+    assert "01-prepare-env" in (pipeline_state.load_state(report_dir)["last_error"] or "")
 
 
 def test_launcher_skips_idalib_mcp_when_profile_does_not_need_ida(monkeypatch, sample_file: Path, config):
@@ -837,6 +957,10 @@ def test_launcher_updates_run_console_for_stage_attempt(monkeypatch, sample_file
             self.started = False
             self.finished = False
             self.transitions = []
+            self.bound = None
+
+        def bind_run(self, **kwargs):
+            self.bound = kwargs
 
         def start(self):
             self.started = True
@@ -871,12 +995,25 @@ def test_launcher_updates_run_console_for_stage_attempt(monkeypatch, sample_file
     monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", lambda _cfg, _scope: (_Registry(), []))
     monkeypatch.setattr("hyperagent.engine.launcher.create_provider", fake_create_provider)
     monkeypatch.setattr("hyperagent.engine.launcher.AgentLoop", _Loop)
+    linked = []
+    monkeypatch.setattr(
+        "hyperagent.run_registry.link_run",
+        lambda sha, path, *, sample_path="": linked.append((sha, path, sample_path)),
+    )
 
     result = asyncio.run(run_pipeline_with_config(sample_file, config, stage_id="01-prepare-env", run_console=console))
 
     assert len(result.stages) == 1
+    # The run index learns where this run's reports went, for the dashboard.
+    assert linked == [("console" * 8, report_dir, str(sample_file.resolve()))]
     assert console.started is True
     assert console.finished is True
+    assert console.bound == {
+        "sample_sha256": "console" * 8,
+        "report_dir": report_dir,
+        "stage_ids": ("01-prepare-env",),
+        "model": config.provider.model,
+    }
     assert console.transitions == [
         {
             "index": 1,

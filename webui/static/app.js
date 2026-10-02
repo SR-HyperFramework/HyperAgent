@@ -146,3 +146,87 @@
     }, 1400);
   });
 })();
+
+// --- Live run page -------------------------------------------------------------
+// Re-fetch the server-rendered regions and swap in only the ones that changed,
+// so the page never builds markup from run data itself (it is all escaped by
+// the template) and an unchanged region keeps its scroll position.
+(() => {
+  const shell = document.querySelector("[data-live-src]");
+  if (!shell) return;
+
+  const source = shell.dataset.liveSrc;
+  const lost = document.getElementById("live-lost");
+  const FINAL = new Set(["completed", "failed", "stopped"]);
+  let failures = 0;
+
+  function pinFeeds(root) {
+    for (const feed of root.querySelectorAll("[data-live-scroll]")) feed.scrollTop = feed.scrollHeight;
+  }
+
+  function scrollState(region) {
+    const state = new Map();
+    for (const feed of region.querySelectorAll("[data-live-scroll][id]")) {
+      const atBottom = feed.scrollTop + feed.clientHeight >= feed.scrollHeight - 8;
+      state.set(feed.id, { atBottom, top: feed.scrollTop });
+    }
+    return state;
+  }
+
+  function restoreScroll(region, state) {
+    for (const [id, saved] of state) {
+      const feed = region.querySelector(`#${CSS.escape(id)}`);
+      if (feed) feed.scrollTop = saved.atBottom ? feed.scrollHeight : saved.top;
+    }
+  }
+
+  // A tool burst the reader expanded stays expanded across updates (and an
+  // opened <details> alone is not a change worth swapping the region for).
+  function keepOpen(region, incoming) {
+    for (const details of region.querySelectorAll("details[data-key]")) {
+      const twin = incoming.querySelector(`details[data-key="${CSS.escape(details.dataset.key)}"]`);
+      if (twin) twin.open = details.open;
+    }
+  }
+
+  function currentState() {
+    const marker = document.getElementById("live-state");
+    return marker ? marker.dataset.liveState : "";
+  }
+
+  async function refresh() {
+    const response = await fetch(source, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const next = new DOMParser().parseFromString(await response.text(), "text/html");
+    for (const incoming of next.querySelectorAll("[data-live-region][id]")) {
+      const region = document.getElementById(incoming.id);
+      if (!region) continue;
+      keepOpen(region, incoming);
+      if (region.outerHTML === incoming.outerHTML) continue;
+      const saved = scrollState(region);
+      const adopted = document.adoptNode(incoming);
+      region.replaceWith(adopted);
+      restoreScroll(adopted, saved);
+    }
+  }
+
+  async function tick() {
+    try {
+      await refresh();
+      failures = 0;
+      if (lost) lost.hidden = true;
+    } catch {
+      failures += 1;
+      // One miss can be a slow response; two in a row means the CLI that
+      // hosts this dashboard has exited.
+      if (lost && failures >= 2) lost.hidden = false;
+    }
+    if (failures >= 6) return;
+    const state = currentState();
+    const delay = failures ? 4000 : state === "running" ? 1500 : FINAL.has(state) ? 10000 : 4000;
+    setTimeout(tick, delay);
+  }
+
+  pinFeeds(document);
+  setTimeout(tick, 1500);
+})();

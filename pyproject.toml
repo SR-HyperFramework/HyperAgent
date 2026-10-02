@@ -29,6 +29,8 @@ dependencies = [
     "jsonschema>=4.23.0",
     # Existing dependency
     "flask>=3.0.0",
+    # Full-screen run console (--mdebug); verified against rich 14.
+    "rich>=13.7.0",
     # Utilities
     "pydantic>=2.10.0",
     "httpx>=0.28.0",

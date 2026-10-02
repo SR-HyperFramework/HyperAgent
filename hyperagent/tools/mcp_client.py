@@ -42,12 +42,27 @@ class MCPClient:
     # -- lifecycle ------------------------------------------------------------
 
     def health_check(self) -> bool:
-        """Return True if the MCP server health endpoint responds."""
+        """Return True if the MCP server responds.
+
+        Tries the plain health URL first, then falls back to a real MCP
+        ``initialize`` handshake against the endpoint itself. The GET probe
+        alone is not sufficient: an MCP server only has to speak JSON-RPC on
+        its endpoint path, and idalib-mcp answers 404 on ``/`` and 405 on
+        ``GET /mcp`` while serving ``POST /mcp`` perfectly well -- which made
+        every health check report a fully usable server as unreachable.
+        """
         try:
             r = self._http.get(self._health_url, timeout=5)
-            return r.status_code == 200
+            if r.status_code == 200:
+                return True
         except (httpx.HTTPError, OSError):
+            pass
+
+        try:
+            self.initialize()
+        except (ConnectionError, RuntimeError, ValueError, OSError):
             return False
+        return True
 
     def initialize(self) -> dict[str, Any]:
         """Send MCP ``initialize`` handshake."""

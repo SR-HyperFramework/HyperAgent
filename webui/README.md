@@ -1,15 +1,27 @@
 # HyperAgent Report Web UI
 
-A small read-only Flask app for browsing finished HyperAgent runs.
+A small read-only Flask app for browsing HyperAgent runs: finished reports, and
+runs still in progress.
 
-Its **only** data source is the summary stage artifact:
+The report pages read **only** the summary stage artifact:
 
 ```text
 reports/<sha256>/09-summary.json
 ```
 
-No other stage file is read, no sample binary is opened, and nothing under
-`reports/` is ever written. The rest of the pipeline is untouched by this app.
+Besides the reports root, the app lists every run folder recorded in the run
+index `~/.hyperagent/runs.json` (`HYPERAGENT_RUN_INDEX` overrides the path).
+The pipeline records each run there, and `hyperagent link-reports <folder>`
+adds older ones, so reports written next to samples in other trees still show
+up. The report page names the folder a run was read from.
+
+The live page (`/live/<sha256>`) follows a run in progress instead, so it reads
+`STATE.json` plus the stage artifacts it summarises (findings and evidence from
+`02`–`05`, indicators from `05-dynamic.json` and `09-summary.json`, the verdict
+from `07-deepdive.json` / `09-summary.json`), plus the run console's transcript
+`console.jsonl` when one was saved. No sample binary is opened, and
+nothing under `reports/` is ever written. The rest of the pipeline is untouched
+by this app.
 
 ## Install
 
@@ -57,8 +69,38 @@ It also runs under the Flask CLI:
 | `/` | Report index: readable run cards plus verdict/risk/sort filters |
 | `/search?q=` | Header search. A known SHA256 jumps straight to its report; anything else filters the index |
 | `/runs/<sha256>` | Full report for one run |
+| `/live/<sha256>` | Live view of a run: stages, IoCs, evidence, and the agent trace (streamed from the CLI, or its saved transcript) |
 | `/api/runs` | JSON index of every discovered run |
 | `/api/runs/<sha256>` | That run's `09-summary.json`, verbatim |
+| `/api/live/<sha256>` | The live view as JSON: stage snapshot plus console state |
+| `/console/<sha256>.txt` | The run's saved console transcript as plain text |
+| `/api/console/<sha256>` | The saved transcript as JSON records (newest 4 MB of the file) |
+
+## The live page
+
+`hyperagent analyze <sample> --mdebug` serves this app in-process on
+`127.0.0.1:5000` (or the next free port; `--dashboard-port` picks another start,
+`--no-dashboard` turns it off) and prints a **Watch live in browser** link at the
+top of the console sidebar. Served that way, the app gets the run console as a
+*live feed*, so `/live/<sha256>` shows the same agent trace the terminal shows,
+next to the stage list, IoCs and findings read from the report directory. The
+index page links the active run.
+
+The page renders on the server and works without JavaScript (it falls back to
+reloading itself). With JavaScript it re-fetches `/live/<sha256>?fragment=1`
+every couple of seconds and swaps in only the regions whose markup changed, so
+it never builds markup from run data in the browser. The dashboard stops with
+the CLI process; the page then says it lost contact and keeps the last update.
+
+The run console also saves what it shows to `reports/<sha256>/console.jsonl`.
+Without a live feed -- the CLI has exited, or the app was started standalone
+(`python webui\app.py`) -- the live page renders that transcript instead (the
+newest 1,000 events, with each console session marked; each burst of tool calls
+is one expandable "Read 3 files, ran 1 command" row that stays open across
+updates), and a report page links
+to it as **Console output**. A standalone app re-reads the file on every poll,
+so it also follows a run going on in another process, though it cannot tell such
+a run from an abandoned one.
 
 ## The report page
 
@@ -108,6 +150,7 @@ the page down.
 - Report text comes from analyzed malware. Every template value is
   Jinja-autoescaped and nothing is rendered with `|safe`.
 - Only bare SHA256 values resolve to a directory, so a crafted URL cannot walk
-  out of the reports tree.
+  out of the reports tree. The live page also ignores a `STATE.json`
+  `output_path` that points outside the run's report directory.
 - Bind stays on `127.0.0.1` unless you pass `--host`. This is Flask's
   development server; put it behind a real WSGI server before exposing it.

@@ -10,7 +10,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from hyperagent.config import ProviderConfig
+from hyperagent.config import THINKING_LEVELS, ProviderConfig
 from hyperagent.console import RunConsole
 from hyperagent.providers import (
     DEFAULT_ANTHROPIC_MODEL,
@@ -93,6 +93,58 @@ def test_complete_omits_temperature_from_request():
 def test_create_provider_stage_model_override():
     cfg = ProviderConfig(name="anthropic", api_key="sk-test", model="claude-x")
     assert create_provider(cfg, model="claude-y")._model == "claude-y"
+
+
+def test_create_provider_applies_named_thinking_level():
+    cfg = ProviderConfig(name="anthropic", api_key="sk-test", thinking_level="high")
+    provider = create_provider(cfg)
+    assert provider._extended_thinking is True
+    assert provider._thinking_budget_tokens == THINKING_LEVELS["high"]
+
+
+def test_thinking_level_off_disables_extended_thinking():
+    """`off` must win over a legacy extended_thinking=True, not just mean 0."""
+    cfg = ProviderConfig(
+        name="anthropic", api_key="sk-test", thinking_level="off", extended_thinking=True,
+    )
+    provider = create_provider(cfg)
+    assert provider._extended_thinking is False
+
+
+def test_stage_thinking_level_overrides_global_level():
+    cfg = ProviderConfig(
+        name="anthropic",
+        api_key="sk-test",
+        thinking_level="low",
+        stage_thinking_levels={"07-deepdive": "max"},
+    )
+    assert create_provider(cfg, stage_id="07-deepdive")._thinking_budget_tokens == (
+        THINKING_LEVELS["max"]
+    )
+    assert create_provider(cfg, stage_id="08-report")._thinking_budget_tokens == (
+        THINKING_LEVELS["low"]
+    )
+
+
+def test_unset_thinking_level_falls_back_to_raw_fields():
+    """Configs written before named levels -- and --debug -- keep working."""
+    cfg = ProviderConfig(
+        name="anthropic", api_key="sk-test", extended_thinking=True, thinking_budget_tokens=1234,
+    )
+    provider = create_provider(cfg)
+    assert provider._extended_thinking is True
+    assert provider._thinking_budget_tokens == 1234
+
+
+def test_unknown_thinking_level_is_rejected():
+    cfg = ProviderConfig(name="anthropic", api_key="sk-test", thinking_level="ultra")
+    with pytest.raises(ValueError, match="Unknown thinking level"):
+        create_provider(cfg)
+
+
+def test_thinking_level_accepts_underscore_and_case_variants():
+    cfg = ProviderConfig(name="anthropic", api_key="sk-test", thinking_level="MEDIUM")
+    assert create_provider(cfg)._thinking_budget_tokens == THINKING_LEVELS["medium"]
 
 
 def test_create_provider_passes_run_console_to_anthropic():

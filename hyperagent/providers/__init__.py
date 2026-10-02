@@ -40,6 +40,7 @@ def create_provider(
     model: str = "",
     cache_enabled: bool = True,
     run_console: RunConsole | None = None,
+    stage_id: str | None = None,
 ) -> LLMProvider:
     """Instantiate the LLM provider described by *config*.
 
@@ -54,6 +55,8 @@ def create_provider(
         Whether provider-level prompt caching should be enabled where supported.
     run_console:
         Optional console renderer for minimal live output.
+    stage_id:
+        Stage this provider serves, used to pick a per-stage thinking level.
     """
     provider_cls = _PROVIDERS.get(config.name)
     if provider_cls is None:
@@ -69,9 +72,10 @@ def create_provider(
         "max_output_tokens": config.max_output_tokens,
     }
     if config.name == "anthropic":
+        extended_thinking, thinking_budget = config.resolve_thinking(stage_id)
         kwargs["cache_enabled"] = cache_enabled
-        kwargs["extended_thinking"] = config.extended_thinking
-        kwargs["thinking_budget_tokens"] = config.thinking_budget_tokens
+        kwargs["extended_thinking"] = extended_thinking
+        kwargs["thinking_budget_tokens"] = thinking_budget
         kwargs["console_mode"] = config.console_mode
         kwargs["run_console"] = run_console
         kwargs["context_window_override"] = config.context_window_override

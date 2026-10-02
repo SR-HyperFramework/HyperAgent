@@ -21,7 +21,7 @@ sample
   -> 03-unpack        (x64dbg-backed unpacking)
   -> 04-static-pass2  (re-run static analysis on unpacked code)
   -> 05-dynamic       (VM execution + x64dbg)
-  -> 06-intel         (VirusTotal / threat-intel correlation)
+  -> 06-intel         (VirusTotal / threat-intel correlation; opt-in, `--profile intel`)
   -> 07-deepdive       (cross-stage reasoning)
   -> 08-report         (Markdown report from compact validated context)
   -> 09-summary         (structured verdict JSON, what the web UI reads)
@@ -49,6 +49,14 @@ HyperAgent/
 │  ├─ cli.py                # `hyperagent analyze` / `hyperagent batch`
 │  ├─ config.py             # env-var + YAML config loading
 │  ├─ pipeline_state.py     # per-run STATE.json read/write
+│  ├─ console.py            # run console: event log, line renderer, live-feed hooks
+│  ├─ tui.py                # full-screen --mdebug console with the run sidebar
+│  ├─ tui_input.py          # keyboard/mouse-wheel scrolling for the full-screen console
+│  ├─ console_log.py        # console.jsonl transcript writer/reader (console + web)
+│  ├─ console_actions.py    # collapses tool-call bursts into summary lines (console + web)
+│  ├─ run_registry.py       # ~/.hyperagent/runs.json: where every run's report folder lives
+│  ├─ run_snapshot.py       # stages/IoCs/evidence read from a report dir (sidebar + web)
+│  ├─ dashboard.py          # serves webui/ in-process for the running analysis
 │  ├─ engine/
 │  │  ├─ agent_loop.py      # the tool-calling loop for one stage
 │  │  ├─ launcher.py        # STAGES list + run_pipeline_with_config()
@@ -64,7 +72,7 @@ HyperAgent/
 │  ├─ api/                  # FastAPI server (jobs, models, server)
 │  └─ tests/                # pytest suite, one file per module above
 ├─ experiments/             # batch_eval (corpus precision/recall/F1), ablation runner
-├─ webui/                   # read-only Flask viewer for finished reports
+├─ webui/                   # read-only Flask viewer for finished reports and live runs
 ├─ skill/                   # checked-in v4 stage skills + shared helper assets
 │  └─ backup/               # archived v3 CLI-subprocess pipeline (reference only)
 ├─ plans/                   # phase-by-phase implementation notes for this rewrite
@@ -153,17 +161,18 @@ Commonly used environment variables:
 |---|---|
 | `ANTHROPIC_API_KEY` | Required for any real run |
 | `HYPERAGENT_MODEL` | Override the default model for every stage |
+| `HYPERAGENT_THINKING_LEVEL` | Extended-thinking depth: `off`, `low`, `medium`, `high`, or `max`; unset defers to `HYPERAGENT_EXTENDED_THINKING` |
 | `HYPERAGENT_SKILLS_ROOT` | Directory containing `_hyperagent-common/` and the `hyperagent-*` stage skills; defaults to the repo `skill/` directory |
 | `HYPERAGENT_ANTHROPIC_BASE_URL` | Point the Anthropic client at a compatible proxy/gateway instead of `api.anthropic.com` |
 | `HYPERAGENT_VMX_PATH`, `HYPERAGENT_VM_SNAPSHOT`, `HYPERAGENT_GUEST_USER`, `HYPERAGENT_GUEST_PASSWORD` | VMware guest for the dynamic stage — no defaults, must be set to run `05-dynamic` |
 | `HYPERAGENT_IDA_MCP_URL`, `HYPERAGENT_X64DBG_MCP_URL` | MCP endpoints for static/unpack/dynamic stages |
 | `VT_API_KEY` | VirusTotal lookups in `06-intel` |
-| `HYPERAGENT_PIPELINE_PROFILE` | Runtime profile: `full` (default), `fast`, or `static-only` |
+| `HYPERAGENT_PIPELINE_PROFILE` | Runtime profile: `full` (default), `intel`, `fast`, `static-only`, or `dynamic-only` |
 | `HYPERAGENT_SKIP_DYNAMIC` | Set truthy to skip the VM-backed `05-dynamic` stage |
-| `HYPERAGENT_SKIP_INTEL` | Set truthy to skip external intelligence enrichment in `06-intel` |
+| `HYPERAGENT_SKIP_INTEL` | Set truthy to skip `06-intel` even under the `intel` profile; no effect elsewhere, since no other profile selects it |
 | `HYPERAGENT_REUSE_COMPLETED_STAGES` | Reuse completed valid stage artifacts from `reports/<sha256>/`; defaults to true |
 | `HYPERAGENT_START_IDA_MCP` | Local idalib MCP startup policy: `auto` (default), `always`, or `never` |
-| `HYPERAGENT_FAST_MAX_STAGE_ATTEMPTS` | Attempt cap for `fast` / `static-only` profiles; defaults to 2 |
+| `HYPERAGENT_FAST_MAX_STAGE_ATTEMPTS` | Attempt cap for the targeted `fast` / `static-only` / `dynamic-only` profiles; defaults to 2 |
 | `HYPERAGENT_CHECKPOINT_THRESHOLD` | Context usage ratio that triggers safety handling; defaults to `0.75` |
 | `HYPERAGENT_COMPACT_ENABLED` | Set falsey to disable semantic context compaction before checkpoint fallback; defaults to true |
 | `HYPERAGENT_COMPACT_THRESHOLD` | Optional context usage ratio for compaction; unset means use `HYPERAGENT_CHECKPOINT_THRESHOLD` |
@@ -174,6 +183,44 @@ Commonly used environment variables:
 Per-stage model overrides go under `provider.stage_models` in the YAML config
 (stage_id → model name), for e.g. running cheaper models on prep/summary and
 a stronger model on deepdive.
+
+### Thinking level
+
+`provider.thinking_level` picks how deeply Claude reasons before answering, as
+a name rather than a raw token budget:
+
+| Level | Thinking budget | Typical use |
+|---|---|---|
+| `off` | disabled | Mechanical stages; fastest and cheapest |
+| `low` | 4096 | Default depth when thinking is switched on |
+| `medium` | 8192 | Stages that weigh several pieces of evidence |
+| `high` | 16384 | Reconciliation and verdict work |
+| `max` | 32768 | Hard samples where reasoning depth is the bottleneck |
+
+Set it globally, per run, or per stage:
+
+```powershell
+# One run, every stage.
+hyperagent analyze C:\path\to\sample.exe --thinking high
+```
+
+```yaml
+# ~/.hyperagent/config.yaml — cheap by default, deep where it pays off.
+provider:
+  thinking_level: low
+  stage_thinking_levels:
+    07-deepdive: max
+    09-summary: off
+```
+
+Resolution order is stage level → global level → the raw
+`extended_thinking` / `thinking_budget_tokens` pair. That last fallback is why
+configs written before thinking levels existed still behave identically, and
+why `--debug` (which just flips `extended_thinking`) keeps working. An explicit
+level always wins, including `--thinking off`. The budget is a ceiling, not a
+quota: the model spends what it needs up to that limit. Anthropic requires
+`max_tokens` above the thinking budget, so the provider raises it automatically
+when a level exceeds `HYPERAGENT_MAX_OUTPUT_TOKENS`.
 
 Context safety has two layers. First, `AgentLoop` tries a tool-free semantic
 compaction call that condenses the current conversation into a marked
@@ -237,11 +284,17 @@ Output lands in `<sample_parent>/reports/<sha256>/`.
 Runtime profiles for faster iteration:
 
 ```powershell
+# Add external enrichment (06-intel) on top of the default local pipeline.
+hyperagent analyze C:\path\to\sample.exe --profile intel
+
 # Skip the slowest dynamic/intel work and reuse valid existing artifacts.
 hyperagent analyze C:\path\to\sample.exe --profile fast
 
-# Static-focused pass: prepare, static/unpack/static, deepdive, report, summary.
+# Single-pass static triage: prepare, static pass 1, deepdive, report, summary.
 hyperagent analyze C:\path\to\sample.exe --static-only
+
+# Runtime-focused pass: prepare, dynamic, deepdive, report, summary.
+hyperagent analyze C:\path\to\sample.exe --profile dynamic-only
 
 # Keep the full profile but explicitly skip expensive optional stages.
 hyperagent analyze C:\path\to\sample.exe --skip-dynamic --skip-intel
@@ -253,7 +306,93 @@ hyperagent analyze C:\path\to\sample.exe --no-cache
 hyperagent analyze C:\path\to\sample.exe --ida-mcp never
 ```
 
-`full` remains the default for maximum evidence. `fast` and `static-only` are designed to reduce turnaround time while developing or triaging: they skip `05-dynamic` and `06-intel`, limit retries with `HYPERAGENT_FAST_MAX_STAGE_ATTEMPTS`, and still validate any reused stage artifact before skipping work. With `--ida-mcp auto` (the default), HyperAgent starts local idalib MCP only when the selected stages need IDA tools.
+`full` is the default and runs every stage that reasons from the sample itself. External enrichment is opt-in: `06-intel` sends sample hashes to a third party and needs `VT_API_KEY` plus network reachability, so it runs only under the `intel` profile. The targeted profiles reduce turnaround time while developing or triaging by running a subset of the nine stages:
+
+| Profile | Stages |
+| --- | --- |
+| `full` (default) | `01` – `09` except `06-intel` |
+| `intel` | `01` – `09`, i.e. `full` plus external enrichment |
+| `fast` | `01-prepare-env`, `02-static-pass1`, `03-unpack`, `04-static-pass2`, `07-deepdive`, `08-report`, `09-summary` |
+| `static-only` | `01-prepare-env`, `02-static-pass1`, `07-deepdive`, `08-report`, `09-summary` |
+| `dynamic-only` | `01-prepare-env`, `05-dynamic`, `07-deepdive`, `08-report`, `09-summary` |
+
+All targeted profiles limit retries with `HYPERAGENT_FAST_MAX_STAGE_ATTEMPTS` and still validate any reused stage artifact before skipping work. With `--ida-mcp auto` (the default), HyperAgent starts local idalib MCP only when the selected stages need IDA tools.
+
+`static-only` runs a single static pass: it drops `03-unpack`, and `04-static-pass2` with it, because static pass 2 exists to analyze a recovered artifact and `skill/hyperagent-static/SKILL.md` requires it to emit a blocked report — never a silent fallback to pass 1 — when `03-unpack.json` is absent. Use `--profile fast` when you do want unpacking and the second static pass but still no dynamic or intel work.
+
+`dynamic-only` keeps the reporting chain, so it still emits `07-deepdive.json`, `08-report.md`, and `09-summary.json` — with static, unpack, and intel coverage recorded as limitations rather than fabricated. For a bare runtime run without those artifacts, use `--stage 05-dynamic` instead. Stages a profile does not select stay `pending` in `STATE.json`, so `validate_pipeline.py --require-all` is not the right success check for a targeted run; validate the artifacts that exist instead. A later default `full` run reuses the completed artifacts and fills in the pending stages, so pass `--profile dynamic-only` again to stay scoped (and `--no-cache` to force a fresh dynamic run).
+
+### Live console and dashboard
+
+```powershell
+hyperagent analyze C:\path\to\sample.exe --mdebug
+```
+
+On a capable terminal (Windows Terminal, any ANSI TTY) `--mdebug` opens a
+full-screen console modelled on Strix's: the agent trace (assistant text, tool
+calls and results, stage transitions) fills the left pane with a status row
+under it, and a sidebar on the right stacks
+
+| Panel | Shows |
+|---|---|
+| Watch live in browser | Link to this run's live page on the in-process dashboard |
+| Stages | Every selected stage: passed, running (with retry attempt), resumable checkpoint, failed, pending |
+| IoCs | Indicators from `05-dynamic.json`, then `09-summary.json` once it exists |
+| Evidence | Findings from stages `02`–`05`, newest stage first, with confidence |
+| Stats | Verdict (deepdive, then summary), model, sample hash, last error |
+
+The sidebar re-reads `STATE.json` and the stage artifacts about once a second;
+the dashboard serves the same view at `http://127.0.0.1:5000/live/<sha256>`
+(next free port if 5000 is taken), plus the trace. Leaving the full-screen
+view erases it, so the console prints a recap of stages, IoCs and the verdict
+when the run ends. Sample-derived text is shown with terminal control
+characters escaped, so an indicator cannot inject escape sequences.
+
+The full-screen view has no terminal scrollback, so the trace pane scrolls
+itself: ↑/↓ by a line, PgUp/PgDn by a page, the mouse wheel by three lines,
+Home to the oldest line still held (the newest 2,000 events), End to follow
+the output again. While scrolled back the view holds still as new output
+arrives and the pane border shows how many lines are below. Where the
+terminal passes the mouse to the app, select text with Shift+drag.
+
+Each burst of tool calls collapses into one line such as
+`◆ Read 3 files, ran 1 command, called 1 tool · 1 failed`, followed by the
+failed calls and, while it runs, the call still waiting for its result.
+Ctrl+O expands every burst into its raw calls and result previews and
+collapses them again. The dashboard shows the same summaries as expandable
+rows.
+
+Everything the console shows is also appended to
+`reports/<sha256>/console.jsonl`, one JSON object per event (a `session`
+record opens each attach, so a resumed run adds a session rather than
+overwriting). The dashboard renders that file on the run's live page once the
+CLI has exited, and serves it as text at `/console/<sha256>.txt`.
+
+| Flag | Effect |
+|---|---|
+| `--no-tui` | Plain condensed lines with a one-line status footer (also the fallback when output is piped or the console is a legacy Windows console) |
+| `--no-dashboard` | Do not serve the browser dashboard |
+| `--dashboard-port N` | First port to try for the dashboard (default 5000) |
+
+### Finding reports in other folders
+
+Reports are written next to each sample (`<sample_dir>/reports/<sha256>`)
+unless `reports_root` is configured, so runs over different datasets land in
+different trees. Every pipeline run records its report folder in
+`~/.hyperagent/runs.json` (override with `HYPERAGENT_RUN_INDEX`), and the
+dashboard lists those runs next to its own reports root, whichever folder they
+are in. Runs made before this index existed can be linked once:
+
+```powershell
+hyperagent link-reports H:\Dataset\files\m\reports experiments\results\llm_compare
+eports experiments
+esults\llm_compare
+```
+
+It walks the given folders for `<sha256>` directories holding `STATE.json`,
+`09-summary.json` or `console.jsonl`. When a sample has reports in several
+folders, the dashboard shows the most recently written one; folders that no
+longer exist drop out of the index.
 
 ### API server
 
@@ -280,8 +419,9 @@ curl -X POST http://127.0.0.1:8000/analyze/batch \
 
 ### Report viewer
 
-Read-only browser for finished reports (`09-summary.json`) — see
-`webui/README.md` for the full route list.
+Read-only browser for finished reports (`09-summary.json`) and live runs — see
+`webui/README.md` for the full route list. `--mdebug` runs it in-process for the
+current run (see above); start it standalone to browse the corpus.
 
 ```powershell
 .\venv\Scripts\Activate.ps1

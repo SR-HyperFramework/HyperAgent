@@ -397,12 +397,14 @@ class _FakeRunConsole:
     def __init__(self) -> None:
         self.context_calls = []
         self.tool_results = []
+        self.tool_names = []
 
     def set_context(self, **kwargs):
         self.context_calls.append(kwargs)
 
-    def tool_result(self, content, *, is_error=False):
+    def tool_result(self, content, *, is_error=False, name=""):
         self.tool_results.append((content, is_error))
+        self.tool_names.append(name)
 
 
 def test_run_updates_minimal_console_context_and_tool_results():
@@ -435,6 +437,7 @@ def test_run_updates_minimal_console_context_and_tool_results():
     assert console.context_calls[0] == {"turn": 1, "max_turns": 100, "tokens": 4, "cap": 200}
     assert console.context_calls[1]["turn"] == 2
     assert console.tool_results == [("echoed:hi", False)]
+    assert console.tool_names == ["echo"]
 
 
 # -- refusal handling --------------------------------------------------------

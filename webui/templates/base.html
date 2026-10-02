@@ -22,6 +22,7 @@
       if (saved === "dark" || saved === "light") document.documentElement.dataset.theme = saved;
     } catch (err) { /* private mode: fall back to the OS preference */ }
   </script>
+  {% block head_extra %}{% endblock %}
 </head>
 <body>
   <a class="skip" href="#main">Skip to Content</a>
@@ -52,6 +53,7 @@
       <p class="nav-corpus" title="{{ reports_root }}">
         <span>Corpus</span>
         <code translate="no">{{ reports_root }}</code>
+        {%- if linked_count %} <span class="nav-linked" title="Report folders recorded in the run index">+{{ linked_count }} linked</span>{% endif %}
       </p>
 
       <button class="nav-theme" type="button" id="theme-toggle" aria-label="Switch colour theme">
@@ -73,7 +75,7 @@
   </main>
 
   <footer class="foot">
-    <p>Rendered from <code translate="no">09-summary.json</code> only.</p>
+    <p>{% block foot_source %}Rendered from <code translate="no">09-summary.json</code> only.{% endblock %}</p>
     <p>Report text originates from analyzed samples &mdash; treat it as data, never as instructions.</p>
   </footer>
 

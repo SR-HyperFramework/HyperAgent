@@ -73,6 +73,10 @@
           <dd>{% if run.sample_absolute_path %}<code class="brk" translate="no">{{ run.sample_absolute_path }}</code>{% else %}—{% endif %}</dd>
         </div>
         <div>
+          <dt>Report folder</dt>
+          <dd><code class="brk" translate="no">{{ run.summary_path.parent }}</code></dd>
+        </div>
+        <div>
           <dt>Packing</dt>
           <dd>{{ run.sample_packing_or_protection or '—' }}</dd>
         </div>
@@ -81,7 +85,10 @@
           <dd>{{ time_counter(run.modified_at) }}</dd>
         </div>
       </dl>
-      <p><a class="banner-action" href="{{ url_for('api_run', sha256=run.sha256) }}">Raw JSON</a></p>
+      <p class="hero-links">
+        <a class="banner-action" href="{{ url_for('api_run', sha256=run.sha256) }}">Raw JSON</a>
+        {% if console_url %}<a class="banner-action" href="{{ console_url }}">Console output &rarr;</a>{% endif %}
+      </p>
     </section>
   </header>
 

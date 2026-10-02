@@ -49,6 +49,28 @@ class MCPEndpoint:
     timeout: int = 30
 
 
+#: Named thinking levels -> extended-thinking token budget. Named levels exist
+#: so a run can be dialed up or down without anyone having to know what a
+#: sensible budget number looks like, and so the same word means the same depth
+#: across stages and config files. ``off`` disables extended thinking entirely.
+THINKING_LEVELS: dict[str, int] = {
+    "off": 0,
+    "low": 4096,
+    "medium": 8192,
+    "high": 16384,
+    "max": 32768,
+}
+
+
+def _normalize_thinking_level(level: str) -> str:
+    normalized = (level or "").strip().lower().replace("_", "-")
+    if normalized and normalized not in THINKING_LEVELS:
+        raise ValueError(
+            f"Unknown thinking level: {level!r}. Valid: {', '.join(THINKING_LEVELS)}"
+        )
+    return normalized
+
+
 @dataclass
 class ProviderConfig:
     """LLM provider settings."""
@@ -70,8 +92,17 @@ class ProviderConfig:
     Opus 4.7 and later — a non-default value there returns a 400. Note that
     ``temperature=0`` never guaranteed identical outputs on any model; to reduce
     variance, tighten the prompt rather than the sampler."""
+    thinking_level: str = ""
+    """Named thinking depth: one of :data:`THINKING_LEVELS`, or ``""`` to defer
+    to ``extended_thinking``/``thinking_budget_tokens``. This is the knob to
+    reach for; the two raw fields below stay for callers that need an exact
+    budget."""
+    stage_thinking_levels: dict[str, str] = field(default_factory=dict)
+    """Per-stage thinking overrides (stage_id -> level), for e.g. running
+    ``off`` on prep/report and ``high`` on deepdive. Mirrors ``stage_models``."""
     extended_thinking: bool = False
-    """Request Claude's extended-thinking content blocks (Anthropic only)."""
+    """Request Claude's extended-thinking content blocks (Anthropic only).
+    Only consulted when no thinking level applies."""
     thinking_budget_tokens: int = 4096
     """Token budget for extended thinking when ``extended_thinking`` is on."""
     console_mode: str = "off"
@@ -87,17 +118,43 @@ class ProviderConfig:
     provider silently falls back to a conservative 200k -- checkpointing far
     earlier than the model's real window supports."""
 
+    def resolve_thinking(self, stage_id: str | None = None) -> tuple[bool, int]:
+        """Return ``(extended_thinking, budget_tokens)`` for *stage_id*.
+
+        Resolution order: the stage's own level, then the global level, then
+        the raw ``extended_thinking``/``thinking_budget_tokens`` pair. The raw
+        pair stays last so configs written before named levels existed -- and
+        ``--debug``, which just flips ``extended_thinking`` -- keep behaving
+        exactly as they did.
+
+        Raises ``ValueError`` on an unknown level, at provider construction
+        rather than mid-run.
+        """
+        level = ""
+        if stage_id:
+            level = _normalize_thinking_level(self.stage_thinking_levels.get(stage_id, ""))
+        if not level:
+            level = _normalize_thinking_level(self.thinking_level)
+        if not level:
+            return self.extended_thinking, self.thinking_budget_tokens
+
+        budget = THINKING_LEVELS[level]
+        return budget > 0, budget or self.thinking_budget_tokens
+
 
 @dataclass
 class RuntimeConfig:
     """Runtime controls for trading analysis depth against turnaround time."""
 
     pipeline_profile: str = "full"
+    """``full``, ``fast``, ``static-only``, or ``dynamic-only``."""
     skip_dynamic: bool = False
     skip_intel: bool = False
     reuse_completed_stages: bool = True
     start_ida_mcp: str = "auto"
     fast_max_stage_attempts: int = 2
+    """Attempt cap for the targeted profiles (``fast``, ``static-only``,
+    ``dynamic-only``), which trade evidence coverage for turnaround time."""
 
 
 @dataclass
@@ -186,6 +243,10 @@ def load_config(config_path: Path | None = None) -> HyperAgentConfig:
         temperature=_env_float(
             "HYPERAGENT_TEMPERATURE", provider_data.get("temperature")
         ),
+        thinking_level=_env(
+            "HYPERAGENT_THINKING_LEVEL", provider_data.get("thinking_level", "")
+        ),
+        stage_thinking_levels=provider_data.get("stage_thinking_levels", {}),
         extended_thinking=_env_bool(
             "HYPERAGENT_EXTENDED_THINKING", provider_data.get("extended_thinking", False)
         ),

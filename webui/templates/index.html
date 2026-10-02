@@ -3,6 +3,13 @@
 {% block title %}Reports &middot; HyperAgent{% endblock %}
 
 {% block content %}
+{% for item in live_runs %}
+<a class="card live-banner" href="{{ url_for('live_run', sha256=item.sha256) }}">
+  <span class="live-pill live-{{ 'stopped' if item.finished else 'running' }}"><span class="live-dot" aria-hidden="true"></span>{{ 'Finished' if item.finished else 'Running' }}</span>
+  <span class="live-banner-text">Live analysis <code translate="no">{{ item.sha256[:12] }}</code>{% if item.stage_id %} &middot; <code translate="no">{{ item.stage_id }}</code>{% endif %}</span>
+  <span class="banner-action">Watch live &rarr;</span>
+</a>
+{% endfor %}
 <div class="pagehead">
   <h1>Analysis Reports</h1>
   <p>{{ total_runs }} completed {{ 'run' if total_runs == 1 else 'runs' }} in this corpus{% if stats.unreadable %} &middot; {{ stats.unreadable }} unreadable{% endif %}</p>
@@ -62,7 +69,8 @@
     {% else %}
       <h2>No Reports Found</h2>
       <p>Nothing under <code translate="no">{{ reports_root }}</code> contains a <code translate="no">09-summary.json</code>.</p>
-      <p>Point the viewer at another corpus with <code translate="no">--reports-dir</code> or <code translate="no">HYPERAGENT_REPORTS_DIR</code>.</p>
+      <p>Point the viewer at another corpus with <code translate="no">--reports-dir</code> or <code translate="no">HYPERAGENT_REPORTS_DIR</code>,
+        or link report folders kept elsewhere with <code translate="no">hyperagent link-reports &lt;folder&gt;</code>.</p>
     {% endif %}
   </section>
 {% else %}

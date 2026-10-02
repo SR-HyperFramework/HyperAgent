@@ -16,7 +16,7 @@ from typing import Any
 
 import jsonschema
 
-from .. import pipeline_state
+from .. import pipeline_state, run_registry
 from ..config import HyperAgentConfig
 from ..console import RunConsole
 from ..providers import create_provider
@@ -379,7 +379,11 @@ def _force_finalize_stage(
         prompt = f"{prompt}{_FINALIZE_DIRECTIVE}"
 
         provider = create_provider(
-            config.provider, model=model_name, cache_enabled=cache_enabled, run_console=run_console,
+            config.provider,
+            model=model_name,
+            cache_enabled=cache_enabled,
+            run_console=run_console,
+            stage_id=stage.stage_id,
         )
         loop = AgentLoop(
             provider,
@@ -431,11 +435,23 @@ def _runtime_value(config: HyperAgentConfig, name: str, default: Any) -> Any:
     return getattr(runtime, name, default)
 
 
+#: Profiles that trade evidence coverage for turnaround time, and so also take
+#: the lower ``runtime.fast_max_stage_attempts`` retry budget.
+_TARGETED_PROFILES = frozenset({"fast", "static-only", "dynamic-only"})
+
+
 def _profile_stage_ids(profile: str) -> tuple[str, ...]:
     normalized = (profile or "full").lower().replace("_", "-")
-    if normalized == "full":
+    if normalized == "intel":
         return tuple(stage.stage_id for stage in STAGES)
-    if normalized in {"fast", "static-only"}:
+    if normalized == "full":
+        # Everything derived from the sample itself. External enrichment is
+        # opt-in via the "intel" profile: 06-intel leaks sample hashes to a
+        # third party and depends on a key and network reachability, so it
+        # should be a deliberate choice rather than something the default
+        # profile does on every run.
+        return tuple(stage.stage_id for stage in STAGES if stage.stage_id != "06-intel")
+    if normalized == "fast":
         return (
             "01-prepare-env",
             "02-static-pass1",
@@ -445,7 +461,35 @@ def _profile_stage_ids(profile: str) -> tuple[str, ...]:
             "08-report",
             "09-summary",
         )
-    raise ValueError("Unknown pipeline profile: " f"{profile!r}. Valid: full, fast, static-only")
+    if normalized == "static-only":
+        # Single-pass static triage: no unpacking, and therefore no pass 2
+        # either. Static pass 2 exists to analyze a recovered artifact, and
+        # skill/hyperagent-static/SKILL.md requires it to emit a blocked report
+        # rather than fall back to pass 1 when 03-unpack.json is absent -- so
+        # keeping it here would only buy a guaranteed-empty stage.
+        return (
+            "01-prepare-env",
+            "02-static-pass1",
+            "07-deepdive",
+            "08-report",
+            "09-summary",
+        )
+    if normalized == "dynamic-only":
+        # Keeps the reporting chain (07/08/09) so a runtime-focused run still
+        # produces the normal artifacts; the missing static/unpack/intel
+        # evidence is recorded as limitations by those stages rather than
+        # faked here. For a bare single-stage run use ``--stage 05-dynamic``.
+        return (
+            "01-prepare-env",
+            "05-dynamic",
+            "07-deepdive",
+            "08-report",
+            "09-summary",
+        )
+    raise ValueError(
+        "Unknown pipeline profile: "
+        f"{profile!r}. Valid: full, intel, fast, static-only, dynamic-only"
+    )
 
 
 def _selected_stages(
@@ -514,6 +558,9 @@ async def run_pipeline_with_config(
     report_dir = _report_dir_for(sample_path, config)
     scope = compute_run_scope(sample_path, report_dir, config.skills_root)
     pipeline_state.ensure_state(report_dir, sample_sha256, str(sample_path))
+    # Reports land next to each sample unless reports_root is set; the run
+    # index is how the dashboard finds this run wherever it was written.
+    run_registry.link_run(sample_sha256, report_dir, sample_path=str(sample_path))
     state_path = pipeline_state.state_path_for(report_dir)
 
     metrics = MetricsCollector(
@@ -527,6 +574,14 @@ async def run_pipeline_with_config(
     clients = []
     try:
         if run_console is not None:
+            # Lets the console sidebar and the live dashboard read this run's
+            # STATE.json and artifacts, limited to the stages it will run.
+            run_console.bind_run(
+                sample_sha256=sample_sha256,
+                report_dir=report_dir,
+                stage_ids=tuple(stage.stage_id for stage in selected_stages),
+                model=config.provider.model,
+            )
             run_console.start()
 
         idalib_proc = ensure_idalib_mcp(config) if _should_start_idalib_mcp(config, selected_stages) else None
@@ -590,7 +645,7 @@ async def run_pipeline_with_config(
                     stage.stage_id, config.max_stage_attempts
                 )
                 profile = str(_runtime_value(config, "pipeline_profile", "full")).lower().replace("_", "-")
-                if profile in {"fast", "static-only"}:
+                if profile in _TARGETED_PROFILES:
                     max_stage_attempts = min(
                         max_stage_attempts,
                         int(_runtime_value(config, "fast_max_stage_attempts", max_stage_attempts)),
@@ -682,6 +737,7 @@ async def run_pipeline_with_config(
                         model=model_name,
                         cache_enabled=cache_enabled,
                         run_console=run_console,
+                        stage_id=stage.stage_id,
                     )
                     loop = AgentLoop(
                         provider,

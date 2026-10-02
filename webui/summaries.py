@@ -7,6 +7,7 @@ schema); no other stage file is consulted and nothing here writes to disk.
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -277,28 +278,59 @@ def load_run(run_dir: Path) -> RunSummary | None:
     return RunSummary(run_dir.name, summary_path, modified_at, data=data)
 
 
-def discover_runs(reports_root: Path) -> list[RunSummary]:
-    """All runs under ``reports_root``, most recently updated first."""
-    if not reports_root.is_dir():
-        return []
+def _newest(runs: Iterable[RunSummary | None]) -> RunSummary | None:
+    present = [run for run in runs if run is not None]
+    return max(present, key=lambda run: run.modified_at) if present else None
 
-    runs: list[RunSummary] = []
-    for child in reports_root.iterdir():
-        if not child.is_dir() or not is_sha256(child.name):
+
+def _unique_dirs(dirs: Iterable[Path]) -> list[Path]:
+    seen: set[str] = set()
+    unique = []
+    for path in dirs:
+        key = os.path.normcase(os.path.abspath(path))
+        if key not in seen:
+            seen.add(key)
+            unique.append(path)
+    return unique
+
+
+def discover_runs(reports_root: Path, linked_dirs: Iterable[Path] = ()) -> list[RunSummary]:
+    """All runs, most recently updated first.
+
+    Runs are the ``<sha256>`` folders under ``reports_root`` plus *linked_dirs*
+    (report folders recorded in the run index, wherever they live). When one
+    sample was analysed into several folders, the newest summary wins.
+    """
+    candidates: list[Path] = []
+    if reports_root.is_dir():
+        candidates.extend(
+            child for child in reports_root.iterdir() if child.is_dir() and is_sha256(child.name)
+        )
+    candidates.extend(path for path in linked_dirs if is_sha256(path.name))
+
+    by_sha: dict[str, RunSummary] = {}
+    for run_dir in _unique_dirs(candidates):
+        run = load_run(run_dir)
+        if run is None:
             continue
-        run = load_run(child)
-        if run is not None:
-            runs.append(run)
+        key = run.sha256.lower()
+        best = _newest([by_sha.get(key), run])
+        if best is not None:
+            by_sha[key] = best
 
-    runs.sort(key=lambda run: run.modified_at, reverse=True)
-    return runs
+    return sorted(by_sha.values(), key=lambda run: run.modified_at, reverse=True)
 
 
-def get_run(reports_root: Path, sha256: str) -> RunSummary | None:
+def get_run(
+    reports_root: Path, sha256: str, linked_dirs: Iterable[Path] = ()
+) -> RunSummary | None:
     """One run by hash. Rejects anything that is not a bare SHA256."""
     if not is_sha256(sha256):
         return None
-    return load_run(reports_root / sha256)
+    sha256 = sha256.lower()
+    candidates = [reports_root / sha256]
+    candidates.extend(path for path in linked_dirs if path.name.lower() == sha256)
+    return _newest(load_run(path) for path in _unique_dirs(candidates))
 
 
 def _matches_query(run: RunSummary, needle: str) -> bool:

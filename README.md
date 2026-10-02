@@ -9,8 +9,7 @@ reporting, summary — and writes a JSON/Markdown report per stage to
 Each stage is one LLM call loop (an `AgentLoop`) with a curated tool subset,
 driven directly through the Anthropic (or OpenAI) SDK — no Claude Code CLI
 subprocess involved. This is the **v4 SDK rewrite**. The checked-in `skill/` directory is the
-runtime source of truth for stage skills; `skill/backup/` keeps the older CLI-subprocess
-artifacts for reference only.
+runtime source of truth for stage skills.
 
 ## 1. How a run works
 

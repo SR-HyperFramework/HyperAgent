@@ -1,0 +1,160 @@
+{
+  "schema_version": "1.0",
+  "stage": "intel",
+  "sample_sha256": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+  "status": "completed",
+  "summary": "Normalized VirusTotal inputs into an intel-stage bundle with 2 provider queries, 1 claim checks, 0 matched local IOCs, 0 local-only IOCs, 3 external-only leads, and 6 enrichment candidates.",
+  "provider_queries": [
+    {
+      "id": "pq.virustotal.file-info",
+      "provider": "virustotal",
+      "query_scope": "original_sample",
+      "query_type": "sha256",
+      "query_value": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+      "result": "match",
+      "matched_identity": "wssl.dll",
+      "reference": "https://www.virustotal.com/api/v3/files/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+      "notes": "VirusTotal returned a file report for the queried sample."
+    },
+    {
+      "id": "pq.virustotal.behaviour-summary",
+      "provider": "virustotal",
+      "query_scope": "original_sample",
+      "query_type": "sha256",
+      "query_value": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+      "result": "match",
+      "matched_identity": "Merged behaviour summary",
+      "reference": "https://www.virustotal.com/api/v3/files/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423/behaviour_summary",
+      "notes": "VirusTotal returned a merged behaviour summary across available sandboxes for the sample."
+    }
+  ],
+  "claim_checks": [
+    {
+      "id": "cc.family-mediyes-barys",
+      "claim_text": "The sample is a malicious Windows service DLL (trojan) whose family/type labels are associated with the mediyes/barys cluster on VirusTotal.",
+      "related_stage": "static-pass1",
+      "related_finding_ids": [
+        "sample-identity-service-dll-001",
+        "loader-wkssvc-forwarder-001"
+      ],
+      "verification_status": "public_label_only",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "analysis": "VirusTotal matched only public labels or tags for this claim (trojan, mediyes, barys), so the result should remain enrichment-only unless local evidence is stronger.",
+      "report_use": "followup_only"
+    }
+  ],
+  "ioc_correlation": {
+    "matched_local": [],
+    "local_only_no_public_match": [],
+    "external_only": [
+      {
+        "id": "ioc.external.host.hkey-local-machine-software-microsoft-windows-windows-error-reporting-debug-storelocation",
+        "category": "host",
+        "value": "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\Windows Error Reporting\\Debug\\StoreLocation",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via registry_keys_set."
+      },
+      {
+        "id": "ioc.external.host.hkey-users-s-1-5-21-575823232-3065301323-1442773979-1000-software-microsoft-systemcertificates-root-certificates-0174e68c97ddf1e0eeea415ea336a163d2b61afd-blob",
+        "category": "host",
+        "value": "HKEY_USERS\\S-1-5-21-575823232-3065301323-1442773979-1000\\Software\\Microsoft\\SystemCertificates\\Root\\Certificates\\0174E68C97DDF1E0EEEA415EA336A163D2B61AFD\\Blob",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via registry_keys_set."
+      },
+      {
+        "id": "ioc.external.host.hkey-users-s-1-5-21-575823232-3065301323-1442773979-1000-software-microsoft-windows-windows-error-reporting-debug-storelocation",
+        "category": "host",
+        "value": "HKEY_USERS\\S-1-5-21-575823232-3065301323-1442773979-1000\\Software\\Microsoft\\Windows\\Windows Error Reporting\\Debug\\StoreLocation",
+        "upstream_evidence_ids": [],
+        "provider_query_ids": [
+          "pq.virustotal.behaviour-summary"
+        ],
+        "notes": "Appears only in VirusTotal behaviour summary via registry_keys_set."
+      }
+    ]
+  },
+  "enrichment_candidates": [
+    {
+      "id": "en.family_label.barys",
+      "type": "family_label",
+      "value": "barys",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.49,
+      "usage": "needs_local_confirmation",
+      "notes": "VirusTotal popular threat name."
+    },
+    {
+      "id": "en.family_label.mediyes",
+      "type": "family_label",
+      "value": "mediyes",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.79,
+      "usage": "needs_local_confirmation",
+      "notes": "VirusTotal popular threat name."
+    },
+    {
+      "id": "en.family_label.mediyes-barys",
+      "type": "family_label",
+      "value": "mediyes/barys",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.58,
+      "usage": "needs_local_confirmation",
+      "notes": "Derived from VirusTotal suggested_threat_label."
+    },
+    {
+      "id": "en.malware_type.trojan",
+      "type": "malware_type",
+      "value": "trojan",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.9,
+      "usage": "needs_local_confirmation",
+      "notes": "Derived from VirusTotal suggested_threat_label. VirusTotal popular threat category."
+    },
+    {
+      "id": "en.public_report.https-www-virustotal-com-api-v3-files-000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+      "type": "public_report",
+      "value": "https://www.virustotal.com/api/v3/files/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+      "provider_query_ids": [
+        "pq.virustotal.file-info"
+      ],
+      "confidence": 0.85,
+      "usage": "context_only",
+      "notes": "VirusTotal file report reference."
+    },
+    {
+      "id": "en.sandbox_verdict.unknown-verdict",
+      "type": "sandbox_verdict",
+      "value": "UNKNOWN_VERDICT",
+      "provider_query_ids": [
+        "pq.virustotal.behaviour-summary"
+      ],
+      "confidence": 0.6,
+      "usage": "context_only",
+      "notes": "VirusTotal merged sandbox verdict."
+    }
+  ],
+  "limitations": [
+    "Public provider data was translated as attributed external evidence only."
+  ],
+  "upstream_inputs": [
+    "02-static-pass1.json",
+    "03-unpack.json",
+    "05-dynamic.json"
+  ]
+}

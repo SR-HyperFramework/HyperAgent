@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Live {{ sha256[:12] }} &middot; HyperAgent{% endblock %}
+
+{# Without JavaScript the page still follows the run, just by whole-page reload. #}
+{% block head_extra %}<noscript><meta http-equiv="refresh" content="5"></noscript>{% endblock %}
+
+{% block content %}
+<nav class="crumbs" aria-label="Breadcrumb">
+  <a href="{{ url_for('index') }}">Reports</a>
+  <span aria-hidden="true">/</span>
+  Live
+  <span aria-hidden="true">/</span>
+  <code translate="no">{{ sha256[:12] }}</code>
+</nav>
+
+<p class="live-lost" id="live-lost" role="status" hidden>
+  Lost contact with the analysis process. It has most likely finished and shut this dashboard down;
+  the page shows the last update it received.
+</p>
+
+<div class="live-shell" data-live-src="{{ url_for('live_run', sha256=sha256, fragment=1) }}">
+  {% include "_live_body.html" %}
+</div>
+{% endblock %}
+
+{% block foot_source %}Live view of <code translate="no">STATE.json</code> and the stage artifacts{% if live %}, plus the run console{% endif %}.{% endblock %}

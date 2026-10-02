@@ -1,0 +1,175 @@
+{
+  "schema_version": "1.0",
+  "stage": "unpack",
+  "sample": {
+    "original_sha256": "937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588",
+    "target_path": "C:/Users/ADMIN/Downloads/xu-ly-van-phong-cli-v1.0/xu-ly-van-phong-cli/resources/bin/officecli.exe",
+    "target_sha256": "937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588"
+  },
+  "status": "not_needed",
+  "summary": "Unpacking was not required. Static PE triage and safe debugger initialization showed a normal 64-bit PE with a populated import table and no credible runtime-unpacking indicators observed before entry-point analysis; no unpacked artifact was recovered or recommended for pass 2.",
+  "findings": [
+    {
+      "id": "sample.identity",
+      "title": "Original sample identity recorded",
+      "category": "sample_identity",
+      "status": "confirmed",
+      "confidence": 1.0,
+      "description": "The target file exists at the supplied path and hashes to the report directory identifier.",
+      "reasoning": "Hashing the non-executed host-side sample provides a stable identity for this stage output.",
+      "sources": [
+        {
+          "stage": "unpack",
+          "artifact": "C:/Users/ADMIN/Downloads/xu-ly-van-phong-cli-v1.0/xu-ly-van-phong-cli/resources/bin/officecli.exe",
+          "location": "host filesystem"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev.sample.sha256",
+          "kind": "tool_output",
+          "source": {
+            "stage": "unpack",
+            "artifact": "C:/Users/ADMIN/Downloads/xu-ly-van-phong-cli-v1.0/xu-ly-van-phong-cli/resources/bin/officecli.exe",
+            "location": "sha256 preflight"
+          },
+          "observation": "SHA256 937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588; file size 33111928 bytes.",
+          "address": null,
+          "confidence": 1.0
+        }
+      ],
+      "limitations": []
+    },
+    {
+      "id": "debugger.health",
+      "title": "x64dbg MCP endpoint available",
+      "category": "execution",
+      "status": "observed",
+      "confidence": 0.9,
+      "description": "The x64dbg MCP healthcheck responded successfully.",
+      "reasoning": "The skill healthcheck returned the expected service status, satisfying debugger availability preflight.",
+      "sources": [
+        {
+          "stage": "unpack",
+          "artifact": "healthcheck.py",
+          "location": "http://192.168.248.169:3000/"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev.x64dbg.health",
+          "kind": "tool_output",
+          "source": {
+            "stage": "unpack",
+            "artifact": "healthcheck.py",
+            "location": "x64dbg MCP health endpoint"
+          },
+          "observation": "Healthcheck returned OK 200 and JSON {\"status\":\"ok\",\"service\":\"x64dbg-mcp\"}.",
+          "address": null,
+          "confidence": 0.9
+        }
+      ],
+      "limitations": [
+        "The VM snapshot identity could not be independently attested beyond the approved x64dbg MCP endpoint and observed guest path."
+      ]
+    },
+    {
+      "id": "packing.not-indicated",
+      "title": "No unpacking requirement established",
+      "category": "packing",
+      "status": "not_observed",
+      "confidence": 0.82,
+      "description": "The sample exposes normal PE structure and imports, so this stage did not proceed to invasive runtime recovery.",
+      "reasoning": "The PE has nine sections, a standard x64 machine type, a normal entry RVA, and 437 imported functions across common Windows/runtime DLLs. Section entropy is moderately high in code/resources but not sufficient alone to justify unpacking under the stage policy.",
+      "sources": [
+        {
+          "stage": "unpack",
+          "artifact": "C:/Users/ADMIN/Downloads/xu-ly-van-phong-cli-v1.0/xu-ly-van-phong-cli/resources/bin/officecli.exe",
+          "location": "PE header/import triage"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev.pe.imports",
+          "kind": "static",
+          "source": {
+            "stage": "unpack",
+            "artifact": "C:/Users/ADMIN/Downloads/xu-ly-van-phong-cli-v1.0/xu-ly-van-phong-cli/resources/bin/officecli.exe",
+            "location": "import directory"
+          },
+          "observation": "PE import parsing found 437 imports from 17 DLLs including KERNEL32.dll, ADVAPI32.dll, ole32.dll, USER32.dll, SHELL32.dll, and UCRT API-set DLLs.",
+          "address": null,
+          "confidence": 0.9
+        },
+        {
+          "id": "ev.pe.entry",
+          "kind": "static",
+          "source": {
+            "stage": "unpack",
+            "artifact": "C:/Users/ADMIN/Downloads/xu-ly-van-phong-cli-v1.0/xu-ly-van-phong-cli/resources/bin/officecli.exe",
+            "location": "PE optional header"
+          },
+          "observation": "64-bit PE with ImageBase 0x140000000 and AddressOfEntryPoint RVA 0x5c6230.",
+          "address": "0x5c6230",
+          "confidence": 0.9
+        },
+        {
+          "id": "ev.runtime.main",
+          "kind": "dynamic",
+          "source": {
+            "stage": "unpack",
+            "artifact": "x64dbg MCP",
+            "location": "module_get_main"
+          },
+          "observation": "Debugger initialized a guest copy at C:/Users/h26v/Desktop/officecli.exe; main module base 0x00007FF7AA020000, entry 0x00007FF7AA5E6230, size 10080256, section_count 9.",
+          "address": "0x00007FF7AA5E6230",
+          "confidence": 0.85
+        }
+      ],
+      "limitations": [
+        "The debugger target stopped before extended live tracing could be completed, so absence of packing is based on pre-execution structure and initialization evidence rather than sustained runtime observation."
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "original_sample",
+      "path": "C:/Users/ADMIN/Downloads/xu-ly-van-phong-cli-v1.0/xu-ly-van-phong-cli/resources/bin/officecli.exe",
+      "sha256": "937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588",
+      "type": "PE32+ executable (original input)",
+      "validation_status": "not_applicable",
+      "context": "Original input retained as the only analysis target; no unpacked artifact was produced because unpacking was assessed as not needed."
+    }
+  ],
+  "investigation_targets": [],
+  "limitations": [
+    "No upstream static pass report was provided for this run.",
+    "Approved disposable guest identity was not separately provable from the available MCP surface; x64dbg MCP health and guest module path were recorded.",
+    "No recovered artifact exists because the stage decision was not_needed."
+  ],
+  "upstream_inputs": [],
+  "recovery_status": "not_needed",
+  "packing": {
+    "detected": false,
+    "type": null,
+    "confidence": 0.82
+  },
+  "rounds": [],
+  "static_pass2_handoff": {
+    "recommended": false,
+    "artifact_id": null,
+    "artifact_path": null,
+    "artifact_sha256": null,
+    "artifact_type": null,
+    "candidate_entry": null,
+    "runtime_base": "0x00007FF7AA020000",
+    "image_base": "0x140000000",
+    "repair_limitations": [
+      "No unpacked or repaired artifact was generated.",
+      "Use the original sample for static analysis unless later evidence identifies runtime self-decoding."
+    ],
+    "questions": [
+      "Does the original sample contain behavior that warrants normal static analysis rather than unpacking?"
+    ]
+  }
+}

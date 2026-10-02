@@ -1,0 +1,124 @@
+{
+  "provider": "virustotal",
+  "resource": "behaviour_summary",
+  "docs_url": "https://docs.virustotal.com/reference/file-all-behaviours-summary",
+  "endpoint": "https://www.virustotal.com/api/v3/files/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/behaviour_summary",
+  "query": {
+    "id": "000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+    "hash_type": "sha256"
+  },
+  "response": {
+    "data": {
+      "processes_tree": [
+        {
+          "process_id": "2500",
+          "name": "%TEMP%\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6.exe"
+        }
+      ],
+      "files_deleted": [
+        "C:\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6"
+      ],
+      "files_opened": [
+        "C:\\WINDOWS\\system32\\winime32.dll",
+        "C:\\WINDOWS\\system32\\ws2_32.dll",
+        "C:\\WINDOWS\\system32\\ws2help.dll",
+        "C:\\WINDOWS\\system32\\psapi.dll",
+        "C:\\WINDOWS\\system32\\imm32.dll",
+        "C:\\WINDOWS\\system32\\lpk.dll",
+        "C:\\WINDOWS\\system32\\usp10.dll",
+        "C:\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+        "C:\\WINDOWS\\Registration\\R000000000007.clb",
+        "C:\\WINDOWS\\system32\\shdocvw.dll",
+        "C:\\WINDOWS\\system32\\stdole2.tlb",
+        "\\\\.\\PIPE\\lsarpc",
+        "C:\\Documents and Settings\\All Users\\Application Data\\6F638C1208E9B91B55DDEB0F7B07D287\\6F638C1208E9B91B55DDEB0F7B07D287"
+      ],
+      "http_conversations": [
+        {
+          "url": "http://175.41.28.156/api/urls/",
+          "request_method": "GET",
+          "request_headers": {
+            "User-Agent": "",
+            "Cache-Control": "no-cache",
+            "Host": "175.41.28.156",
+            "Pragma": "no-cache",
+            "Connection": "Keep-Alive"
+          }
+        },
+        {
+          "url": "http://175.41.28.156/api/stats/install/",
+          "request_method": "GET",
+          "request_headers": {
+            "User-Agent": "",
+            "Cache-Control": "no-cache",
+            "Host": "175.41.28.156",
+            "Pragma": "no-cache",
+            "Connection": "Keep-Alive"
+          }
+        },
+        {
+          "url": "http://175.41.28.156/api/urls/?ts=2b8bab86&affid=66803",
+          "request_method": "GET"
+        }
+      ],
+      "windows_searched": [
+        "(null) - Shell_TrayWnd"
+      ],
+      "ip_traffic": [
+        {
+          "destination_ip": "175.41.28.156",
+          "destination_port": 80,
+          "transport_layer_protocol": "TCP"
+        }
+      ],
+      "verdicts": [
+        "UNKNOWN_VERDICT"
+      ],
+      "modules_loaded": [
+        "kernel32.dll",
+        "psapi.dll",
+        "msimg32.dll",
+        "comdlg32.dll",
+        "winhttp.dll",
+        "kernel32",
+        "user32",
+        "ntdll.dll",
+        "shlwapi.dll",
+        "advapi32.dll",
+        "secur32.dll",
+        "rpcrt4.dll",
+        "userenv.dll",
+        "clbcatq.dll",
+        "ws2_32",
+        "ole32",
+        "c:\\windows\\system32\\mswsock.dll",
+        "hnetcfg.dll",
+        "c:\\windows\\system32\\wshtcpip.dll",
+        "ole32.dll",
+        "c:\\windows\\system32\\rpcrt4.dll",
+        "sxs.dll",
+        "oleaut32.dll",
+        "comctl32.dll",
+        "riched20.dll",
+        "shell32.dll",
+        "wininet.dll",
+        "c:\\windows\\system32\\winhttp.dll"
+      ],
+      "registry_keys_set": [
+        {
+          "key": "HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce\\6F638C1208E9B91B55DDEB0F7B07D287"
+        }
+      ],
+      "mutexes_opened": [
+        "6F638C1208E9B91B55DDEB0F7B07D287"
+      ],
+      "registry_keys_opened": [
+        "\\Registry\\Machine\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\996E.exe",
+        "\\Registry\\MACHINE\\System\\CurrentControlSet\\Control\\SafeBoot\\Option",
+        "\\Registry\\Machine\\Software\\Policies\\Microsoft\\Windows\\Safer\\CodeIdentifiers",
+        "\\REGISTRY\\MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Safer\\CodeIdentifiers\\TransparentEnabled",
+        "\\REGISTRY\\USER\\S-1-5-21-1482476501-1645522239-1417001333-500\\Software\\Policies\\Microsoft\\Windows\\Safer\\CodeIdentifiers"
+      ]
+    }
+  }
+}

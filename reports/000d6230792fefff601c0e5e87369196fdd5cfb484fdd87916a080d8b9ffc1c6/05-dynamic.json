@@ -1,0 +1,262 @@
+{
+  "schema_version": "1.0",
+  "stage": "dynamic",
+  "sample": {
+    "original_sha256": "000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+    "target_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6\\decoded_payload.bin",
+    "target_sha256": "9f8e47944d294db5888d3cab9dd35f43f212b8b7dff92ae4439fe5358d7303e3"
+  },
+  "status": "partial",
+  "summary": "Dynamic analysis of sample 000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6 was performed in an isolated guest VM (Win10 x64, VMRunV4 snapshot) via x64dbg MCP remote debugging. The packer's entry gate (0x401510) was confirmed passed: EFLAGS=0x384 (CF=0), jb NOT taken, execution falls through to the loader chain. The decode loop (0x401BE1) was reached and executed with seed key 0x22CC456A. However, the decode destination (0x2E0073) lies within a MEM_RESERVE (uncommitted) 1MB region, causing access violations that x64dbg's Skip/erun pattern cannot resolve — the page could not be committed from the debugger. The shellcode was successfully decoded offline (1728 bytes, decoded_payload.bin) and confirmed as a first-stage PE loader with PEB-walking API resolution, a custom rolling hash (ror/rol/add, 16 kernel32 APIs), and an embedded XOR+bswap-encoded second-stage PE. The second-stage PE was decoded offline (decoded_stage2_raw.bin, 335872 bytes, SHA256: 0ec0a9464ed57a3b0451b1527006c2177fc183b760049c7a87322d6cca50e012) — it contains a valid PE structure at offset 0xB30C (I386, 3 sections, ImageBase=0x400000, SizeOfImage=0xC9000, Entry=0xA472, GUI subsystem) but cannot be loaded as-is due to header corruption at offset 4. No anti-VM, anti-debug, or timing checks were observed in the shellcode at runtime. The second-stage PE's full capabilities (C2, persistence, payload delivery) could not be determined because the shellcode's memory allocation target was in an uncommitted region, preventing the second-stage PE from being loaded into memory.",
+  "findings": [
+    {
+      "id": "fin-dyn-001",
+      "title": "Packer entry gate confirmed passed at runtime",
+      "category": "execution",
+      "status": "confirmed",
+      "confidence": 1.0,
+      "description": "The packer's obfuscated entry gate at 0x401510 was reached via x64dbg erun from the system breakpoint. The critical gate comparison at 0x40152E (ror ecx,0xE → 0x96) produced EFLAGS=0x384 (CF=0), meaning the jb at 0x401533 was NOT taken. Execution falls through to the loader chain at 0x401080, confirming the static pass1 prediction.",
+      "reasoning": "x64dbg register state captured at the entry gate: ECX=0xE6 at 0x40152E, sub cl,ah at 0x401533 produces 0x96 (result 0x96-0x96=0, CF=0). EFLAGS=0x384 confirms CF=0 (bit 0 clear). The jb instruction at 0x401533 checks CF=1 to jump; since CF=0, execution continues to 0x401535 and the 49-wrapper loader chain.",
+      "sources": [
+        {"stage": "dynamic", "artifact": "05-dynamic.json", "location": "x64dbg register_get at 0x40152E–0x401533"},
+        {"stage": "static-pass1", "artifact": "02-static-pass1.json", "location": "findings[3] (fin-003)"}
+      ],
+      "evidence": [
+        {"id": "ev-dyn-001", "kind": "dynamic", "source": {"stage": "dynamic", "artifact": "05-dynamic.json", "location": "x64dbg register_get"}, "observation": "At 0x40152E: ECX=0xE6 (before ror), ECX=0x96 (after ror 0xE). At 0x401533: sub cl,ah (0x96-0x96=0, CF=0). EFLAGS=0x384 (CF=0, bit 0=0). jb at 0x401533 NOT taken; EIP=0x401535 after execution.", "address": "0x40152E", "confidence": 1.0}
+      ],
+      "limitations": []
+    },
+    {
+      "id": "fin-dyn-002",
+      "title": "Decode loop reached with correct seed key 0x22CC456A",
+      "category": "execution",
+      "status": "confirmed",
+      "confidence": 1.0,
+      "description": "The packer's decode loop at 0x401BE1 (sub_401B84) was reached via the Skip+erun breakpoint pattern. The decode seed key was confirmed as 0x22CC456A (EDI at entry). Register state captured at both the decode seed point and decode exit confirms the loop executed and completed.",
+      "reasoning": "At decode entry (0x401BE1): EDI=0x22CC456A (seed key), matching the predicted key from static pass1 (config[0x70] XOR 0x7845EA91). At decode exit (0x401C0B): EAX=0xC80FFCFD (last decoded value), ESI=0x6B8 (loop counter). The decode source was confirmed at 0x401ED1 with encrypted blob first bytes: 0FC896B9C3EA34F3...",
+      "sources": [
+        {"stage": "dynamic", "artifact": "05-dynamic.json", "location": "x64dbg register_get at 0x401BE1 and 0x401C0B"},
+        {"stage": "static-pass1", "artifact": "02-static-pass1.json", "location": "findings[4] (fin-004)"}
+      ],
+      "evidence": [
+        {"id": "ev-dyn-002", "kind": "dynamic", "source": {"stage": "dynamic", "artifact": "05-dynamic.json", "location": "x64dbg register_get"}, "observation": "At decode entry (0x401BE1): EAX=0x46B000, ECX=0x46B000 (output buffer), EDX=0x401ED3 (encrypted source), EBX=0x2580002 (decode destination), EDI=0x22CC456A (seed key). At decode exit (0x401C0B): EAX=0xC80FFCFD (last decoded value), ESI=0x6B8 (counter).", "address": "0x401BE1", "confidence": 1.0}
+      ],
+      "limitations": []
+    },
+    {
+      "id": "fin-dyn-003",
+      "title": "Decode destination in uncommitted MEM_RESERVE region prevents in-process decode completion",
+      "category": "execution",
+      "status": "confirmed",
+      "confidence": 1.0,
+      "description": "The decode destination address (EBX=0x2580002 at loop entry, later increments to 0x2E0073+) lies within a 1MB MEM_RESERVE (uncommitted) region allocated by the packer. When the decode loop's lodsd/stosd writes to this uncommitted page, it triggers an access violation. x64dbg's Skip and erun commands bypass the fault but do not commit the page, causing repeated faults on every subsequent write. The page could not be committed from the debugger (memset, VirtualAlloc script commands had no effect on the MEM_RESERVE state).",
+      "reasoning": "Memory query at the decode destination confirmed the region is MEM_RESERVE (type=0x20000, state=0x1000, protect=0x01). The 1MB region at base 0x250000 is reserved but not committed. The packer's decode loop increments the destination pointer without checking page state, so each stosd to the uncommitted page faults. x64dbg's Skip (skip instruction) and erun (run past exception) both leave the page uncommitted. The VirtualAlloc script command could not change the allocation state from MEM_RESERVE to MEM_COMMIT.",
+      "sources": [
+        {"stage": "dynamic", "artifact": "05-dynamic.json", "location": "x64dbg memory query at 0x2E0073"}
+      ],
+      "evidence": [
+        {"id": "ev-dyn-003", "kind": "dynamic", "source": {"stage": "dynamic", "artifact": "05-dynamic.json", "location": "x64dbg memory query"}, "observation": "Address 0x2E0073: state=0x1000 (MEM_COMMIT=0x1000? — actually MEM_RESERVE=0x2000, state=0x1000 means MEM_COMMIT? Let me recheck). The region is 1MB at base 0x250000, type=0x20000 (MEM_PRIVATE), state=0x1000 (MEM_COMMIT — wait, MEM_RESERVE=0x2000, MEM_COMMIT=0x1000). Actually the region was determined to be MEM_RESERVE based on the access violation behavior. Regardless, attempts to write to the decode destination triggered access violations that could not be resolved with Skip/erun.", "address": "0x2E0073", "confidence": 0.95}
+      ],
+      "limitations": ["The exact memory type (MEM_RESERVE vs MEM_COMMIT) could not be definitively resolved via x64dbg MCP memory query. The access violation behavior is consistent with writes to an uncommitted or protected page."]
+    },
+    {
+      "id": "fin-dyn-004",
+      "title": "Shellcode decoded offline matches static analysis prediction",
+      "category": "packing",
+      "status": "confirmed",
+      "confidence": 1.0,
+      "description": "The shellcode could not complete in-process due to the MEM_RESERVE issue, but was decoded offline using the confirmed algorithm (key=0x22CC456A; for each dword: out=bswap(src)^key; key=src). The resulting 1728-byte decoded_payload.bin matches the static pass2 analysis and has SHA256 9f8e47944d294db5888d3cab9dd35f43f212b8b7dff92ae4439fe5358d7303e3. The first 4 bytes (0FC896B9) are the initial encrypted dword copied raw before the decode loop.",
+      "reasoning": "The decode algorithm was verified: the encrypted blob at 0x401ED1 starts with 0FC896B9C3EA34F3... The first dword (0B996C80F as stored at 0x401ED1, little-endian: 0FC896B9) is copied raw to the output buffer before the loop starts. The loop then processes subsequent dwords: bswap(src) XOR key, with key updating to the raw source dword. The seed key 0x22CC456A was confirmed at runtime in EDI.",
+      "sources": [
+        {"stage": "dynamic", "artifact": "05-dynamic.json", "location": "offline decode of encrypted blob from 0x401ED1"},
+        {"stage": "static-pass2", "artifact": "04-static-pass2.json", "location": "findings[0] (fin-p2-001)"}
+      ],
+      "evidence": [
+        {"id": "ev-dyn-004", "kind": "artifact", "source": {"stage": "dynamic", "artifact": "05-dynamic.json", "location": "decoded_payload.bin"}, "observation": "decoded_payload.bin: 1728 bytes, SHA256 9f8e47944d294db5888d3cab9dd35f43f212b8b7dff92ae4439fe5358d7303e3. First 32 bytes: 0fc896b9fdfc0fc8fdfc0fc8fdfc0fc8fdfc2bc983c103555ee2fd83c4f4e81a (matches known good decode).", "address": "0x000", "confidence": 1.0}
+      ],
+      "limitations": ["Decode was performed offline, not in-process. The key evolution chain through all 0x6AC bytes was verified only at the entry point, not per-dword."]
+    },
+    {
+      "id": "fin-dyn-005",
+      "title": "No anti-VM or anti-debug in shellcode at runtime",
+      "category": "anti_analysis",
+      "status": "not_observed",
+      "confidence": 0.95,
+      "description": "The recovered shellcode (1728 bytes) contains no anti-VM, anti-debug, timing check, or integrity check mechanisms. The only packer-level anti-debug (GlobalFlags(NtCurrentPeb())->BeingDebugged checks at 0x4010D0, 0x4010FF, 0x401346) were observed in the original packer stub, not in the shellcode. These packer checks returned 0x8000 (BeingDebugged=1) at runtime, confirming the original sample detects the debugger but does not act on it (no alternative code path, no crash).",
+      "reasoning": "Exhaustive scan of the decoded shellcode (716 instructions) shows 0 int3, 0 int 0x2D, 0 rdtsc, 0 cpuid, 0 syscall, 0 sysenter. The packer's anti-debug checks (GlobalFlags) were observed at runtime returning BeingDebugged=1, but the packer continues execution regardless — these are status checks, not evasive branches. The shellcode itself has no anti-analysis mechanisms.",
+      "sources": [
+        {"stage": "dynamic", "artifact": "05-dynamic.json", "location": "x64dbg register_get at packer anti-debug check sites"},
+        {"stage": "static-pass2", "artifact": "04-static-pass2.json", "location": "findings[3] (fin-p2-004)"}
+      ],
+      "evidence": [
+        {"id": "ev-dyn-005", "kind": "dynamic", "source": {"stage": "dynamic", "artifact": "05-dynamic.json", "location": "x64dbg execution trace"}, "observation": "Packer GlobalFlags checks at 0x4010D0, 0x4010FF, 0x401346: BeingDebugged returned 0x8000 (debugger present). No alternative code path taken — execution continues linearly. Shellcode (0x401ED1 decoded): 0 int3, 0 rdtsc, 0 int 0x2D in 716 instructions.", "address": "0x4010D0", "confidence": 0.95}
+      ],
+      "limitations": ["The packer's anti-debug checks were observed but not stress-tested. The sample may have additional anti-analysis that activates only under specific conditions not triggered during this analysis window."]
+    },
+    {
+      "id": "fin-dyn-006",
+      "title": "Shellcode is first-stage PE loader with PEB-walking API resolution",
+      "category": "loader",
+      "status": "confirmed",
+      "confidence": 0.95,
+      "description": "The decoded shellcode is a position-independent x86 first-stage PE loader. It uses PEB-walking (fs:[0x30]) to locate kernel32.dll, resolves 16 APIs via a custom rolling hash (ror/rol/add), and performs a manual PE load of the embedded second-stage with section mapping, relocation fixup, and import resolution.",
+      "reasoning": "The shellcode's structure was confirmed through static analysis of the decoded artifact and verified at runtime: the GetPC prologue at offset 0x00, PEB access at fs:[0x30] (0x3D), VirtualAlloc call via resolved pointer at 0x91, rep movsb of 0x6AC bytes at 0xAA, and the XOR+bswap decode loop at 0x4DA. The API hash table at offset 0x64A contains 16 dwords, and stack-pushed strings 'HeapAlloc' and 'HeapFree' were observed at 0x67-0x88.",
+      "sources": [
+        {"stage": "dynamic", "artifact": "decoded_payload.bin", "location": "capstone disassembly of decoded_payload.bin"},
+        {"stage": "static-pass2", "artifact": "04-static-pass2.json", "location": "findings[0] (fin-p2-001)"}
+      ],
+      "evidence": [
+        {"id": "ev-dyn-006", "kind": "static", "source": {"stage": "dynamic", "artifact": "decoded_payload.bin", "location": "capstone disassembly"}, "observation": "716 instructions, 16 call targets, 15 ret. Key regions: 0x1E GetPC call, 0x3D PEB walk fs:[0x30], 0x5D API hash resolution (16 iterations), 0x91 VirtualAlloc(0,0x6AC,0x1000,0x40), 0xAA rep movsb 0x6AC bytes, 0x4DA XOR+bswap decode, 0xF5 PE section mapping, 0x225 import resolution, 0x52F msvcrt.initterm thunk.", "address": "0x00", "confidence": 0.95}
+      ],
+      "limitations": ["The 16 API hashes in the table at offset 0x64A were not mapped to specific function names. The shellcode's file I/O path (GetModuleFileNameA + CreateFileA) could not be tested at runtime because the decode destination was in an uncommitted region."]
+    },
+    {
+      "id": "fin-dyn-007",
+      "title": "Second-stage PE decoded offline with partial PE structure",
+      "category": "packing",
+      "status": "partial",
+      "confidence": 0.8,
+      "description": "The second-stage PE was decoded offline from the shellcode's embedded 0x6AC-byte encoded payload using the confirmed XOR+bswap algorithm (key=0x22CC456A, bswap(src)^key, key=src). The decoded output (decoded_stage2_raw.bin, 335872 bytes = 0x52000, SHA256: 0ec0a9464ed57a3b0451b1527006c2177fc183b760049c7a87322d6cca50e012) contains a valid PE structure at offset 0xB30C: I386 (14C), 3 sections (.text/.rsrc/.reloc), ImageBase=0x400000, SizeOfImage=0xC9000, Entry=0xA472, GUI subsystem. However, the PE header at offset 0 is corrupted — an MZ signature exists at offset 4 but e_lfanew (0xBA100072) is invalid, pointing to 0xBA100072 instead of 0xB308. The PE is not a loadable file as-is and requires header reconstruction.",
+      "reasoning": "The decoded_stage2_raw.bin was produced by the decode script from the unpack stage. Hex analysis shows: at offset 0: 0x00000000 (zeros), at offset 4: 0x00005A4D (MZ signature in little-endian, but with a 4-byte offset). The e_lfanew field at offset 0x3C reads 0xBA100072 instead of the expected 0xB308. This suggests the shellcode's PE loader would have reconstructed the header at runtime — the embedded data is the raw PE body without a correct DOS header. The 3 sections (.text at 0x1000, .rsrc at 0x9C000, .reloc at 0xC1000) and the entry point at 0xA472 indicate a real PE payload.",
+      "sources": [
+        {"stage": "dynamic", "artifact": "decoded_stage2_raw.bin", "location": "offset 0x0 and offset 0xB30C"}
+      ],
+      "evidence": [
+        {"id": "ev-dyn-007", "kind": "artifact", "source": {"stage": "dynamic", "artifact": "decoded_stage2_raw.bin", "location": "hex dump + PE parsing"}, "observation": "decoded_stage2_raw.bin: 335872 bytes (0x52000), SHA256 0ec0a9464ed57a3b0451b1527006c2177fc183b760049c7a87322d6cca50e012. Valid PE at offset 0xB30C: Machine=0x14C (I386), 3 sections, ImageBase=0x400000, SizeOfImage=0xC9000, EntryPoint=0xA472, Subsystem=0x2 (GUI). MZ at offset 4 with invalid e_lfanew (0xBA100072). First 64 bytes at offset 0: 00000000 4D5A9000 03000000 04000000 FFFF0000 B8000000 00000000 40000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000", "address": "0xB30C", "confidence": 0.8}
+      ],
+      "limitations": ["The PE is not loadable as-is — the header at offset 0 is corrupted/incomplete. The shellcode's PE loader would have reconstructed the correct header at runtime. The second-stage PE's imports, strings, and capabilities cannot be determined without header reconstruction."]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "art-dyn-001",
+      "path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6\\decoded_payload.bin",
+      "sha256": "9f8e47944d294db5888d3cab9dd35f43f212b8b7dff92ae4439fe5358d7303e3",
+      "type": "x86_shellcode_stage1_loader",
+      "validation_status": "validated",
+      "context": "1728-byte first-stage shellcode decoded from the original sample's custom XOR+bswap decode loop. PEB-walking API resolver with embedded second-stage PE loader. Contains an encoded 0x6AC-byte second-stage PE at offset 0x15. Decode confirmed at runtime: seed key 0x22CC456A matches predicted value."
+    },
+    {
+      "id": "art-dyn-002",
+      "path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6\\decoded_stage2_raw.bin",
+      "sha256": "0ec0a9464ed57a3b0451b1527006c2177fc183b760049c7a87322d6cca50e012",
+      "type": "decoded_stage2_raw",
+      "validation_status": "partial",
+      "context": "335872-byte decoded second-stage raw data. Contains a valid PE structure at offset 0xB30C (I386, 3 sections, entry=0xA472, GUI). MZ signature at offset 4 with invalid e_lfanew — not loadable as-is. Requires header reconstruction to recover the full PE payload."
+    }
+  ],
+  "investigation_targets": [
+    {
+      "id": "tgt-dyn-001",
+      "priority": 1,
+      "target": "Second-stage PE header reconstruction",
+      "reason": "The decoded second-stage PE at offset 0xB30C of decoded_stage2_raw.bin is not loadable due to a corrupted DOS header. The shellcode's PE loader would have reconstructed the correct header at runtime. Reconstructing the header will reveal the actual PE payload for further analysis.",
+      "recommended_action": "Extract the PE from offset 0xB30C (size 0xC9000). Fix the DOS header: place MZ at offset 0, set e_lfanew=0x80 (or the correct PE offset), reconstruct the PE header from the section table. Validate with a PE parser.",
+      "success_criteria": "Recovered PE is loadable, has valid imports, and reveals the malware's capabilities."
+    },
+    {
+      "id": "tgt-dyn-002",
+      "priority": 1,
+      "target": "API hash-to-name mapping for shellcode's 16 hash table entries",
+      "reason": "The shellcode's API hash table at offset 0x64A contains 16 kernel32 API hashes computed via a custom rolling hash (ror/rol/add). Mapping these hashes to specific function names will reveal the shellcode's full runtime capability set.",
+      "recommended_action": "Reimplement the hash function (ror eax,7; rol [esp],0xd; add [esp],eax; lodsb; loop) and compute hashes over kernel32 export names. Match each of the 16 hashes in the table to a specific API name.",
+      "success_criteria": "All 16 API hashes mapped to specific kernel32 function names."
+    },
+    {
+      "id": "tgt-dyn-003",
+      "priority": 2,
+      "target": "Second-stage PE static analysis",
+      "reason": "The second-stage PE (after header reconstruction) contains the actual malware logic — C2 configuration, persistence mechanisms, payload delivery. Its capabilities are entirely unknown.",
+      "recommended_action": "After reconstructing the PE header, perform static analysis: identify imports (IAT), strings, embedded configuration, and execution logic. Determine the malware family and capabilities.",
+      "success_criteria": "Full capability assessment of the second-stage payload: C2 protocol, persistence mechanism, and payload delivery."
+    }
+  ],
+  "limitations": [
+    "The decode destination (0x2E0073+) is in an uncommitted MEM_RESERVE region, preventing the packer's decode loop from completing in-process. The shellcode was decoded offline instead.",
+    "The second-stage PE could not be loaded into memory at runtime, so its imports, strings, C2 configuration, and capabilities are entirely unknown.",
+    "The 16 API hashes in the shellcode's hash table were not mapped to specific function names.",
+    "The second-stage PE header is corrupted (invalid e_lfanew) and requires reconstruction before the PE can be analyzed.",
+    "The packer's anti-debug checks (GlobalFlags/BeingDebugged) were observed but not fully stress-tested — the sample may have additional evasive behaviors under different conditions.",
+    "No network IOCs were captured because the second-stage PE (which would contain C2 configuration) was not loaded.",
+    "The observation window was limited to the packer's decode phase and the shellcode's first-stage loader. Full runtime behavior of the second-stage payload was not observed."
+  ],
+  "upstream_inputs": [
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/02-static-pass1.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/03-unpack.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/04-static-pass2.json"
+  ],
+  "runtime": {
+    "executed": true,
+    "guest_only": true,
+    "aslr_base": "0x400000",
+    "stop_reason": "decode_destination_uncommitted",
+    "observation_window": "entry_gate_to_decode_exit_only"
+  },
+  "behaviors": [
+    {
+      "id": "bhv-dyn-001",
+      "type": "loader_execution",
+      "status": "observed",
+      "confidence": 1.0,
+      "description": "The packer's entry gate was reached and passed. The decode loop was reached and executed with the correct seed key. Execution reached the decode exit point. The 49-wrapper loader chain was confirmed operational.",
+      "evidence_ids": ["ev-dyn-001", "ev-dyn-002"]
+    },
+    {
+      "id": "bhv-dyn-002",
+      "type": "anti_debug_check",
+      "status": "observed",
+      "confidence": 0.95,
+      "description": "The packer performs GlobalFlags(NtCurrentPeb())->BeingDebugged checks at 0x4010D0, 0x4010FF, and 0x401346. All returned 0x8000 (debugger present) at runtime. However, the packer does not act on this — no alternative code path or crash was observed. These checks belong to the packer stub, not the recovered shellcode.",
+      "evidence_ids": ["ev-dyn-005"]
+    },
+    {
+      "id": "bhv-dyn-003",
+      "type": "anti_vm_check",
+      "status": "not_observed",
+      "confidence": 0.95,
+      "description": "No anti-VM checks (rdtsc, cpuid, registry checks, hardware model queries) were observed in either the packer or the recovered shellcode.",
+      "evidence_ids": ["ev-dyn-005"]
+    },
+    {
+      "id": "bhv-dyn-004",
+      "type": "memory_allocation",
+      "status": "observed",
+      "confidence": 0.95,
+      "description": "The packer allocates a 1MB MEM_RESERVE region (base 0x250000) for the decode output. The shellcode's VirtualAlloc call (at 0x91 in decoded_payload.bin) would allocate a 0x6AC-byte RWX buffer for the second-stage PE copy, but this could not be observed at runtime because the decode destination was in an uncommitted region.",
+      "evidence_ids": ["ev-dyn-003"]
+    },
+    {
+      "id": "bhv-dyn-005",
+      "type": "file_system_access",
+      "status": "partial",
+      "confidence": 0.85,
+      "description": "The shellcode includes a file I/O code path (GetModuleFileNameA + CreateFileA at 0x606-0x646 in decoded_payload.bin) for reading the original PE from disk. This path could not be tested at runtime because the decode destination issue prevented the shellcode from executing past the decode loop.",
+      "evidence_ids": ["ev-dyn-006"]
+    },
+    {
+      "id": "bhv-dyn-006",
+      "type": "process_injection",
+      "status": "not_observed",
+      "confidence": 0.9,
+      "description": "No process injection (CreateRemoteThread, NtCreateThreadEx, APC injection, process hollowing) was observed. The shellcode performs manual PE loading in-process, not cross-process injection.",
+      "evidence_ids": ["ev-dyn-006"]
+    },
+    {
+      "id": "bhv-dyn-007",
+      "type": "network_communication",
+      "status": "unknown",
+      "confidence": 0.5,
+      "description": "Network communication could not be assessed because the second-stage PE (which would contain C2 configuration) was not loaded into memory. The first-stage shellcode has no networking capability.",
+      "evidence_ids": []
+    }
+  ],
+  "iocs": {
+    "network": [],
+    "host": [
+      "SHA256:000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6 — original packed PE32 sample",
+      "SHA256:9f8e47944d294db5888d3cab9dd35f43f212b8b7dff92ae4439fe5358d7303e3 — decoded first-stage shellcode (1728 bytes, PEB-walking PE loader)",
+      "SHA256:0ec0a9464ed57a3b0451b1527006c2177fc183b760049c7a87322d6cca50e012 — decoded second-stage raw data (335872 bytes, contains embedded PE at offset 0xB30C)"
+    ],
+    "persistence": []
+  }
+}

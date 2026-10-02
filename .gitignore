@@ -4,8 +4,27 @@ trash/
 uploads/
 dotnet_output/
 die_result.json
-
-
+script_output/
+bin/
+.planning/
+*_report.md
+*.log
+*.bin
+*.id0
+*.id1
+*.id2
+*.nam
+*.til
+*.i64
+*.idb
+*.cache
+.cache/
+__pycache__/
+.pytest_cache/
+.playwright-mcp/
+.claude/
+bin/
+.vscode/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -66,6 +85,7 @@ cover/
 
 # Django stuff:
 *.log
+*.png
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
@@ -152,6 +172,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+config.yaml
 
 # Spyder project settings
 .spyderproject
@@ -214,3 +235,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+/reports/_tool
+/experiments
+
+/_tmp_report
+/docs
+/pycdc/

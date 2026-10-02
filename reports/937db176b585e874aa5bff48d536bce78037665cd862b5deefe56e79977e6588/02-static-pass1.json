@@ -1,0 +1,246 @@
+{
+  "schema_version": "1.0",
+  "stage": "static-pass1",
+  "sample": {
+    "original_sha256": "937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588",
+    "target_path": "C:\\Users\\ADMIN\\Downloads\\xu-ly-van-phong-cli-v1.0\\xu-ly-van-phong-cli\\resources\\bin\\officecli.exe",
+    "target_sha256": "937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588"
+  },
+  "status": "completed",
+  "summary": "Pass 1 selected because only the original sample path was supplied and no unpack report was named. Static analysis identifies a 64-bit Windows PE apphost/self-contained .NET runtime carrier for officecli.dll rather than a conventional packed malware loader. The native entry follows wmainCRTStartup -> __scrt_common_main_seh -> main -> exe_start; exe_start references the bundled managed application name officecli.dll and calls hostfxr_main_bundle_startupinfo. Large code and string volume comes from embedded CoreCLR/runtime and Brotli components. Imports include memory mapping/protection, process, registry, named-pipe diagnostics, and debugger APIs, but observed references are consistent with .NET hosting/runtime behavior. No dynamic execution was performed. A second unpack/recovery phase is recommended only if downstream stages need to extract the bundled managed payload officecli.dll for managed-code inspection, not because an unpack stub was confirmed.",
+  "findings": [
+    {
+      "id": "sample-identity-001",
+      "title": "Sample is a 64-bit .NET apphost",
+      "category": "sample_identity",
+      "status": "confirmed",
+      "confidence": 0.99,
+      "description": "The file is a 64-bit PE with a CLR-heavy import table and apphost startup flow consistent with a .NET application host.",
+      "reasoning": "Survey data shows x64 PE layout, a large .text/.rdata footprint, and many CoreCLR/runtime symbols and strings. The main function calls exe_start, which references hostfxr_main_startupinfo and System.Private.CoreLib.dll, confirming managed startup.",
+      "sources": [
+        {
+          "stage": "static-pass1",
+          "artifact": "officecli.exe",
+          "location": "survey_binary and main/exe_start analysis"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-sample-identity-1",
+          "kind": "tool_output",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "officecli.exe",
+            "location": "survey_binary"
+          },
+          "observation": "Architecture 64, image base 0x140000000, hash 937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588, and numerous CoreCLR-related symbols/strings were present.",
+          "address": null,
+          "confidence": 0.99
+        },
+        {
+          "id": "ev-sample-identity-2",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "officecli.exe",
+            "location": "main -> exe_start"
+          },
+          "observation": "main calls exe_start, and exe_start references hostfxr_main_startupinfo, hostfxr_main_bundle_startupinfo, and System.Private.CoreLib.dll.",
+          "address": "0x140039d90",
+          "confidence": 0.98
+        }
+      ],
+      "limitations": []
+    },
+    {
+      "id": "loader-hostfxr-001",
+      "title": "Execution follows the standard native hostfxr startup path",
+      "category": "loader",
+      "status": "confirmed",
+      "confidence": 0.97,
+      "description": "The native entry path is the normal CRT startup sequence into a hostfxr-based .NET bootstrapper rather than a custom self-unpacking loader.",
+      "reasoning": "wmainCRTStartup enters __scrt_common_main_seh, which calls main. main sets up tracing, redirects buffered errors, and calls exe_start. exe_start performs host path resolution and invokes hostfxr_main_startupinfo / hostfxr_main_bundle_startupinfo, indicating apphost-driven managed startup.",
+      "sources": [
+        {
+          "stage": "static-pass1",
+          "artifact": "officecli.exe",
+          "location": "wmainCRTStartup, __scrt_common_main_seh, main, exe_start"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-loader-1",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "officecli.exe",
+            "location": "wmainCRTStartup"
+          },
+          "observation": "Startup is the standard CRT trampoline into __scrt_common_main_seh.",
+          "address": "0x1405c6230",
+          "confidence": 0.95
+        },
+        {
+          "id": "ev-loader-2",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "officecli.exe",
+            "location": "exe_start"
+          },
+          "observation": "exe_start resolves app_path, dotnet_root, and host_path, then calls hostfxr_main_startupinfo and hostfxr_main_bundle_startupinfo.",
+          "address": "0x140039070",
+          "confidence": 0.97
+        }
+      ],
+      "limitations": []
+    },
+    {
+      "id": "packing-indicators-001",
+      "title": "No strong custom packer indicators found",
+      "category": "packing",
+      "status": "inferred",
+      "confidence": 0.84,
+      "description": "Static indicators favor a large managed runtime host over a custom packer or decryptor stub.",
+      "reasoning": "The binary contains extensive CoreCLR symbols, many managed runtime strings, and a large normal import surface for file, process, registry, and COM operations. The observed entry flow is consistent with a .NET host and does not show a compact decode loop, staged memory mapping stub, or obvious import-resolving shellcode loader.",
+      "sources": [
+        {
+          "stage": "static-pass1",
+          "artifact": "officecli.exe",
+          "location": "survey_binary and find_regex"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-pack-1",
+          "kind": "tool_output",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "officecli.exe",
+            "location": "survey_binary"
+          },
+          "observation": "Interesting strings include CoreCLR exception/runtime markers, diagnostics IPC messages, and System.Private.CoreLib.dll.",
+          "address": null,
+          "confidence": 0.89
+        },
+        {
+          "id": "ev-pack-2",
+          "kind": "tool_output",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "officecli.exe",
+            "location": "imports"
+          },
+          "observation": "Imports include VirtualAlloc, VirtualProtect, CreateProcessW, GetProcAddress, LoadLibraryA/W, IsDebuggerPresent, and many runtime/COM/file APIs, but the overall profile remains consistent with a host application rather than a tiny unpacker stub.",
+          "address": null,
+          "confidence": 0.8
+        }
+      ],
+      "limitations": [
+        "A managed payload can still contain behavior of interest after host startup; native indicators alone do not exclude later-stage obfuscation inside managed assemblies."
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "artifact-sample-pe",
+      "path": "C:\\Users\\ADMIN\\Downloads\\xu-ly-van-phong-cli-v1.0\\xu-ly-van-phong-cli\\resources\\bin\\officecli.exe",
+      "sha256": "937db176b585e874aa5bff48d536bce78037665cd862b5deefe56e79977e6588",
+      "type": "original-sample-pe64",
+      "validation_status": "validated",
+      "context": "Primary analyzed sample; IDB open and survey completed successfully."
+    }
+  ],
+  "investigation_targets": [
+    {
+      "id": "bp-1",
+      "priority": 1,
+      "target": "0x140039ec3",
+      "reason": "Trace the error-writer redirection in main to confirm where diagnostics buffering is installed before exe_start.",
+      "recommended_action": "Set a breakpoint on the trace writer assignment and inspect the resulting writer callback path.",
+      "success_criteria": "Confirm the buffered-error sink and whether it influences later control flow or only logging."
+    },
+    {
+      "id": "bp-2",
+      "priority": 1,
+      "target": "hostfxr_main_startupinfo / hostfxr_main_bundle_startupinfo call sites",
+      "reason": "Observe the hostfxr startup handoff inside exe_start, especially the call site(s) that resolve the runtime and bundle path.",
+      "recommended_action": "Break on hostfxr_main_startupinfo and hostfxr_main_bundle_startupinfo or their immediate call sites.",
+      "success_criteria": "Identify the managed payload handoff and any runtime parameters used to launch the .NET application."
+    },
+    {
+      "id": "bp-3",
+      "priority": 2,
+      "target": "0x1405c6159",
+      "reason": "Check the dynamic TLS initialization gate to determine whether any runtime callbacks are registered before managed entry.",
+      "recommended_action": "Break on the dynamic TLS init callback and record whether it only initializes runtime helpers.",
+      "success_criteria": "Confirm TLS callbacks are runtime scaffolding rather than custom unpack logic."
+    },
+    {
+      "id": "bp-4",
+      "priority": 2,
+      "target": "0x1405c6239",
+      "reason": "Verify the transition from CRT startup into the common main path.",
+      "recommended_action": "Break just after _security_init_cookie and before the call into __scrt_common_main_seh.",
+      "success_criteria": "Confirm standard CRT startup and exclude an alternate entry trampoline."
+    }
+  ],
+  "limitations": [
+    "The sample appears to be a managed apphost, so the meaningful payload likely lives in managed assemblies or runtime-loaded content not fully visible in the native apphost analysis.",
+    "No dynamic execution was performed, so runtime-decoded content and post-launch managed behaviors remain unconfirmed.",
+    "The import list is broad and includes APIs that may be inherited from the runtime rather than used directly by malicious logic."
+  ],
+  "upstream_inputs": [],
+  "binary_profile": {
+    "format": "PE32+",
+    "architecture": "x64",
+    "entry_point": "0x1405c6230",
+    "image_base": "0x140000000",
+    "packer": "none_obvious",
+    "packed_confidence": 0.18
+  },
+  "unpack_decision": {
+    "required": false,
+    "confidence": 0.81,
+    "reasons": [
+      "Static evidence indicates a standard .NET apphost bootstrap rather than a bespoke native packer.",
+      "The file already exposes managed runtime startup markers and hostfxr handoff strings instead of a narrow decode loop or memory-mapping stub.",
+      "If unpacking is needed later, it is more likely to be managed-assembly extraction than native stub recovery."
+    ],
+    "strategy": "none",
+    "breakpoint_plan": [
+      {
+        "id": "bp-1",
+        "priority": 1,
+        "target": "0x140039ec3",
+        "reason": "Trace the error-writer redirection in main to confirm where diagnostics buffering is installed before exe_start.",
+        "recommended_action": "Set a breakpoint on the trace writer assignment and inspect the resulting writer callback path.",
+        "success_criteria": "Confirm the buffered-error sink and whether it influences later control flow or only logging."
+      },
+      {
+        "id": "bp-2",
+        "priority": 1,
+        "target": "hostfxr_main_startupinfo / hostfxr_main_bundle_startupinfo call sites",
+        "reason": "Observe the hostfxr startup handoff inside exe_start, especially the call site(s) that resolve the runtime and bundle path.",
+        "recommended_action": "Break on hostfxr_main_startupinfo and hostfxr_main_bundle_startupinfo or their immediate call sites.",
+        "success_criteria": "Identify the managed payload handoff and any runtime parameters used to launch the .NET application."
+      },
+      {
+        "id": "bp-3",
+        "priority": 2,
+        "target": "0x1405c6159",
+        "reason": "Check the dynamic TLS initialization gate to determine whether any runtime callbacks are registered before managed entry.",
+        "recommended_action": "Break on the dynamic TLS init callback and record whether it only initializes runtime helpers.",
+        "success_criteria": "Confirm TLS callbacks are runtime scaffolding rather than custom unpack logic."
+      },
+      {
+        "id": "bp-4",
+        "priority": 2,
+        "target": "0x1405c6239",
+        "reason": "Verify the transition from CRT startup into the common main path.",
+        "recommended_action": "Break just after _security_init_cookie and before the call into __scrt_common_main_seh.",
+        "success_criteria": "Confirm standard CRT startup and exclude an alternate entry trampoline."
+      }
+    ]
+  }
+}

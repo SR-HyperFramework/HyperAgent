@@ -1,0 +1,136 @@
+<?xml version="1.0" ?>
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36" scale="1" border="0">
+  <diagram name="Stage 09 - Summary" id="HASUM-diagram-1">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- ===== Title ===== -->
+        <mxCell id="HASUM-title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=22;fontStyle=1;" value="STAGE 09 - TÓM TẮT CHO UI / DASHBOARD (Summary)" vertex="1">
+          <mxGeometry height="40" width="560" x="200" y="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-subtitle" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;" value="hyperagent-summary · 09-summary.json · layperson-friendly JSON — không phải verdict stage" vertex="1">
+          <mxGeometry height="20" width="560" x="200" y="60" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Upstream inputs ===== -->
+        <mxCell id="HASUM-in-label" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;" value="Đầu vào (cùng SHA256)" vertex="1">
+          <mxGeometry height="20" width="170" x="30" y="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-in1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" value="07-deepdive.json&#10;(bắt buộc + authoritative)" vertex="1">
+          <mxGeometry height="36" width="160" x="30" y="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-in2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="01-06 JSON (khi có)" vertex="1">
+          <mxGeometry height="36" width="160" x="30" y="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-in3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="08-report.md&#10;(chỉ để căn chỉnh từ ngữ)" vertex="1">
+          <mxGeometry height="36" width="160" x="30" y="250" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-in4" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="Deepdive thiếu/lỗi → vẫn viết summary dạng blocked/failed nếu xác định được sample identity" vertex="1">
+          <mxGeometry height="40" width="230" x="30" y="300" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Stage steps ===== -->
+        <mxCell id="HASUM-s1" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="1. Identity &amp; authority check" vertex="1">
+          <mxGeometry height="60" width="240" x="380" y="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-s2" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="2. Executive summary card" vertex="1">
+          <mxGeometry height="60" width="240" x="380" y="260" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-s3" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="3. Split findings (3 buckets)" vertex="1">
+          <mxGeometry height="60" width="240" x="380" y="370" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-s4" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="4. Classification &amp; confirmed IOCs" vertex="1">
+          <mxGeometry height="60" width="240" x="380" y="480" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-s5" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="5. Actions &amp; limitations" vertex="1">
+          <mxGeometry height="60" width="240" x="380" y="590" as="geometry"/>
+        </mxCell>
+
+        <!-- edges between steps -->
+        <mxCell id="HASUM-e1" edge="1" parent="1" source="HASUM-s1" target="HASUM-s2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-e2" edge="1" parent="1" source="HASUM-s2" target="HASUM-s3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-e3" edge="1" parent="1" source="HASUM-s3" target="HASUM-s4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-e4" edge="1" parent="1" source="HASUM-s4" target="HASUM-s5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Detail boxes (blue) ===== -->
+        <mxCell id="HASUM-d1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="Xác nhận cùng SHA256 · extract metadata (name, path, arch, pack) · Deepdive thắng khi có xung đột" vertex="1">
+          <mxGeometry height="60" width="300" x="720" y="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-d2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="verdict + confidence (mirror Deepdive) · confidence_label · risk_level · headline · plain-language assessment" vertex="1">
+          <mxGeometry height="60" width="300" x="720" y="260" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-d3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="confirmed_findings · findings_with_caveats · not_supported_claims&#10;(theo claim policy &amp; review disposition)" vertex="1">
+          <mxGeometry height="60" width="300" x="720" y="370" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-d4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="Family: giữ unconfirmed trừ khi Deepdive hỗ trợ rõ&#10;IOCs: network · host · persistence (chỉ local/được Deepdive duyệt)" vertex="1">
+          <mxGeometry height="60" width="300" x="720" y="480" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-d5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="Từ investigation targets &amp; decision points của Deepdive · giữ limitations ở dạng ngôn ngữ đơn giản" vertex="1">
+          <mxGeometry height="60" width="300" x="720" y="590" as="geometry"/>
+        </mxCell>
+
+        <!-- edges step -> detail -->
+        <mxCell id="HASUM-ed1" edge="1" parent="1" source="HASUM-s1" target="HASUM-d1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-ed2" edge="1" parent="1" source="HASUM-s2" target="HASUM-d2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-ed3" edge="1" parent="1" source="HASUM-s3" target="HASUM-d3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-ed4" edge="1" parent="1" source="HASUM-s4" target="HASUM-d4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-ed5" edge="1" parent="1" source="HASUM-s5" target="HASUM-d5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Output artifact ===== -->
+        <mxCell id="HASUM-out" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="09-summary.json&#10;(consumed by UI)" vertex="1">
+          <mxGeometry height="60" width="200" x="720" y="760" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-valid" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="validate_output.py&#10;schema.json (summary)" vertex="1">
+          <mxGeometry height="60" width="200" x="720" y="860" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-eout" edge="1" parent="1" source="HASUM-s5" target="HASUM-out" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="560" y="650"/>
+              <mxPoint x="560" y="790"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HASUM-evalid" edge="1" parent="1" source="HASUM-out" target="HASUM-valid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-enote" connectable="0" parent="HASUM-evalid" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="bắt buộc VALID" vertex="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-2" y="-16" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ===== Annotations ===== -->
+        <mxCell id="HASUM-a1" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="Không tạo verdict mới · không đổi confidence · không thêm finding/IOC" vertex="1">
+          <mxGeometry height="30" width="300" x="380" y="700" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-a2" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="08-report.md không được override/widen/strengthen 07-deepdive.json" vertex="1">
+          <mxGeometry height="30" width="340" x="380" y="740" as="geometry"/>
+        </mxCell>
+        <mxCell id="HASUM-a3" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="Không ẩn caveat để cho đọc dễ hơn — collection rỗng dùng [] chứ không thay bằng văn xuôi" vertex="1">
+          <mxGeometry height="30" width="360" x="380" y="780" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

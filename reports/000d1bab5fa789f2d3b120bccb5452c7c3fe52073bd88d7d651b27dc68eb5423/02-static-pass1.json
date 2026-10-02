@@ -1,0 +1,575 @@
+{
+  "schema_version": "1.0",
+  "stage": "static-pass1",
+  "sample": {
+    "original_sha256": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+    "target_path": "H:\\Dataset\\files\\malware\\000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+    "target_sha256": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423"
+  },
+  "status": "completed",
+  "summary": "Pass 1 selected because the supplied input is the original sample path and the existing 03-unpack.json for this run reports status not_needed with no recovered artifact, so only original-sample triage applies. Static analysis identifies a 32-bit, service-hosted PE32 DLL that proxies wkssvc service callbacks, requires execution inside svchost.exe, and starts a long-lived worker thread. The worker maintains an obfuscated IPv4 pool, waits for InternetGetConnectedState-like connectivity, exchanges 0x1D0-byte custom-framed network messages, fingerprints the host through storage, service, OS, and COM-backed collection routines, and can pass received task data into a CreateProcessW-compatible execution path. The sample relies on string/API obfuscation and dynamic resolution, but no conventional packer or self-unpack stub was confirmed.",
+  "findings": [
+    {
+      "id": "sample-identity-service-dll-001",
+      "title": "Sample is a 32-bit service DLL built for svchost hosting",
+      "category": "sample_identity",
+      "status": "confirmed",
+      "confidence": 0.99,
+      "description": "The sample is a PE32 DLL at image base 0x64000000 with ServiceMain, SvchostPushServiceGlobals, and DllEntryPoint entrypoints, and its worker logic only proceeds when the hosting process path contains svchost.exe.",
+      "reasoning": "survey_binary reported a 32-bit image with service-oriented entrypoints. sub_64011630 lowercases the current module path, checks it for svchost.exe, and only then attempts the singleton gate and secondary worker-thread creation, showing the DLL is meant to run inside the service-host model rather than as a standalone EXE.",
+      "sources": [
+        {
+          "stage": "static-pass1",
+          "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+          "location": "survey_binary; sub_64011630"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-sample-identity-1",
+          "kind": "tool_output",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "survey_binary"
+          },
+          "observation": "survey_binary reported arch 32, base address 0x64000000, and entrypoints ServiceMain at 0x6400F3C0, SvchostPushServiceGlobals at 0x6400F3E0, and DllEntryPoint at 0x64012FAA.",
+          "address": null,
+          "confidence": 0.99
+        },
+        {
+          "id": "ev-sample-identity-2",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_64011630"
+          },
+          "observation": "sub_64011630 calls GetModuleFileNameW(0, Filename, 0x208), converts the buffer, and at 0x64011672 searches it for the wide string L\"svchost.exe\"; only if found does it call sub_64010690 and CreateThread(sub_640113F0).",
+          "address": "0x64011630",
+          "confidence": 0.98
+        }
+      ],
+      "limitations": [
+        "The exact service installation path is not visible from the standalone DLL alone."
+      ]
+    },
+    {
+      "id": "loader-wkssvc-forwarder-001",
+      "title": "Service callbacks proxy wkssvc.dll and then launch a background thread",
+      "category": "loader",
+      "status": "confirmed",
+      "confidence": 0.97,
+      "description": "The exported service callbacks are thin wrappers that load wkssvc.dll, decode two export names at runtime, resolve them with GetProcAddress, and start the DLL's own worker thread before forwarding the original service call.",
+      "reasoning": "ServiceMain and SvchostPushServiceGlobals both invoke sub_6400F350. That routine loads wkssvc.dll, uses sub_64006890 twice to decode ASCII names, resolves both symbols with GetProcAddress into dword_6402D4B8/dword_6402D4BC, and spawns sub_64011630. This is consistent with a proxy/hijack pattern rather than a benign standalone service implementation.",
+      "sources": [
+        {
+          "stage": "static-pass1",
+          "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+          "location": "ServiceMain; SvchostPushServiceGlobals; sub_6400F350"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-loader-1",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_6400F350"
+          },
+          "observation": "sub_6400F350 calls LoadLibraryW(L\"wkssvc.dll\"), then sub_64006890(&unk_640242CC, 11, ...) and sub_64006890(&unk_64024288, 25, ...), passing each result to GetProcAddress and storing into dword_6402D4B8 and dword_6402D4BC, then CreateThread(0,0,sub_64011630,0,0,0).",
+          "address": "0x6400F350",
+          "confidence": 0.98
+        },
+        {
+          "id": "ev-loader-2",
+          "kind": "artifact",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "get_string; search_text"
+          },
+          "observation": "The literal wkssvc.dll is present and is passed as the target of LoadLibraryW within sub_6400F350.",
+          "address": "0x640242FC",
+          "confidence": 0.99
+        },
+        {
+          "id": "ev-loader-3",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "ServiceMain; SvchostPushServiceGlobals"
+          },
+          "observation": "The xrefs-to sub_6400F350 are 0x6400F3C0 (ServiceMain) and 0x6400F3E0 (SvchostPushServiceGlobals), confirming both exported callbacks reach the forwarder.",
+          "address": "0x6400F3C0",
+          "confidence": 0.96
+        }
+      ],
+      "limitations": [
+        "The two decoded wkssvc export names were not fully recovered statically and should be captured at runtime."
+      ]
+    },
+    {
+      "id": "network-obfuscated-ip-pool-001",
+      "title": "Obfuscated IPv4 pool and custom framed network protocol are present",
+      "category": "network",
+      "status": "confirmed",
+      "confidence": 0.95,
+      "description": "The sample stores multiple obfuscated IPv4 strings, converts them with inet_addr at runtime, waits for InternetGetConnectedState-like connectivity, and communicates with a custom multi-fragment protocol that uses 0x1D0-byte chunks and reply validation before handing data to higher-level logic.",
+      "reasoning": "sub_64010390 decodes five 12-byte blobs with sub_64006890 and passes the results to inet_addr, seeding rand/GetTickCount to rotate across the pool. sub_640105A0 and sub_6400A2E0 use the selected address, chunk outbound data into 464-byte records, and retry. sub_6400A620 normalizes fields with htonl/ntohl, wraps outbound buffers with a local encoder, and validates inbound frames with fixed magic values before passing the payload onward.",
+      "sources": [
+        {
+          "stage": "static-pass1",
+          "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+          "location": "sub_64010390; sub_640105A0; sub_6400A2E0; sub_6400A620"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-network-1",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_64010390"
+          },
+          "observation": "sub_64010390 decodes five 12-byte blobs from 0x64024470, 0x6402443C, 0x6402443C, 0x640243C8, and 0x640243C8 through sub_64006890 and passes each plaintext string to inet_addr, storing results into a rotating pool, then seeds a random pick with GetTickCount.",
+          "address": "0x64010390",
+          "confidence": 0.94
+        },
+        {
+          "id": "ev-network-2",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_6400A2E0"
+          },
+          "observation": "sub_6400A2E0 divides exchanges into 0x1D0-byte fragments, retries failed sends, and enforces elapsed-time limits with GetTickCount-based checks.",
+          "address": "0x6400A2E0",
+          "confidence": 0.93
+        },
+        {
+          "id": "ev-network-3",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_6400A620"
+          },
+          "observation": "sub_6400A620 applies htonl/ntohl to header fields, builds an outbound frame containing a 0x19-byte header plus payload with a local encoder (sub_6400D8E0), and only accepts decoded replies whose header matches expected token fields and magics.",
+          "address": "0x6400A620",
+          "confidence": 0.95
+        },
+        {
+          "id": "ev-network-4",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_6400F450; sub_6400E330"
+          },
+          "observation": "sub_6400F450 repeatedly calls a dynamically resolved API returned by sub_6400E330 (InternetGetConnectedState-compatible 2-argument signature) and sleeps one second between attempts until it succeeds or a caller-supplied 60000ms timeout expires.",
+          "address": "0x6400F450",
+          "confidence": 0.88
+        }
+      ],
+      "limitations": [
+        "The plaintext IPv4 addresses and exact send/receive API names were not fully recovered from the obfuscated string layer during this pass."
+      ]
+    },
+    {
+      "id": "collection-host-fingerprinting-001",
+      "title": "Host fingerprinting covers storage, service inventory, OS, and COM-backed data",
+      "category": "collection",
+      "status": "confirmed",
+      "confidence": 0.91,
+      "description": "The sample gathers host information through storage device IOCTL queries, Windows service enumeration, OS and architecture labeling, and a COM-backed inventory routine that returns string data used to build outbound telemetry.",
+      "reasoning": "sub_6400B120 uses a CreateFileW-compatible helper and DeviceIoControl-compatible helper with IOCTL-like codes 0x2D1400 and 0x700A0 to query device information. sub_64006120 dynamically opens the service control manager and calls EnumServicesStatusW. sub_64010850 constructs strings such as '&sys=windows+%d.%d' and '+x64/+x86', and uses sub_6400B890/sub_6400B530 with CoInitializeEx/CoCreateInstance/Variant APIs to collect additional host strings.",
+      "sources": [
+        {
+          "stage": "static-pass1",
+          "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+          "location": "sub_6400B120; sub_64006120; sub_64010850; sub_6400B530"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-collection-1",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_6400B120"
+          },
+          "observation": "sub_6400B120 opens an obfuscated device path with a CreateFileW-compatible call and then issues DeviceIoControl-compatible requests 0x2D1400 and 0x700A0 to collect descriptor data.",
+          "address": "0x6400B120",
+          "confidence": 0.92
+        },
+        {
+          "id": "ev-collection-2",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_64006120"
+          },
+          "observation": "sub_64006120 dynamically resolves OpenSCManagerW-like and CloseServiceHandle-like APIs, calls EnumServicesStatusW, and iterates across returned service names for filtering and reporting.",
+          "address": "0x64006120",
+          "confidence": 0.9
+        },
+        {
+          "id": "ev-collection-3",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_64010850; sub_6400B530"
+          },
+          "observation": "sub_64010850 calls GetVersionExW and GetNativeSystemInfo, appends labels such as '&AZ', '&D_', 'bundle', and '1.413220', and calls sub_6400B890/sub_6400B530 which use CoInitializeEx, CoCreateInstance, VariantInit, VariantCopy, and interface-method loops to obtain COM-backed data.",
+          "address": "0x64010850",
+          "confidence": 0.89
+        }
+      ],
+      "limitations": [
+        "The exact COM class, namespace, and all human-readable property names remain partially obfuscated in this pass."
+      ]
+    },
+    {
+      "id": "process-task-launch-001",
+      "title": "Network task data can trigger local process execution",
+      "category": "process",
+      "status": "inferred",
+      "confidence": 0.88,
+      "description": "After the worker receives a non-empty response body, the sample passes it into a handler that prepares Unicode paths/commands and invokes a dynamically resolved API with a CreateProcessW-compatible calling convention, then closes the returned process and thread handles.",
+      "reasoning": "sub_640113F0 checks the response-sized field from its network helper and calls sub_6400FF30 when the field is non-zero. Inside sub_6400FF30, sub_6400DDD0 is called with CreateProcessW-compatible semantics (application string, null security attributes, inherit handles enabled, flags, STARTUPINFO-like buffer, PROCESS_INFORMATION-like buffer), followed by CloseHandle on both returned handles and additional file-management helpers.",
+      "sources": [
+        {
+          "stage": "static-pass1",
+          "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+          "location": "sub_640113F0; sub_6400FF30; sub_6400DDD0"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-process-1",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_640113F0"
+          },
+          "observation": "sub_640113F0 calls sub_6400FF30(v23, v13[0]) when the success/response field is non-zero after the worker's command/response processing loop.",
+          "address": "0x640115A7",
+          "confidence": 0.9
+        },
+        {
+          "id": "ev-process-2",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_6400DDD0"
+          },
+          "observation": "sub_6400DDD0 resolves (via LoadLibraryW/GetProcAddress of a 14-byte ASCII name) a CreateProcessW-compatible function; sub_6400FF30 calls it at 0x640101C3 with a CreateProcessW argument layout and then closes the hProcess and hThread handles.",
+          "address": "0x640101C3",
+          "confidence": 0.87
+        }
+      ],
+      "limitations": [
+        "The exact process image, command line, and cleanup semantics require runtime capture because the underlying API names remain dynamically resolved."
+      ]
+    },
+    {
+      "id": "anti-analysis-host-gating-001",
+      "title": "Operational guards rely on host context and singleton checks rather than active anti-debug",
+      "category": "anti_analysis",
+      "status": "partial",
+      "confidence": 0.84,
+      "description": "The analyzed operational path enforces svchost.exe hosting, uses a mutex-based singleton gate, and repeatedly waits for connectivity, but no bespoke anti-debug routine was confirmed beyond CRT support code that imports IsDebuggerPresent.",
+      "reasoning": "sub_64011630 and sub_64010690 gate execution on svchost.exe and a successful zero-timeout mutex wait. sub_6400F450 waits for the connectivity API to succeed. The only xrefs to IsDebuggerPresent lead into __invoke_watson and ___report_gsfailure, which are CRT failure handlers rather than custom anti-analysis logic.",
+      "sources": [
+        {
+          "stage": "static-pass1",
+          "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+          "location": "sub_64011630; sub_64010690; sub_6400F450; xrefs to 0x64024114"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-anti-1",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_64010690; sub_64011630"
+          },
+          "observation": "sub_64010690 executes a mutex-backed singleton check and returns success only if CreateMutexW succeeds and WaitForSingleObject(handle, 0) returns 0; sub_64011630 uses that result only after verifying svchost.exe hosting.",
+          "address": "0x64010690",
+          "confidence": 0.88
+        },
+        {
+          "id": "ev-anti-2",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_6400F450"
+          },
+          "observation": "sub_6400F450 loops on the connectivity-check resolver (sub_6400E330) and sleeps one second between attempts until either connectivity is present or a caller-supplied timeout expires.",
+          "address": "0x6400F450",
+          "confidence": 0.85
+        },
+        {
+          "id": "ev-anti-3",
+          "kind": "tool_output",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "xrefs_to 0x64024114"
+          },
+          "observation": "Cross-references to IsDebuggerPresent at 0x64024114 only lead to 0x64011FB8 and 0x640156CC, which are CRT failure handlers (__report_gsfailure/__invoke_watson), not the service worker or network tasking path.",
+          "address": "0x64024114",
+          "confidence": 0.91
+        }
+      ],
+      "limitations": [
+        "Runtime-only anti-analysis branches hidden behind command traffic or unrecovered strings cannot be completely excluded from this pass."
+      ]
+    },
+    {
+      "id": "configuration-registry-clsid-001",
+      "title": "Registry and resource-backed CLSID/config selection is present",
+      "category": "configuration",
+      "status": "partial",
+      "confidence": 0.82,
+      "description": "The sample reads an obfuscated HKLM path/value pair and, if that fails, falls back to a resource string and CLSIDFromString to recover a GUID-like identifier that is later consumed by COM-backed collection logic.",
+      "reasoning": "sub_640039D0 opens a decoded registry path with RegOpenKeyExW and then uses a query wrapper around RegQueryValueExW. On failure it concatenates a resource-derived wide string (sub_640025A0 and sub_640029F0), calls CLSIDFromString, and returns GUID words. sub_64006340 separately loads resource 2000 and runs a UUID parsing flow. Those values feed sub_64010850 and downstream COM routines.",
+      "sources": [
+        {
+          "stage": "static-pass1",
+          "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+          "location": "sub_640039D0; sub_64006340"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-config-1",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_640039D0"
+          },
+          "observation": "sub_640039D0 decodes a registry path and value name via sub_64006B80, calls RegOpenKeyExW(HKEY_LOCAL_MACHINE, ...) followed by a RegQueryValueExW-compatible wrapper, and falls back to CLSIDFromString when the registry lookup fails.",
+          "address": "0x640039D0",
+          "confidence": 0.84
+        },
+        {
+          "id": "ev-config-2",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_64006340"
+          },
+          "observation": "sub_640039D0 concatenates an obfuscated wide string with a decoded separator and calls CLSIDFromString(v10, &pclsid), materializing a GUID into the caller's buffer; sub_64006340 loads string resource 0x7D0 and parses a UUID.",
+          "address": "0x64006340",
+          "confidence": 0.83
+        }
+      ],
+      "limitations": [
+        "The exact registry path, value name, and resource-backed GUID string remain obfuscated unless runtime decoding is captured."
+      ]
+    },
+    {
+      "id": "packing-no-standard-packer-001",
+      "title": "No standard packer or staged in-memory unpack stub was confirmed",
+      "category": "packing",
+      "status": "inferred",
+      "confidence": 0.78,
+      "description": "The sample is directly analyzable as a normal PE32 DLL with standard sections and CRT startup; the main protection layer is runtime string/API obfuscation rather than a compressed packer stub or an OEP handoff into unpacked shellcode.",
+      "reasoning": "survey_binary reported a conventional .text/.idata/.rdata/.data layout. DllEntryPoint only performs security-cookie setup and __DllMainCRTStartup. The prevalent helper routines sub_64006890 and sub_64006B80 decode obfuscated strings and API names under a mutex, but the analyzed control flow does not show a typical RWX-unpack loop, relocation fixer, or import-reconstruction stub.",
+      "sources": [
+        {
+          "stage": "static-pass1",
+          "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+          "location": "survey_binary; DllEntryPoint; sub_64006890; sub_64006B80"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-pack-1",
+          "kind": "tool_output",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "survey_binary"
+          },
+          "observation": "The image has conventional PE sections (.text 0x64001000-0x64024000 rx, .idata, .rdata, .data rw), and no packer-branded section names or collapsed entry stub profile.",
+          "address": null,
+          "confidence": 0.8
+        },
+        {
+          "id": "ev-pack-2",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "DllEntryPoint"
+          },
+          "observation": "DllEntryPoint only calls sub_64018806 when fdwReason == 1 (DLL_PROCESS_ATTACH) and then returns sub_64012EB4(hinstDLL) (__DllMainCRTStartup), matching ordinary CRT startup.",
+          "address": "0x64012FAA",
+          "confidence": 0.9
+        },
+        {
+          "id": "ev-pack-3",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_64006890; sub_64006B80"
+          },
+          "observation": "The dominant obfuscation helpers sub_64006890 and sub_64006B80 reconstruct strings and API names under a CreateMutexW/WaitForSingleObject gate (sub_64006890 calls sub_64007260/sub_64009D80/sub_6400F680 to materialize a string), not a memory-unpacking trampoline that rewrites the executable image.",
+          "address": "0x64006890",
+          "confidence": 0.78
+        }
+      ],
+      "limitations": [
+        "Command data received over the network may still carry compressed or encrypted secondary content that is not recoverable without runtime capture."
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "artifact-original-dll",
+      "path": "H:\\Dataset\\files\\malware\\000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+      "sha256": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+      "type": "original-sample-pe32-dll",
+      "validation_status": "validated",
+      "context": "Primary analyzed sample; opened successfully in IDA session c666b131 and surveyed/decompiled during Pass 1."
+    }
+  ],
+  "investigation_targets": [
+    {
+      "id": "bp-forwarder-names",
+      "priority": 1,
+      "target": "RVA 0x0000F37B / VA 0x6400F37B in sub_6400F350",
+      "reason": "Capture the two decoded wkssvc export names and confirm which legitimate service callbacks are being proxied.",
+      "recommended_action": "Break after each sub_64006890 return inside sub_6400F350 and inspect the ASCII buffers passed to GetProcAddress.",
+      "success_criteria": "Recover both forwarded export names and verify dword_6402D4B8/dword_6402D4BC point into the legitimate wkssvc.dll module."
+    },
+    {
+      "id": "bp-svchost-gate",
+      "priority": 1,
+      "target": "RVA 0x00011672 / VA 0x64011672 in sub_64011630",
+      "reason": "Validate the svchost.exe environment check and singleton gate before the worker thread is launched.",
+      "recommended_action": "Break on the svchost.exe comparison and on the subsequent sub_64010690/CreateMutexW/WaitForSingleObject path.",
+      "success_criteria": "Confirm worker launch only occurs under svchost.exe and capture the decoded mutex name or other singleton identifier."
+    },
+    {
+      "id": "bp-ip-pool",
+      "priority": 1,
+      "target": "RVA 0x00010423 / VA 0x64010423 and sibling inet_addr call sites in sub_64010390",
+      "reason": "Recover the plaintext IPv4 pool that is currently only visible as obfuscated 12-byte blobs.",
+      "recommended_action": "Break after each sub_64006890 call or on inet_addr and log the decoded ASCII buffer supplied to the converter.",
+      "success_criteria": "Recover every hard-coded address, including duplicates, and map the rotation logic driven by dword_6402D4D4."
+    },
+    {
+      "id": "bp-c2-frame",
+      "priority": 1,
+      "target": "RVA 0x0000A76F / VA 0x6400A76F and RVA 0x0000A8A4 / VA 0x6400A8A4 in sub_6400A620",
+      "reason": "Observe the custom request/response framing and capture task payloads after local encode/decode.",
+      "recommended_action": "Break after the outbound builder and after the decoded-reply helper to inspect both sides of the local protocol transform.",
+      "success_criteria": "Capture header fields, fragment counters, the fixed message magics, and the decrypted body handed to higher-level logic."
+    },
+    {
+      "id": "bp-device-fingerprint",
+      "priority": 2,
+      "target": "RVA 0x0000B1EB / VA 0x6400B1EB and RVA 0x0000B298 / VA 0x6400B298 in sub_6400B120",
+      "reason": "Confirm the storage-device fingerprinting path and identify the exact device name opened by the CreateFileW-compatible helper.",
+      "recommended_action": "Break on the CreateFileW-compatible call and the subsequent DeviceIoControl-compatible call sites.",
+      "success_criteria": "Recover the concrete device path, the returned descriptor fields, and the meaning of the 0x2D1400 and 0x700A0 requests."
+    },
+    {
+      "id": "bp-task-exec",
+      "priority": 1,
+      "target": "RVA 0x000101C3 / VA 0x640101C3 in sub_6400FF30",
+      "reason": "Validate the task-to-process-launch handoff.",
+      "recommended_action": "Break on the CreateProcessW-compatible call and inspect the generated Unicode command line, environment block, and cleanup routines that follow.",
+      "success_criteria": "Capture the executed path and arguments, spawned PID, and any delete-or-move-on-reboot behavior that follows process creation."
+    }
+  ],
+  "limitations": [
+    "Plaintext IPv4 endpoints, mutex names, several API strings, and some COM/property names remain hidden behind runtime string decoders and were not fully recovered statically.",
+    "No dynamic execution was performed during this stage, so network destinations, returned task data, and the exact launched command lines remain unconfirmed at runtime.",
+    "The sample clearly targets a svchost-hosted service context, but the exact installation or persistence mechanism on the victim host cannot be proven from the standalone DLL alone.",
+    "Several resolved API identities were inferred from call signatures and constants rather than from fully recovered plaintext resolver strings."
+  ],
+  "upstream_inputs": [
+    "reports/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423/01-prepare-env.json",
+    "reports/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423/03-unpack.json (status not_needed; no recovered artifact)"
+  ],
+  "binary_profile": {
+    "format": "PE32 DLL",
+    "architecture": "x86",
+    "entry_point": "0x64012FAA",
+    "image_base": "0x64000000",
+    "packer": "none_obvious_custom_string_and_api_obfuscation",
+    "packed_confidence": 0.24
+  },
+  "unpack_decision": {
+    "required": false,
+    "confidence": 0.82,
+    "reasons": [
+      "The DLL is directly analyzable in IDA and reaches meaningful service, network, and collection logic without a compressed OEP handoff.",
+      "Observed protection focuses on string/API decoding and runtime resolution rather than a separate memory-unpacking stub or import reconstruction stage.",
+      "Dynamic follow-up is still useful for endpoint and command recovery, but that is behavior validation rather than a dedicated unpack round."
+    ],
+    "strategy": "none",
+    "breakpoint_plan": [
+      {
+        "id": "bp-forwarder-names",
+        "priority": 1,
+        "target": "RVA 0x0000F37B / VA 0x6400F37B in sub_6400F350",
+        "reason": "Recover the forwarded wkssvc export names resolved by the proxy layer.",
+        "recommended_action": "Break after each sub_64006890 return inside sub_6400F350 and log the decoded ASCII strings passed to GetProcAddress.",
+        "success_criteria": "Identify the exact wkssvc exports behind dword_6402D4B8 and dword_6402D4BC."
+      },
+      {
+        "id": "bp-svchost-gate",
+        "priority": 1,
+        "target": "RVA 0x00011672 / VA 0x64011672 in sub_64011630",
+        "reason": "Confirm the svchost host gate and mutex-backed singleton behavior.",
+        "recommended_action": "Break on the svchost.exe comparison and on the subsequent sub_64010690 mutex path.",
+        "success_criteria": "Verify whether the worker launches only in the intended service-host context and capture the singleton identifier."
+      },
+      {
+        "id": "bp-ip-pool",
+        "priority": 1,
+        "target": "RVA 0x00010423 / VA 0x64010423 and sibling inet_addr call sites in sub_64010390",
+        "reason": "Recover the obfuscated IPv4 list used for outbound connectivity.",
+        "recommended_action": "Break after each decoded string is produced and before inet_addr consumes it.",
+        "success_criteria": "Log the full plaintext endpoint pool and its rotation order."
+      },
+      {
+        "id": "bp-c2-frame",
+        "priority": 1,
+        "target": "RVA 0x0000A76F / VA 0x6400A76F and RVA 0x0000A8A4 / VA 0x6400A8A4 in sub_6400A620",
+        "reason": "Capture encoded outbound buffers and decoded replies for protocol recovery.",
+        "recommended_action": "Break after the outbound builder and after the decoded-reply helper to inspect both sides of the local protocol transform.",
+        "success_criteria": "Recover fragment headers, payload sizes, and the body passed back to the worker thread."
+      },
+      {
+        "id": "bp-task-exec",
+        "priority": 1,
+        "target": "RVA 0x000101C3 / VA 0x640101C3 in sub_6400FF30",
+        "reason": "Validate the process-launch path that follows successful task retrieval.",
+        "recommended_action": "Break on the CreateProcessW-compatible call and record the resulting command line and spawned process identifiers.",
+        "success_criteria": "Confirm whether received task data launches a child process and capture the exact runtime parameters."
+      }
+    ]
+  }
+}

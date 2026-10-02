@@ -1,0 +1,99 @@
+{
+  "fingerprint": {
+    "sha256": "9f8e47944d294db5888d3cab9dd35f43f212b8b7dff92ae4439fe5358d7303e3",
+    "md5": "12559d43d5453034fefc94dca506ca44",
+    "size": 1728,
+    "entropy": 6.2773,
+    "architecture": "x86_32bit",
+    "format": "raw_shellcode",
+    "has_mz_signature": false,
+    "has_pe_signature": false,
+    "has_peb_walk": true,
+    "meaningful_strings": [
+      "Kernel32.dll",
+      "HeapAlloc",
+      "HeapFree",
+      "msvcrt.dll",
+      "initterm",
+      "fwpr inf"
+    ],
+    "string_count": 72
+  },
+  "execution_graph": {
+    "candidate_entry": "0x0",
+    "entry_prologue": "call+0x1F GetPC pattern with bswap/std/cld anti-analysis filler",
+    "key_regions": [
+      {"offset": "0x00", "purpose": "GetPC prologue + anti-analysis obfuscation (bswap/loop/std/cld filler)", "size": 30},
+      {"offset": "0x1E", "purpose": "call 0x3D - real entry (GetPC via call+pop)", "size": 5},
+      {"offset": "0x23", "purpose": "Wide string data: 'Kernel32.dll' (UTF-16LE)", "size": 26},
+      {"offset": "0x3D", "purpose": "GetPC return - pop eax, call esi (Kernel32 find), then PE header validation", "size": 32},
+      {"offset": "0x5D", "purpose": "API hash resolution loop (16 iterations, hash computed via function at 0x354)", "size": 90},
+      {"offset": "0x67", "purpose": "Stack-pushed strings: 'HeapAlloc', 'HeapFree' for GetProcAddress resolution", "size": 40},
+      {"offset": "0x91", "purpose": "VirtualAlloc(0, 0x6AC, 0x1000, 0x40) - RWX allocation for second stage", "size": 20},
+      {"offset": "0xAA", "purpose": "rep movsb - copy 0x6AC bytes from offset 0x15 to RWX buffer", "size": 13},
+      {"offset": "0xC3", "purpose": "Second-stage PE loader entry: MZ/PE scan, CreateFileMapping, MapViewOfFile", "size": 45},
+      {"offset": "0xF0", "purpose": "call 0x4DA - XOR+bswap decode of second stage PE", "size": 5},
+      {"offset": "0xF5", "purpose": "PE header parsing and section loading (full manual PE loader)", "size": 170},
+      {"offset": "0x1B6", "purpose": "fs:[0x30] PEB walk for module/import resolution", "size": 20},
+      {"offset": "0x225", "purpose": "Export hash resolution - resolves module exports by hash", "size": 133},
+      {"offset": "0x354", "purpose": "Custom hash function: ror eax,7 / rol [esp],0xd / add - rolling hash over string", "size": 138},
+      {"offset": "0x3DE", "purpose": "API type resolution helper (shifts by 2/4/0x20/0x40 based on type)", "size": 64},
+      {"offset": "0x41E", "purpose": "Module loading and hash-to-API resolution helper", "size": 27},
+      {"offset": "0x439", "purpose": "PE file loading from disk (VirtualAlloc, file read, section mapping)", "size": 90},
+      {"offset": "0x493", "purpose": "Module enumeration/scanning helper (fs:[0x18] TEB access)", "size": 72},
+      {"offset": "0x4DA", "purpose": "XOR+bswap decode loop for second-stage PE (key = [ebp+0x70] XOR 0x7845EA91)", "size": 84},
+      {"offset": "0x52F", "purpose": "msvcrt.dll resolution + initterm function thunk construction", "size": 114},
+      {"offset": "0x5A1", "purpose": "msvcrt.initterm function call wrapper (retpoline-style)", "size": 34},
+      {"offset": "0x5C3", "purpose": "MZ/PE signature scanner: xor dx, 0x5A4D / 0x4550, scan backward by 0x1002", "size": 48},
+      {"offset": "0x5F2", "purpose": "Unsigned division helper (loop-based: sub eax, edx)", "size": 20},
+      {"offset": "0x606", "purpose": "File operation: GetModuleFileNameA + CreateFileA to open current PE", "size": 64},
+      {"offset": "0x647", "purpose": "GetPC helper (pop eax; call eax) - used for position-independent addressing", "size": 5},
+      {"offset": "0x64D", "purpose": "Hash table (16 dwords = 64 bytes) - API hashes resolved to addresses", "size": 64},
+      {"offset": "0x68D", "purpose": "Padding/filler (zeros)", "size": 24},
+      {"offset": "0x6A5", "purpose": "Config block (7 dwords): skip offset, skip size, PE offset, mapping size, file size, alignment, XOR key", "size": 28}
+    ],
+    "call_targets": ["0x003d", "0x0225", "0x02aa", "0x0354", "0x0357", "0x03de", "0x041e", "0x0439", "0x0493", "0x04da", "0x052f", "0x05a1", "0x05c3", "0x05f2", "0x0606", "0x0647"],
+    "resolved_apis": [
+      "Kernel32.dll:LoadLibraryA [ebp+4]",
+      "Kernel32.dll:GetProcAddress [ebp+8]",
+      "Kernel32.dll:HeapAlloc [ebp+0xC]",
+      "Kernel32.dll:VirtualAlloc [ebp+0x10]",
+      "Kernel32.dll:HeapFree [ebp+0x14]/[ebp+0x18]",
+      "Kernel32.dll:GetModuleFileNameA [ebp+0x20]",
+      "Kernel32.dll:CreateFileA [ebp+0x24]",
+      "Kernel32.dll:CreateFileMappingA [ebp+0x28]",
+      "Kernel32.dll:MapViewOfFile [ebp+0x2C]",
+      "msvcrt.dll:initterm (thunk-constructed)",
+      "Kernel32.dll: additional APIs via hash table (16 entries total)"
+    ],
+    "second_stage_mechanism": "PEB-walk + export hash resolution to find kernel32 APIs, then: (1) VirtualAlloc RWX, (2) copy 0x6AC bytes from shellcode offset 0x15, (3) decode with XOR+bswap loop (key from config block XOR 0x7845EA91), (4) load decoded PE in-memory (section copy, relocation fixup, import resolution via PEB walk), (5) call PE entry point",
+    "second_stage_format": "PE (32-bit portable executable)",
+    "second_stage_entry": "determined by PE header (ImageBase + AddressOfEntryPoint after relocation)",
+    "second_stage_source": "embedded (encoded within shellcode at offset 0x15, also accessible via the original PE file overlay on disk)"
+  },
+  "anti_analysis": {
+    "has_anti_debug": false,
+    "mechanisms": []
+  },
+  "payload_analysis": {
+    "has_embedded_config": true,
+    "config_format": "binary_config_block",
+    "config_block_offset": "0x6A5",
+    "config_block_fields": {
+      "skip_offset": 0,
+      "skip_size": 0,
+      "pe_header_offset": 11666432,
+      "file_mapping_size": 85983232,
+      "read_file_size": 262144,
+      "alignment_field": 2310011648,
+      "xor_key_component": 90
+    },
+    "c2_indicators": [],
+    "embedded_second_stage_offset": "0x15",
+    "embedded_second_stage_size": "0x6AC (1708 bytes)",
+    "embedded_second_stage_encoding": "XOR+bswap dword loop (decode key = config[0x70] XOR 0x7845EA91)",
+    "next_stage": "stage-2 PE (32-bit full PE loader with section mapping, reloc, import resolution, and initterm call)",
+    "additional_unpack_round_needed": true,
+    "unpack_note": "The encoded PE at offset 0x15 must be XOR+bswap decoded using the key from the config block. The decode function is at 0x4DA. The decoded PE will be a full 32-bit executable loaded and executed in-memory."
+  }
+}

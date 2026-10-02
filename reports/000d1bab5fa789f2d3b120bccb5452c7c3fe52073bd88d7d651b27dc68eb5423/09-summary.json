@@ -1,0 +1,248 @@
+{
+  "schema_version": "1.0",
+  "stage": "summary",
+  "sample": {
+    "sha256": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+    "file_name": "wssl.dll",
+    "absolute_path": "H:\\Dataset\\files\\malware\\000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+    "architecture": "x86 (32-bit PE DLL)",
+    "packing_or_protection": "No startup packer confirmed; protection is runtime string/API obfuscation and svchost host-gating."
+  },
+  "status": "completed",
+  "executive_summary": {
+    "verdict": "malicious",
+    "confidence": 0.72,
+    "confidence_label": "medium",
+    "risk_level": "high",
+    "one_sentence_summary": "This is a Windows service DLL that is built to run inside the system's svchost service host and is designed to phone home to a command-and-control server and run commands on the machine.",
+    "plain_language_assessment": "The sample is a piece of software that disguises itself as a normal Windows service component. It is designed to be loaded by the system service host (svchost.exe), reach out to a hidden network server, gather information about the computer, and run commands sent back from that server. These abilities were seen clearly in the file's code, which supports a malicious verdict. However, the actual bad behavior (the network connection and command execution) could not be observed running, because the analysis environment could not load the DLL in its intended service-host context. So while the intent and design are clearly malicious, the full real-world impact could not be confirmed in this analysis.",
+    "remaining_decision_point": "Confirm whether command data received from the hidden server triggers local program execution, and recover the concrete network addresses, lock (mutex) name, and any command payloads by running the sample through its intended svchost service host."
+  },
+  "confirmed_findings": [
+    {
+      "id": "summary.identity.service-dll",
+      "title": "The sample is a Windows service DLL built to run inside svchost",
+      "summary": "The file is a 32-bit service DLL with service entry points, and its main logic only runs when the hosting process is the system service host (svchost.exe).",
+      "source_refs": [
+        "06-deepdive.json:finding_reviews.fr-sample-identity-service-dll",
+        "06-deepdive.json:final_claim_policy.allowed_claims"
+      ]
+    },
+    {
+      "id": "summary.malicious-verdict",
+      "title": "The reconciled analysis concludes the sample is malicious",
+      "summary": "The file contains clear command-and-control and remote-tasking machinery (obfuscated server pool, custom network protocol, host fingerprinting, and a program-execution path), supporting a malicious verdict.",
+      "source_refs": [
+        "06-deepdive.json:executive_assessment",
+        "06-deepdive.json:hypotheses.hyp-wkssvc-service-proxy-rat"
+      ]
+    },
+    {
+      "id": "summary.host-gating",
+      "title": "The sample only runs when hosted by svchost, and guards itself",
+      "summary": "The sample checks that it is hosted by svchost.exe and uses a single-instance lock before it starts its background work; it was not retained in memory when loaded outside that host.",
+      "source_refs": [
+        "06-deepdive.json:finding_reviews.fr-anti-analysis-host-gating",
+        "06-deepdive.json:finding_reviews.fr-runtime-helper-hosted-session"
+      ]
+    },
+    {
+      "id": "summary.packing",
+      "title": "No packer was found; the file hides its strings and APIs at runtime",
+      "summary": "The file is not compressed or packed; instead it hides its text strings and internal function names and decodes them as it runs.",
+      "source_refs": [
+        "06-deepdive.json:finding_reviews.fr-packing-no-standard-packer",
+        "06-deepdive.json:final_claim_policy.allowed_claims"
+      ]
+    }
+  ],
+  "findings_with_caveats": [
+    {
+      "id": "summary.wkssvc-proxy",
+      "title": "The sample proxies Windows service callbacks to hide itself",
+      "summary": "Its service callbacks are built to load the legitimate wkssvc.dll, resolve two of its functions, and start background work before passing the original service call through.",
+      "caveat": "The exact two proxied functions were never recovered, and this was not observed running, so the proxy detail remains capability-level rather than fully confirmed.",
+      "source_refs": [
+        "06-deepdive.json:finding_reviews.fr-loader-wkssvc-forwarder",
+        "06-deepdive.json:final_claim_policy.caveated_claims"
+      ]
+    },
+    {
+      "id": "summary.c2-network",
+      "title": "The sample contains command-and-control networking code",
+      "summary": "Its code stores several hidden network addresses, waits for an internet connection, and talks to a server using a custom, chunked message format.",
+      "caveat": "No actual network connection was ever made or observed, and the hidden server addresses were not decoded, so this is reachable code, not confirmed activity.",
+      "source_refs": [
+        "06-deepdive.json:finding_reviews.fr-network-obfuscated-ip-pool",
+        "06-deepdive.json:final_claim_policy.caveated_claims"
+      ]
+    },
+    {
+      "id": "summary.host-fingerprinting",
+      "title": "The sample gathers information about the computer",
+      "summary": "Its code can read storage/device details, list installed services, detect the operating system and architecture, and collect data through Windows COM interfaces.",
+      "caveat": "These routines were not run during analysis, and it was not confirmed that the collected information is sent anywhere, so this is present-but-unverified.",
+      "source_refs": [
+        "06-deepdive.json:finding_reviews.fr-collection-host-fingerprinting",
+        "06-deepdive.json:final_claim_policy.caveated_claims"
+      ]
+    },
+    {
+      "id": "summary.process-launch",
+      "title": "The code appears able to launch programs based on server commands",
+      "summary": "There is a code path, reachable only after receiving server data, that is structured like a call to start a new program (CreateProcess-style).",
+      "caveat": "This path never ran, the exact program-launch function was inferred from its shape rather than read from the code, and no program was ever started, so it must be treated as a capability, not confirmed execution.",
+      "source_refs": [
+        "06-deepdive.json:finding_reviews.fr-process-task-launch",
+        "06-deepdive.json:final_claim_policy.caveated_claims"
+      ]
+    },
+    {
+      "id": "summary.config-registry",
+      "title": "The sample reads configuration from the registry or an embedded identifier",
+      "summary": "Its code reads a hidden Windows registry location and, if that fails, falls back to an embedded string to build a unique identifier used by its data-collection routines.",
+      "caveat": "The exact registry location and identifier were never decoded, and this was not validated at runtime, so it is a low-to-moderate-confidence capability.",
+      "source_refs": [
+        "06-deepdive.json:finding_reviews.fr-configuration-registry-clsid",
+        "06-deepdive.json:final_claim_policy.caveated_claims"
+      ]
+    }
+  ],
+  "not_supported_claims": [
+    {
+      "id": "summary.c2-established.unsupported",
+      "claim": "The sample actually connected to a command-and-control server or contacted a specific address.",
+      "reason": "No plaintext network addresses, domains, or mutex names were captured, and no connection was observed. Deepdive explicitly prohibits claiming any C2 connection was established.",
+      "source_refs": [
+        "06-deepdive.json:final_claim_policy.prohibited_claims",
+        "06-deepdive.json:limitations"
+      ]
+    },
+    {
+      "id": "summary.payload-execution.unsupported",
+      "claim": "The sample executed or injected a second-stage payload on the machine.",
+      "reason": "The program-launch path was never executed and no process was spawned. Deepdive explicitly prohibits claiming payload execution or process injection occurred.",
+      "source_refs": [
+        "06-deepdive.json:final_claim_policy.prohibited_claims",
+        "06-deepdive.json:finding_reviews.fr-process-task-launch"
+      ]
+    },
+    {
+      "id": "summary.family-attribution.unsupported",
+      "claim": "The sample belongs to a specific malware family (for example the mediyes/barys label seen publicly).",
+      "reason": "A family name appears only in public sources and was never confirmed by local analysis. Deepdive explicitly prohibits asserting a specific malware-family identity.",
+      "source_refs": [
+        "06-deepdive.json:final_claim_policy.prohibited_claims",
+        "06-intel.json:claim_checks.cc.family-mediyes-barys"
+      ]
+    },
+    {
+      "id": "summary.ransomware.unsupported",
+      "claim": "The sample is ransomware.",
+      "reason": "No encryption or ransom indicator was observed, and Deepdive explicitly prohibits claiming ransomware behavior.",
+      "source_refs": [
+        "06-deepdive.json:final_claim_policy.prohibited_claims"
+      ]
+    },
+    {
+      "id": "summary.exfiltration.unsupported",
+      "claim": "The sample stole data or credentials from the machine.",
+      "reason": "No exfiltration or credential-related activity was observed to execute; only data-collection code is present. Deepdive explicitly prohibits claiming exfiltration or credential theft.",
+      "source_refs": [
+        "06-deepdive.json:final_claim_policy.prohibited_claims",
+        "06-deepdive.json:finding_reviews.fr-collection-host-fingerprinting"
+      ]
+    },
+    {
+      "id": "summary.persistence-installed.unsupported",
+      "claim": "The sample installed itself to survive reboots.",
+      "reason": "No registry or service write was observed, and the installation path is not visible from the standalone DLL. Deepdive explicitly prohibits claiming a persistence mechanism was installed.",
+      "source_refs": [
+        "06-deepdive.json:final_claim_policy.prohibited_claims"
+      ]
+    }
+  ],
+  "classification": {
+    "malware_type": "Trojan / remote-tasking service-dll implant (structural and code-capability interpretation; runtime behavior not reproduced)",
+    "malware_family": null,
+    "family_status": "unconfirmed",
+    "overall_assessment": "The file is best described as a malicious svchost-hosted service DLL built as a remote-tasking implant: it proxies a Windows service, talks to a hidden server over a custom protocol, gathers host information, and contains a program-execution path. The malicious design is well supported, but its runtime behavior and any specific family identity remain unconfirmed because the sample could not be run in its intended service-host environment."
+  },
+  "confirmed_iocs": {
+    "network": [],
+    "host": [],
+    "persistence": []
+  },
+  "recommended_actions": [
+    {
+      "id": "action.run-in-svchost",
+      "priority": 1,
+      "target": "svchost-hosted runtime environment",
+      "action": "Run or attach the sample through its intended svchost service host in the approved guest to actually exercise its background work, and capture the decoded network addresses, lock (mutex) name, and any command data.",
+      "reason": "This is the highest-value open point: it is the only way to validate the command-and-control and program-execution behavior that the code strongly implies but that could not be reproduced.",
+      "source_refs": [
+        "06-deepdive.json:investigation_targets.inv-svchost-hosted-runtime",
+        "06-deepdive.json:executive_assessment.remaining_decision_point"
+      ]
+    },
+    {
+      "id": "action.recover-iocs",
+      "priority": 2,
+      "target": "Decoded IPv4 server pool and mutex name",
+      "action": "In a service-hosted run, decode the hidden server addresses and the single-instance lock name and record them as concrete indicators.",
+      "reason": "These would be the first concrete, reportable network and host indicators for this sample; currently only hidden/obfuscated blobs exist.",
+      "source_refs": [
+        "06-deepdive.json:investigation_targets.inv-recover-ip-pool-and-mutex",
+        "06-deepdive.json:limitations"
+      ]
+    },
+    {
+      "id": "action.identify-proxied-functions",
+      "priority": 3,
+      "target": "Decoded wkssvc export names",
+      "action": "Capture the identity of the two Windows service functions that the sample proxies to strengthen the malicious-structure picture.",
+      "reason": "Confirming which legitimate service callbacks are hijacked materially strengthens the proxy/remote-access fingerprint.",
+      "source_refs": [
+        "06-deepdive.json:investigation_targets.inv-recover-wkssvc-forwarded-names"
+      ]
+    },
+    {
+      "id": "action.examine-task-payload",
+      "priority": 4,
+      "target": "Decoded command data and program-launch path",
+      "action": "Instrument the protocol decoder and the program-launch call site to determine whether server data delivers simple commands or a secondary executable.",
+      "reason": "This determines what the implant can actually do once connected and validates the load-and-run capability.",
+      "source_refs": [
+        "06-deepdive.json:investigation_targets.inv-c2-task-payload-and-launch"
+      ]
+    },
+    {
+      "id": "action.confirm-load-cause",
+      "priority": 5,
+      "target": "The reason the DLL was not retained in memory",
+      "action": "Capture the true cause (deliberate host-gate rejection versus a load failure) by watching the DLL's entry point during a controlled load.",
+      "reason": "This converts an inference into a confirmed cause and informs whether a host-gate workaround is needed for dynamic analysis.",
+      "source_refs": [
+        "06-deepdive.json:investigation_targets.inv-distinguish-host-gate-vs-dllmain-fail",
+        "06-deepdive.json:contradictions.contradiction-host-gate-rejection-direction"
+      ]
+    }
+  ],
+  "limitations": [
+    "The dynamic analysis ran the sample only through a generic debugger helper and never in its intended svchost service host, so its background work (network, command execution) was never actually run.",
+    "The reason the DLL was not kept in memory is most likely its svchost host-gate, but this was inferred from load-then-unload behavior, not a directly captured result.",
+    "Concrete indicators (network addresses, domains, lock names, proxied function names, registry values, and command payloads) were not recovered and remain open targets.",
+    "Some internal function identities were inferred from how they are called rather than read directly from the code.",
+    "No confirmed indicators could be listed because none were recovered; treat this as evidence still pending, not as proof nothing exists.",
+    "This summary was simplified for non-expert readers and does not replace the authoritative Deepdive analysis."
+  ],
+  "upstream_inputs": [
+    "01-prepare-env.json",
+    "02-static-pass1.json",
+    "03-unpack.json",
+    "05-dynamic.json",
+    "06-intel.json",
+    "06-deepdive.json",
+    "07-report.md"
+  ]
+}

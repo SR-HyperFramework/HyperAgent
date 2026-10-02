@@ -1,0 +1,164 @@
+{
+  "schema_version": "1.0",
+  "stage": "dynamic",
+  "sample": {
+    "original_sha256": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+    "target_path": "C:\\Users\\h26v\\Desktop\\sample.exe",
+    "target_sha256": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069"
+  },
+  "status": "blocked",
+  "summary": "Runtime analysis blocked at the loader gate: the process terminates during loader init via NtTerminateProcess(0xFFFFFFFF, STATUS_ENTRYPOINT_NOT_FOUND, 0xC0000139) before the module entry point (0x4018A0) executes. Two IAT slots remain unresolved at abort: 0x404088 (DispatchMessageA slot, NULL) and 0x4040A4 (DESK.cpl!DisplaySaveSettings slot, unpatched descriptor field). Cryptnet slots resolve to real cryptnet.dll addresses, contradicting the earlier 'fabricated cryptnet exports' hypothesis. Bypass attempts (NtTerminateProcess stub redirect, import-descriptor zeroing, IAT patching) all executed too late relative to loader commit. The packed second stage's runtime behavior was not observed.",
+  "findings": [
+    {
+      "id": "fin-loader-gate-termination",
+      "title": "Loader-phase termination with STATUS_ENTRYPOINT_NOT_FOUND before module entry",
+      "category": "loader",
+      "status": "confirmed",
+      "confidence": 0.95,
+      "description": "The process terminates during loader initialization via NtTerminateProcess(0xFFFFFFFF, STATUS_ENTRYPOINT_NOT_FOUND) before the module entry point executes. The termination is loader-phase, not an in-blob anti-debug check.",
+      "reasoning": "At the ntdll system breakpoint, breakpoints were set at module entry 0x4018A0 and decryptor 0x401DF8. Running paused at ntdll!NtTerminateProcess (0x773434A0) with esi=0xC0000139 (STATUS_ENTRYPOINT_NOT_FOUND). The stack was shallow (2 frames: NtTerminateProcess <- ntdll+0xA4171), with no user/module frames, placing the failure inside the loader. Disassembly at the call site (0x7737416C) shows 'call NtTerminateProcess' after 'push 0xFFFFFFFF; push esi(0xC0000139)', i.e. a fatal-status terminate from the loader fail-fast path.",
+      "sources": [
+        {"stage": "05-dynamic", "artifact": "run1.json", "location": "_state/run1.json"},
+        {"stage": "05-dynamic", "artifact": "regs1.json", "location": "_state/regs1.json"},
+        {"stage": "05-dynamic", "artifact": "stack1.json", "location": "_state/stack1.json"},
+        {"stage": "05-dynamic", "artifact": "disasm_callsite.json", "location": "_state/disasm_callsite.json"}
+      ],
+      "evidence": [
+        {"id": "ev-run1", "kind": "dynamic", "source": {"stage": "05-dynamic", "artifact": "run1.json", "location": "_state/run1.json"}, "observation": "debug_run paused at ntdll!NtTerminateProcess 0x773434A0 with stop_reason breakpoint_or_exception; no user-frame return.", "address": "0x773434A0", "confidence": 1.0},
+        {"id": "ev-regs1", "kind": "dynamic", "source": {"stage": "05-dynamic", "artifact": "regs1.json", "location": "_state/regs1.json"}, "observation": "At termination: eax=0, esi=0xC0000139 (STATUS_ENTRYPOINT_NOT_FOUND), edi=0x2000, eip=0x773434A0.", "address": "0x773434A0", "confidence": 1.0},
+        {"id": "ev-stack1", "kind": "dynamic", "source": {"stage": "05-dynamic", "artifact": "stack1.json", "location": "_state/stack1.json"}, "observation": "Stack at abort has only 2 frames: NtTerminateProcess <- ntdll+0xA4171 (0x77374171); no module (sample.exe) frames.", "address": "0x77374171", "confidence": 0.95},
+        {"id": "ev-disasm-callsite", "kind": "dynamic", "source": {"stage": "05-dynamic", "artifact": "disasm_callsite.json", "location": "_state/disasm_callsite.json"}, "observation": "ntdll+0xA416C: 'call NtTerminateProcess' preceded by 'push esi(0xC0000139); push 0xFFFFFFFF' - fatal loader fail-fast terminate.", "address": "0x7737416C", "confidence": 0.9}
+      ],
+      "limitations": [
+        "Termination status and call site are consistent with loader import-resolution failure, but the precise failing import decision point inside ntdll was not fully traced."
+      ]
+    },
+    {
+      "id": "fin-unresolved-iat-slots",
+      "title": "Two IAT slots unresolved at abort: DispatchMessageA slot NULL and DisplaySaveSettings slot unpatched",
+      "category": "loader",
+      "status": "confirmed",
+      "confidence": 0.85,
+      "description": "At the abort point the sample IAT has two unresolved slots: 0x404088 (the DispatchMessageA slot) reads NULL, and 0x4040A4 (DESK.cpl!DisplaySaveSettings slot) still holds the unpatched import-descriptor field 0x446A. The cryptnet slots 0x40408C-0x40409C resolve to real cryptnet.dll addresses.",
+      "reasoning": "module_get_imports returned 39 imports across 4 import descriptors (KERNEL32.dll, USER32.dll, CRYPTNET.DLL, DESK.cpl). Live IAT reads at the abort show 0x404088 = 0x00000000 and 0x4040A4 = 0x0000446A (not a valid module pointer), while cryptnet slots hold cryptnet-base addresses (0x7372...). The DESK.cpl descriptor (IAT base 0x40A4, name 'DESK.cpl') never had its FirstThunk entry resolved, matching STATUS_ENTRYPOINT_NOT_FOUND semantics.",
+      "sources": [
+        {"stage": "05-dynamic", "artifact": "imports_live.json", "location": "_state/imports_live.json"},
+        {"stage": "05-dynamic", "artifact": "iat_abort.json", "location": "_state/iat_abort.json"},
+        {"stage": "05-dynamic", "artifact": "iid_full.json", "location": "_state/iid_full.json"},
+        {"stage": "05-dynamic", "artifact": "dllname_deskcpl.json", "location": "_state/dllname_deskcpl.json"}
+      ],
+      "evidence": [
+        {"id": "ev-imports-live", "kind": "dynamic", "source": {"stage": "05-dynamic", "artifact": "imports_live.json", "location": "_state/imports_live.json"}, "observation": "39 imports listed including DispatchMessageA (IAT RVA 0x4088), CryptGetTimeValidObject..CryptCancelAsyncRetrieval (0x408C-0x409C), DisplaySaveSettings (0x40A4).", "address": "0x404088", "confidence": 0.9},
+        {"id": "ev-iat-abort", "kind": "memory", "source": {"stage": "05-dynamic", "artifact": "iat_abort.json", "location": "_state/iat_abort.json"}, "observation": "At abort: 0x404088 = 00000000 (NULL), 0x4040A4 = 6A440000 (0x446A, unpatched descriptor field); cryptnet slots populated with 0x7372... addresses.", "address": "0x404088", "confidence": 1.0},
+        {"id": "ev-iid-full", "kind": "memory", "source": {"stage": "05-dynamic", "artifact": "iid_full.json", "location": "_state/iid_full.json"}, "observation": "IID array at 0x4040AC: 5 x 20-byte descriptors (KERNEL32@0x4040AC, USER32@0x4040C0, CRYPTNET@0x4040D4, DESK.cpl@0x4040E8, null@0x4040FC).", "address": "0x4040AC", "confidence": 0.95},
+        {"id": "ev-dllnames", "kind": "memory", "source": {"stage": "05-dynamic", "artifact": "dllname_deskcpl.json", "location": "_state/dllname_deskcpl.json"}, "observation": "Import descriptor name strings: 'KERNEL32.dll', 'USER32.dll', 'CRYPTNET.DLL', 'DESK.cpl'.", "confidence": 0.9}
+      ],
+      "limitations": [
+        "The x64dbg import-name reconstruction of the USER32 OFT (DispatchMessageA slot) is not fully verified against the raw file; the NULL slot may be another obfuscated/garbage import name."
+      ]
+    },
+    {
+      "id": "fin-cryptnet-imports-real",
+      "title": "Cryptnet imports resolve to real cryptnet.dll addresses (contradicts 'fabricated exports')",
+      "category": "loader",
+      "status": "contradicted",
+      "confidence": 0.8,
+      "description": "The five cryptnet imports (CryptGetTimeValidObject, CertDllVerifyCTLUsage, CryptUninstallCancelRetrieval, CryptGetObjectUrl, CryptCancelAsyncRetrieval) resolve into real cryptnet.dll addresses in this VM, so they are NOT fabricated exports. The earlier 03-unpack hypothesis that they were decoy/garbage imports is contradicted by live IAT reads.",
+      "reasoning": "IAT reads at the system breakpoint and at the abort both show cryptnet slots holding addresses in the cryptnet.dll module range (0x7372...), with cryptnet.dll present in the loaded module list (base 0x73720000). The unresolved slots are instead the USER32 DispatchMessageA slot (NULL) and DESK.cpl DisplaySaveSettings slot.",
+      "sources": [
+        {"stage": "05-dynamic", "artifact": "iat_abort.json", "location": "_state/iat_abort.json"},
+        {"stage": "03-unpack", "artifact": "03-unpack.json", "location": "03-unpack.json"}
+      ],
+      "evidence": [
+        {"id": "ev-iat-cryptnet", "kind": "memory", "source": {"stage": "05-dynamic", "artifact": "iat_abort.json", "location": "_state/iat_abort.json"}, "observation": "cryptnet IAT slots at 0x40408C-0x40409C contain 0x7372... addresses, within cryptnet.dll base 0x73720000.", "address": "0x40408C", "confidence": 0.9},
+        {"id": "ev-modules", "kind": "dynamic", "source": {"stage": "05-dynamic", "artifact": "modules.json", "location": "_state/modules.json"}, "observation": "cryptnet.dll loaded at 0x73720000 (SysWOW64), confirming the export surface is present in-guest.", "confidence": 0.9}
+      ],
+      "limitations": [
+        "The cryptnet function pointers were not called (entry never reached), so only resolution, not functionality, was verified."
+      ]
+    },
+    {
+      "id": "fin-entry-not-reached",
+      "title": "Module entry point 0x4018A0 never reached across all runs",
+      "category": "execution",
+      "status": "not_observed",
+      "confidence": 1.0,
+      "description": "The module entry point (0x4018A0) and decryptor (0x401DF8) breakpoints never tripped across all debugger runs; every run terminated at the loader gate before entry.",
+      "reasoning": "Breakpoints at 0x4018A0 and 0x401DF8 were set and verified enabled. debug_run always paused either at NtTerminateProcess (with the fatal status) or reported state 'stopped' (process exited). No run reached the entry point, so the packed second stage and its terminal behavior (encrypted shellcode at 0x402A47, embedded PECompact2 PE) were never executed.",
+      "sources": [
+        {"stage": "05-dynamic", "artifact": "bp_entry.json", "location": "_state/bp_entry.json"},
+        {"stage": "05-dynamic", "artifact": "run5.json", "location": "_state/run5.json"},
+        {"stage": "05-dynamic", "artifact": "run7.json", "location": "_state/run7.json"}
+      ],
+      "evidence": [
+        {"id": "ev-bp-entry", "kind": "dynamic", "source": {"stage": "05-dynamic", "artifact": "bp_entry.json", "location": "_state/bp_entry.json"}, "observation": "Breakpoint at 0x4018A0 enabled=true, software type. Never tripped.", "address": "0x4018A0", "confidence": 1.0},
+        {"id": "ev-run-final", "kind": "dynamic", "source": {"stage": "05-dynamic", "artifact": "run7.json", "location": "_state/run7.json"}, "observation": "debug_run after IAT patching reported state 'stopped' (process exited); entry BP did not trip.", "confidence": 1.0}
+      ],
+      "limitations": []
+    },
+    {
+      "id": "fin-bypass-readonly-gate",
+      "title": "Bypass attempts blocked by read-only ntdll pages and loader commit timing",
+      "category": "anti_analysis",
+      "status": "partial",
+      "confidence": 0.9,
+      "description": "Three bypass approaches were attempted and all executed too late relative to the loader's abort decision: (1) NtTerminateProcess stub redirect (xor eax,eax; ret 8) worked mechanically but the loader had already committed to termination; (2) zeroing the CRYPTNET and DESK.cpl import descriptors at the system breakpoint did not prevent the abort; (3) patching the two unresolved IAT slots at the abort was too late. ntdll code pages are PAGE_EXECUTE_READ and protection-change scripts silently no-op.",
+      "reasoning": "memory_get_info reported ntdll page at 0x77343000 as PAGE_EXECUTE_READ; SetPageMemoryRights and MemorySetPermissions returned success but protection did not change (re-read confirmed unchanged). An allocated PAGE_EXECUTE_READWRITE page at 0x1D0000 accepted a stub, and redirecting EIP to it returned execution to ntdll+0xA4171 cleanly (proving the ret-8 stub is correct), yet the process then aborted on the secondary fail-fast path (paused at int3, ntdll+0xA4181). IAT patching at the abort point happened after the loader had already pushed the fatal-status terminate on the stack.",
+      "sources": [
+        {"stage": "05-dynamic", "artifact": "meminfo_iid.json", "location": "_state/meminfo_iid.json"},
+        {"stage": "05-dynamic", "artifact": "regs_bypass1.json", "location": "_state/regs_bypass1.json"},
+        {"stage": "05-dynamic", "artifact": "step_stub1.json", "location": "_state/step_stub1.json"},
+        {"stage": "05-dynamic", "artifact": "iid_write3.json", "location": "_state/iid_write3.json"}
+      ],
+      "evidence": [
+        {"id": "ev-meminfo-ntdll", "kind": "memory", "source": {"stage": "05-dynamic", "artifact": "meminfo_iid.json", "location": "_state/meminfo_iid.json"}, "observation": "ntdll page at 0x77343000 reports PAGE_EXECUTE_READ; MemorySetPermissions/SetPageMemoryRights scripts return success but re-read shows protection unchanged.", "address": "0x77343000", "confidence": 1.0},
+        {"id": "ev-stub-redirect", "kind": "dynamic", "source": {"stage": "05-dynamic", "artifact": "regs_bypass1.json", "location": "_state/regs_bypass1.json"}, "observation": "EIP redirected to stub 0x1D0000 (xor eax,eax; ret 8); step returned to ntdll+0xA4171 with esp=0x19FCB4 (2 args consumed) - stub mechanically correct but abort already committed.", "address": "0x1D0000", "confidence": 0.95},
+        {"id": "ev-iid-zero", "kind": "memory", "source": {"stage": "05-dynamic", "artifact": "iid_write3.json", "location": "_state/iid_write3.json"}, "observation": "40 bytes zeroed at 0x4040D4 (CRYPTNET + DESK.cpl descriptors) at system breakpoint; debug_run still resulted in 'stopped' without reaching entry.", "address": "0x4040D4", "confidence": 0.9}
+      ],
+      "limitations": [
+        "The loader reads imports from the file mapping in a way not fully bypassable via in-memory IAT/IID edits at the tested breakpoint timings; a loader-level patch point (e.g. NtDll LdrpInitializeProcess hook) was not pursued."
+      ]
+    }
+  ],
+  "artifacts": [
+    {"id": "art-guest-sample", "path": "C:\\Users\\h26v\\Desktop\\sample.exe", "sha256": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069", "type": "guest-copy", "validation_status": "validated", "context": "Copy of the sample placed in the guest VM for debugger execution; never executed on host."},
+    {"id": "art-runtime-imports", "path": "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/_state/imports_live.json", "sha256": null, "type": "runtime-evidence", "validation_status": "not_validated", "context": "39-entry import table as resolved by x64dbg MCP (module_get_imports)."},
+    {"id": "art-iat-abort", "path": "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/_state/iat_abort.json", "sha256": null, "type": "runtime-evidence", "validation_status": "not_validated", "context": "Live IAT read at the NtTerminateProcess abort: 0x404088 NULL, 0x4040A4 unpatched, cryptnet slots resolved."}
+  ],
+  "investigation_targets": [
+    {"id": "tgt-loader-gate-bypass", "priority": 1, "target": "Reach the module entry point past the loader gate", "reason": "The packed second stage and its terminal behavior were not observed because the loader aborts on an unresolved import (DispatchMessageA slot NULL / DESK.cpl DisplaySaveSettings).", "recommended_action": "In a follow-up dynamic pass, patch the IAT slots at the ntdll system breakpoint BEFORE the loader processes the main image (set a BP earlier in LdrpInitializeProcess, or hook the import-resolution routine), or supply a DESK.cpl that exports DisplaySaveSettings.", "success_criteria": "Entry BP 0x4018A0 trips and the decryptor BP 0x401DF8 records the [LoadLibraryW-return + 0x11C] destination."},
+    {"id": "tgt-payload-behavior", "priority": 2, "target": "Observe the embedded PECompact2 second-stage payload's terminal behavior", "reason": "The second stage (delta-encoded, at file offset 0x50BA, 0x4D200 bytes) contains the fwprintf hook and 18-slot API table per 04-static-pass2; its runtime behavior is unobserved.", "recommended_action": "After bypassing the loader gate, breakpoint the decryptor return and the fwprintf hook target, then capture the resolved API table and any network/persistence calls.", "success_criteria": "Recorded second-stage API resolution map and any domains/IPs/mutexes/registry keys."}
+  ],
+  "limitations": [
+    "The sample never reached its entry point; all runtime conclusions are limited to the loader phase.",
+    "No network, filesystem, registry, or process-behavior observations were possible (no post-entry execution).",
+    "The earlier 'fabricated cryptnet exports' hypothesis (03-unpack) was contradicted by live IAT resolution; DESK.cpl!DisplaySaveSettings is the concretely unresolved environment-gated import.",
+    "ntdll code pages are PAGE_EXECUTE_READ and protection-change script APIs silently no-op, preventing direct in-place patching of ntdll.",
+    "IOC capture (domains/IPs/mutexes/registry keys) was not possible; iocs are empty."
+  ],
+  "upstream_inputs": [
+    "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/03-unpack.json",
+    "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/02-static-pass1.json",
+    "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/04-static-pass2.json"
+  ],
+  "runtime": {
+    "executed": true,
+    "guest_only": true,
+    "aslr_base": "0x400000",
+    "stop_reason": "STATUS_ENTRYPOINT_NOT_FOUND (0xC0000139) at ntdll!NtTerminateProcess; process terminated during loader init before module entry point",
+    "observation_window": "Loader phase only (terminated before entry); no post-entry runtime window"
+  },
+  "behaviors": [
+    {"id": "beh-loader-termination", "type": "process_termination", "status": "observed", "confidence": 1.0, "description": "Process terminated during loader init via NtTerminateProcess(0xFFFFFFFF, STATUS_ENTRYPOINT_NOT_FOUND) before module entry.", "evidence_ids": ["ev-run1", "ev-regs1", "ev-stack1", "ev-disasm-callsite"]},
+    {"id": "beh-entry-reached", "type": "execution", "status": "not_observed", "confidence": 1.0, "description": "Module entry point 0x4018A0 never executed; all runs blocked at the loader gate.", "evidence_ids": ["ev-bp-entry", "ev-run-final"]},
+    {"id": "beh-api-resolution", "type": "api_resolution", "status": "partial", "confidence": 0.8, "description": "37 of 39 imports resolved (kernel32/user32 tail + cryptnet); DispatchMessageA slot NULL and DESK.cpl DisplaySaveSettings unresolved.", "evidence_ids": ["ev-imports-live", "ev-iat-abort", "ev-iid-full"]},
+    {"id": "beh-network", "type": "networking", "status": "not_observed", "confidence": 1.0, "description": "No network activity observable; execution never passed the loader gate.", "evidence_ids": []},
+    {"id": "beh-persistence", "type": "persistence", "status": "not_observed", "confidence": 1.0, "description": "No persistence attempt observable; execution never passed the loader gate.", "evidence_ids": []},
+    {"id": "beh-injection", "type": "injection", "status": "not_observed", "confidence": 1.0, "description": "No injection observable; execution never passed the loader gate.", "evidence_ids": []}
+  ],
+  "iocs": {
+    "network": [],
+    "host": [],
+    "persistence": []
+  }
+}

@@ -1,0 +1,910 @@
+{
+  "schema_version": "1.0",
+  "stage": "deepdive",
+  "sample_sha256": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+  "status": "completed",
+  "executive_assessment": {
+    "verdict": "malicious",
+    "confidence": 0.72,
+    "technical_summary": "The sample is a 32-bit svchost-gated service DLL that proxies wkssvc.dll service callbacks and launches a long-lived worker thread. The worker keeps an obfuscated IPv4 C2 pool, waits for connectivity, exchanges custom 0x1D0-byte-framed messages, fingerprints the host (storage IOCTL, service enumeration, OS/arch, COM), and contains a CreateProcessW-compatible task-execution handoff. The final verdict is 'malicious' on strong statically-recovered capability and structural evidence (service-proxy remote-tasking implant), but confidence is capped below 0.8 because no payload, C2 exchange, or process-launch was executed and validated: the approved guest/x64dbg path hosted the DLL through x64dbg's generic DLLLoader32 helper, which does not reproduce svchost service hosting, and the DLL was not retained as a mapped module (consistent with the svchost host-gate rejecting initialization outside svchost.exe). No plaintext endpoints, mutex name, or command payloads were recovered.",
+    "highest_value_resolution": "Resolved that the sample is an svchost-gated wkssvc service-proxy remote-tasking/trojan DLL whose runtime behaviors (worker thread, C2 framing, task launch) could not be validated because the debugger helper loader does not reproduce the natural service host and the DLL is rejected outside svchost.exe; this reconciles the static 'capability present' findings with the dynamic 'behavior not reproduced' observations as absence-due-to-missing-host rather than contradiction.",
+    "remaining_decision_point": "Confirm whether received C2 task data triggers local process execution (the CreateProcessW-compatible path) and recover the plaintext IP pool, mutex name, and any C2 command payloads by launching/attaching the sample through its intended svchost service host."
+  },
+  "finding_reviews": [
+    {
+      "id": "fr-sample-identity-service-dll",
+      "title": "Sample is a 32-bit service DLL built for svchost hosting",
+      "original_claims": [
+        {
+          "stage": "static-pass1",
+          "finding_id": "sample-identity-service-dll-001",
+          "claim": "Sample is a PE32 DLL at image base 0x64000000 with ServiceMain, SvchostPushServiceGlobals, and DllEntryPoint, and worker logic only proceeds when the hosting path contains svchost.exe.",
+          "confidence": 0.99
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.99,
+      "evidence_chain": [
+        {
+          "id": "ev-sample-identity-1",
+          "kind": "tool_output",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "survey_binary"
+          },
+          "observation": "survey_binary reported arch 32, base 0x64000000, entrypoints ServiceMain at 0x6400F3C0, SvchostPushServiceGlobals at 0x6400F3E0, DllEntryPoint at 0x64012FAA.",
+          "address": "0x64000000",
+          "confidence": 0.99
+        },
+        {
+          "id": "ev-sample-identity-2",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_64011630"
+          },
+          "observation": "sub_64011630 calls GetModuleFileNameW and searches the buffer for wide string L\"svchost.exe\" at 0x64011672; only if found does it call the singleton gate (sub_64010690) and CreateThread(sub_640113F0).",
+          "address": "0x64011630",
+          "confidence": 0.98
+        },
+        {
+          "id": "ev-helper-main-1",
+          "kind": "tool_output",
+          "source": {
+            "stage": "dynamic",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "debug_init; module_get_main"
+          },
+          "observation": "The guest/x64dbg session launched a DLLLoader32_<suffix>.exe helper (never the sample), and the sample was never retained as a mapped module, which is consistent with the DLL rejecting a non-svchost hosting context.",
+          "address": "0x0000000000D60000",
+          "confidence": 0.9
+        }
+      ],
+      "reasoning": "The svchost-hosting identity is directly observed in the static entry-point exports and the host-path gate, and is independently consistent with the dynamic observation that the DLL is not retained under x64dbg's DLLLoader32 helper outside svchost.exe. Identity claim is stable at 0.99.",
+      "confidence_change": {
+        "direction": "unchanged",
+        "previous_max": 0.99,
+        "new": 0.99,
+        "justification": "Direct static observation of entry points and the svchost.exe host-path gate, independently consistent with the runtime load-rejection; no counter-evidence."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": [
+        "Exact service installation/persistence path is not visible from the standalone DLL alone."
+      ]
+    },
+    {
+      "id": "fr-loader-wkssvc-forwarder",
+      "title": "Service callbacks proxy wkssvc.dll and then launch a background thread",
+      "original_claims": [
+        {
+          "stage": "static-pass1",
+          "finding_id": "loader-wkssvc-forwarder-001",
+          "claim": "Exported service callbacks load wkssvc.dll, decode two export names, resolve them via GetProcAddress, and start the DLL's own worker thread before forwarding the original service call.",
+          "confidence": 0.97
+        },
+        {
+          "stage": "unpack",
+          "finding_id": "guest-dllloader-helper-001",
+          "claim": "Direct guest debugging used x64dbg's DLLLoader32 helper, not the natural svchost service host, so the forwarder payload path was not reproduced at runtime.",
+          "confidence": 0.95
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.95,
+      "evidence_chain": [
+        {
+          "id": "ev-loader-1",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_6400F350"
+          },
+          "observation": "sub_6400F350 calls LoadLibraryW(L\"wkssvc.dll\"), decodes two ASCII names via sub_64006890, resolves both with GetProcAddress into dword_6402D4B8/dword_6402D4BC, then CreateThread(0,0,sub_64011630,0,0,0).",
+          "address": "0x6400F350",
+          "confidence": 0.98
+        },
+        {
+          "id": "ev-loader-2",
+          "kind": "artifact",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "get_string; search_text"
+          },
+          "observation": "Literal wkssvc.dll present and passed as the LoadLibraryW target within sub_6400F350.",
+          "address": "0x640242FC",
+          "confidence": 0.99
+        },
+        {
+          "id": "ev-preflight-2",
+          "kind": "tool_output",
+          "source": {
+            "stage": "unpack",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "tools/list"
+          },
+          "observation": "x64dbg-mcp version 1.0.7 confirmed, and module_get_main under a helper-loader run reported main module DLLLoader32_0E62.exe rather than the sample's service host.",
+          "address": null,
+          "confidence": 0.9
+        }
+      ],
+      "reasoning": "The wkssvc proxy/forwarder pattern is directly observed statically. The limitation is that the two decoded wkssvc export names were never recovered and the forwarder never executed under the helper loader. Forwarding capability confirmed; runtime identity of the proxied exports remains open.",
+      "confidence_change": {
+        "direction": "unchanged",
+        "previous_max": 0.97,
+        "new": 0.95,
+        "justification": "Strong direct static observation of LoadLibraryW(wkssvc) + GetProcAddress + CreateThread; minor reduction for the unrecovered forwarded export names and lack of runtime confirmation."
+      },
+      "report_disposition": "include_with_caveat",
+      "limitations": [
+        "The two decoded wkssvc export names were not captured; the target callbacks are inferred as legitimate wkssvc service callbacks, not runtime-verified.",
+        "The forwarder path was not reproduced under the helper-hosted session."
+      ]
+    },
+    {
+      "id": "fr-network-obfuscated-ip-pool",
+      "title": "Obfuscated IPv4 C2 pool and custom framed protocol are present",
+      "original_claims": [
+        {
+          "stage": "static-pass1",
+          "finding_id": "network-obfuscated-ip-pool-001",
+          "claim": "The sample stores multiple obfuscated IPv4 strings, converts them with inet_addr at runtime, waits for connectivity, and communicates with a custom multi-fragment 0x1D0-byte protocol.",
+          "confidence": 0.95
+        },
+        {
+          "stage": "dynamic",
+          "finding_id": "runtime-no-ip-pool-or-c2-001",
+          "claim": "No obfuscated IP pool decode, network exchange, or task-execution behavior could be observed because the worker thread was never launched in the helper-hosted session.",
+          "confidence": 0.88
+        }
+      ],
+      "final_status": "partial",
+      "final_confidence": 0.7,
+      "evidence_chain": [
+        {
+          "id": "ev-network-1",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_64010390"
+          },
+          "observation": "sub_64010390 decodes five 12-byte blobs (0x64024470, 0x6402443C x2, 0x640243C8 x2) via sub_64006890 and passes each plaintext string to inet_addr, seeding a random pick with GetTickCount.",
+          "address": "0x64010390",
+          "confidence": 0.94
+        },
+        {
+          "id": "ev-network-2",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_6400A2E0"
+          },
+          "observation": "sub_6400A2E0 divides exchanges into 0x1D0-byte fragments, retries failed sends, and enforces GetTickCount-based elapsed-time limits.",
+          "address": "0x6400A2E0",
+          "confidence": 0.93
+        },
+        {
+          "id": "ev-network-3",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_6400A620"
+          },
+          "observation": "sub_6400A620 applies htonl/ntohl, builds an outbound 0x19-byte-header frame via a local encoder, and only accepts decoded replies whose header matches expected token fields and magics.",
+          "address": "0x6400A620",
+          "confidence": 0.95
+        },
+        {
+          "id": "ev-noc2-2",
+          "kind": "tool_output",
+          "source": {
+            "stage": "dynamic",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "debug_get_state observations during controlled runs"
+          },
+          "observation": "Controlled helper runs idled in ntdll/win32u waits; no network API calls, worker-thread creation, DNS, or socket activity attributable to the sample was observed because the DLL did not load.",
+          "address": null,
+          "confidence": 0.86
+        }
+      ],
+      "reasoning": "The C2 capability (endpoint pool, connectivity wait, custom framing) is strongly supported statically but is only reachable code: it was never executed, the plaintext IPv4 endpoints were not recovered, and the connectivity API identity is inferred from signature. Capability-level confidence retained; runtime endpoint IOC claim not supported.",
+      "confidence_change": {
+        "direction": "decreased",
+        "previous_max": 0.95,
+        "new": 0.7,
+        "justification": "Downgrade because the evidence is static-only, the code was never executed, and the plaintext endpoints/API names are unrecovered; 0.7 reflects a credible single-source capability with no runtime corroboration."
+      },
+      "report_disposition": "include_with_caveat",
+      "limitations": [
+        "Plaintext IPv4 endpoints and the exact send/receive API names were not recovered.",
+        "No C2 connection was actually attempted or observed."
+      ]
+    },
+    {
+      "id": "fr-collection-host-fingerprinting",
+      "title": "Host fingerprinting covers storage, service inventory, OS, and COM-backed data",
+      "original_claims": [
+        {
+          "stage": "static-pass1",
+          "finding_id": "collection-host-fingerprinting-001",
+          "claim": "The sample gathers host information through storage IOCTL, service enumeration, OS/arch labeling, and a COM-backed inventory routine used to build outbound telemetry.",
+          "confidence": 0.91
+        }
+      ],
+      "final_status": "partial",
+      "final_confidence": 0.68,
+      "evidence_chain": [
+        {
+          "id": "ev-collection-1",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_6400B120"
+          },
+          "observation": "sub_6400B120 opens an obfuscated device path via a CreateFileW-compatible call and issues DeviceIoControl-compatible requests 0x2D1400 and 0x700A0.",
+          "address": "0x6400B120",
+          "confidence": 0.92
+        },
+        {
+          "id": "ev-collection-2",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_64006120"
+          },
+          "observation": "sub_64006120 resolves OpenSCManager-like/CloseServiceHandle-like APIs, calls EnumServicesStatusW, and iterates service names for filtering and reporting.",
+          "address": "0x64006120",
+          "confidence": 0.9
+        },
+        {
+          "id": "ev-collection-3",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_64010850; sub_6400B530"
+          },
+          "observation": "sub_64010850 calls GetVersionExW/GetNativeSystemInfo, appends OS/arch labels, and calls COM routines using CoInitializeEx/CoCreateInstance/Variant APIs to obtain host strings.",
+          "address": "0x64010850",
+          "confidence": 0.89
+        }
+      ],
+      "reasoning": "The fingerprinting routines are statically present and coherent, but none executed at runtime, several identities (COM class, exact device path, API names) remain obfuscated, and there is no confirmation that collected data is exfiltrated (only enumerated/encoded into telemetry). Capability-level claim.",
+      "confidence_change": {
+        "direction": "decreased",
+        "previous_max": 0.91,
+        "new": 0.68,
+        "justification": "Static-only, unexecuted, partially obfuscated routine identities; downgraded because collection is reachable-but-unobserved and some API identities are inferred from signatures."
+      },
+      "report_disposition": "include_with_caveat",
+      "limitations": [
+        "Exact COM class/namespace and device paths remain obfuscated.",
+        "Collection routines were not executed; no exfiltration was observed."
+      ]
+    },
+    {
+      "id": "fr-process-task-launch",
+      "title": "Network task data can trigger local process execution",
+      "original_claims": [
+        {
+          "stage": "static-pass1",
+          "finding_id": "process-task-launch-001",
+          "claim": "After the worker receives a non-empty response body, it passes data into a handler that invokes a dynamically-resolved CreateProcessW-compatible API, then closes process/thread handles.",
+          "confidence": 0.88
+        }
+      ],
+      "final_status": "not_reproduced",
+      "final_confidence": 0.55,
+      "evidence_chain": [
+        {
+          "id": "ev-process-1",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_640113F0"
+          },
+          "observation": "sub_640113F0 calls sub_6400FF30 when the success/response field is non-zero after the command/response processing loop; the response can only be non-zero after the C2 protocol path, which was never reached.",
+          "address": "0x640115A7",
+          "confidence": 0.9
+        },
+        {
+          "id": "ev-process-2",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_6400DDD0"
+          },
+          "observation": "sub_6400DDD0 resolves (via LoadLibraryW/GetProcAddress of a 14-byte ASCII name) a CreateProcessW-compatible function; sub_6400FF30 calls it at 0x640101C3 with CreateProcessW argument layout, then closes hProcess and hThread.",
+          "address": "0x640101C3",
+          "confidence": 0.87
+        },
+        {
+          "id": "ev-noc2-2",
+          "kind": "tool_output",
+          "source": {
+            "stage": "dynamic",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "debug_get_state observations during controlled runs"
+          },
+          "observation": "No process/thread creation attributable to the sample occurred; the task-execution handoff did not execute because no network task data was received.",
+          "address": null,
+          "confidence": 0.86
+        }
+      ],
+      "reasoning": "The CreateProcessW-compatible handoff is reachable code reached only after C2 task data, so it was never executed and the underlying API identity is inferred (14-byte resolved name not recovered, verified only for CreateProcessW-compatible signature). This is capability-level at best and must not be reported as confirmed process execution.",
+      "confidence_change": {
+        "direction": "decreased",
+        "previous_max": 0.88,
+        "new": 0.55,
+        "justification": "Downgrade from inferred 0.88 to 0.55: the path is unexecuted (not reproduced), the API name is inferred from calling convention only, and there is no runtime or payload confirmation. 0.55 is the upper plausible-inference band."
+      },
+      "report_disposition": "include_with_caveat",
+      "limitations": [
+        "The exact process image and command line are unknown.",
+        "The recalled/executed API identity (CreateProcessW) is inferred from argument layout, not a recovered resolver string, and no process was ever spawned."
+      ]
+    },
+    {
+      "id": "fr-anti-analysis-host-gating",
+      "title": "Operational guards rely on host context and singleton checks, not active anti-debug",
+      "original_claims": [
+        {
+          "stage": "static-pass1",
+          "finding_id": "anti-analysis-host-gating-001",
+          "claim": "The operational path enforces svchost.exe hosting, uses a mutex singleton gate, and waits for connectivity, but no bespoke anti-debug routine was confirmed.",
+          "confidence": 0.84
+        },
+        {
+          "stage": "dynamic",
+          "finding_id": "runtime-gate-not-exercised-001",
+          "claim": "The svchost host-gate and singleton gate were not reachable in the helper-hosted session because the DLL did not load outside svchost.exe.",
+          "confidence": 0.85
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.88,
+      "evidence_chain": [
+        {
+          "id": "ev-anti-1",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_64010690; sub_64011630"
+          },
+          "observation": "sub_64010690 runs a mutex singleton check (CreateMutexW + WaitForSingleObject(handle,0) == 0); sub_64011630 uses that result only after verifying svchost.exe hosting.",
+          "address": "0x64010690",
+          "confidence": 0.88
+        },
+        {
+          "id": "ev-gate-2",
+          "kind": "tool_output",
+          "source": {
+            "stage": "dynamic",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "module_list"
+          },
+          "observation": "The sample module was never retained in the loaded-module set under the helper loader; the host-gate path never executed because the DLL was not hosted by svchost.",
+          "address": null,
+          "confidence": 0.9
+        },
+        {
+          "id": "ev-helper-not-retained-1",
+          "kind": "tool_output",
+          "source": {
+            "stage": "dynamic",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "module_list; memory_search"
+          },
+          "observation": "After the sample-requesting LoadLibraryExW under the helper, module_list never included the sample and memory_search for '4D 5A' in 0x62000000-0x66000000 returned 0 results, consistent with load-then-rollback due to host-gate rejection.",
+          "address": null,
+          "confidence": 0.94
+        }
+      ],
+      "reasoning": "The svchost host-gating is now corroborated dynamically: a LoadLibraryExW for the sample's guest path fired under the helper, yet the module was never retained and no 'MZ' mapping persisted, consistent with DllMain rejecting initialization outside svchost.exe. The mutex singleton name was not captured. The absence of active anti-debug is a static negative and correct as stated.",
+      "confidence_change": {
+        "direction": "increased",
+        "previous_max": 0.85,
+        "new": 0.88,
+        "justification": "Increased because the host-gate claim gained independent dynamic corroboration (load-then-rollback under non-svchost helper) beyond the earlier static-only reading."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": [
+        "The plaintext mutex/singleton name was not captured.",
+        "The load rejection is inferred from load-then-rollback behavior, not a captured DllMain return value."
+      ]
+    },
+    {
+      "id": "fr-configuration-registry-clsid",
+      "title": "Registry and resource-backed CLSID/config selection is present",
+      "original_claims": [
+        {
+          "stage": "static-pass1",
+          "finding_id": "configuration-registry-clsid-001",
+          "claim": "The sample reads an obfuscated HKLM path/value pair and, if that fails, falls back to a resource string and CLSIDFromString to recover a GUID-like identifier consumed by COM collection.",
+          "confidence": 0.82
+        }
+      ],
+      "final_status": "partial",
+      "final_confidence": 0.62,
+      "evidence_chain": [
+        {
+          "id": "ev-config-1",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_640039D0"
+          },
+          "observation": "sub_640039D0 decodes a registry path/value via sub_64006B80, calls RegOpenKeyExW(HKLM)+RegQueryValueExW-compatible wrapper, falls back to CLSIDFromString on failure.",
+          "address": "0x640039D0",
+          "confidence": 0.84
+        },
+        {
+          "id": "ev-config-2",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_64006340"
+          },
+          "observation": "Combines an obfuscated wide string with a decoded separator and calls CLSIDFromString, and sub_64006340 loads resource 0x7D0 and parses a UUID into the caller buffer.",
+          "address": "0x64006340",
+          "confidence": 0.83
+        }
+      ],
+      "reasoning": "The registry/config read and CLSID fallback are statically present but the exact key, value, and GUID string remain obfuscated and nothing was validated at runtime. Capability-level, low-to-moderate confidence.",
+      "confidence_change": {
+        "direction": "decreased",
+        "previous_max": 0.82,
+        "new": 0.62,
+        "justification": "Downgraded because the configuration content is fully obfuscated, unextracted, and unvalidated at runtime; evidence is single-source static."
+      },
+      "report_disposition": "include_with_caveat",
+      "limitations": [
+        "Exact registry path, value name, and resource-backed GUID string are not recovered.",
+        "The config read was not exercised at runtime; persistence implication (if any) unverified."
+      ]
+    },
+    {
+      "id": "fr-packing-no-standard-packer",
+      "title": "No standard packer or staged in-memory unpack stub was confirmed",
+      "original_claims": [
+        {
+          "stage": "static-pass1",
+          "finding_id": "packing-no-standard-packer-001",
+          "claim": "The sample is directly analyzable as a normal PE32 DLL with standard sections and CRT startup; the main protection is runtime string/API obfuscation, not a packer stub.",
+          "confidence": 0.78
+        },
+        {
+          "stage": "unpack",
+          "finding_id": "packing-not-observed-001",
+          "claim": "No credible startup packing or self-decoding evidence was observed; host PE triage found a normal image with a populated import directory.",
+          "confidence": 0.91
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.87,
+      "evidence_chain": [
+        {
+          "id": "ev-pack-1",
+          "kind": "tool_output",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "survey_binary"
+          },
+          "observation": "Conventional PE sections (.text 0x64001000-0x64024000 rx, .idata, .rdata, .data rw); no packer-branded section names or collapsed entry-stub profile.",
+          "address": null,
+          "confidence": 0.8
+        },
+        {
+          "id": "ev-packing-2",
+          "kind": "tool_output",
+          "source": {
+            "stage": "unpack",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "host PE triage command"
+          },
+          "observation": "Host PE triage parsed a 208896-byte PE32 image, entrypoint RVA 0x12faa, base 0x64000000, five standard sections, and a non-empty import directory at RVA 0x2b0ac (size 160).",
+          "address": null,
+          "confidence": 0.93
+        },
+        {
+          "id": "ev-pack-3",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "sub_64006890; sub_64006B80"
+          },
+          "observation": "Dominant obfuscation helpers reconstruct strings/API names under a mutex gate, not a memory-unpacking trampoline; no RWX unpack loop, relocation fixer, or import-reconstruction stub in the startup path.",
+          "address": "0x64006890",
+          "confidence": 0.78
+        }
+      ],
+      "reasoning": "Two independent sources (survey_binary and host PE triage) agree on a conventional, import-populated image with CRT startup and no startup unpack stub; protection is runtime string/API obfuscation. The negative does not exclude network-delivered secondary content.",
+      "confidence_change": {
+        "direction": "increased",
+        "previous_max": 0.91,
+        "new": 0.87,
+        "justification": "Reconciled: the static-pass1 0.78 and unpack 0.91 are a single mutually-corroborated claim; consolidated confidence 0.87 reflects two independent PE layout observations."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": [
+        "This addresses startup packing only; network-delivered compressed/encrypted secondary content is not excluded.",
+        "Runtime string/API obfuscation limits some static recoveries."
+      ]
+    },
+    {
+      "id": "fr-runtime-helper-hosted-session",
+      "title": "Runtime session was hosted by x64dbg's generic DLL loader, not the intended svchost service host",
+      "original_claims": [
+        {
+          "stage": "dynamic",
+          "finding_id": "runtime-helper-hosted-session-001",
+          "claim": "debug_init bootstrapped the session via a DLLLoader32_<suffix>.exe helper; the sample was never retained as a loaded module or persisted PE mapping.",
+          "confidence": 0.98
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.97,
+      "evidence_chain": [
+        {
+          "id": "ev-helper-load-sample-1",
+          "kind": "tool_output",
+          "source": {
+            "stage": "dynamic",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "breakpoint_set 0x7596F640; memory_read"
+          },
+          "observation": "At LoadLibraryExW (0x7596F640), the first stack argument pointed to C:\\Users\\h26v\\Desktop\\000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423, i.e., the helper requested a load of the sample's guest copy.",
+          "address": "0x000000007596F640",
+          "confidence": 0.96
+        },
+        {
+          "id": "ev-helper-not-retained-1",
+          "kind": "tool_output",
+          "source": {
+            "stage": "dynamic",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "module_list; memory_search"
+          },
+          "observation": "Across runs the sample module never appeared in module_list and memory_search for '4D 5A' in 0x62000000-0x66000000 returned 0 results, so the DLL was not retained as a mapped PE after the load request.",
+          "address": null,
+          "confidence": 0.94
+        }
+      ],
+      "reasoning": "This is a directly observed runtime constraint: x64dbg's DLLLoader32 helper hosted the session and issued a load request for the sample, but the DLL was not retained. This is the primary reason worker/C2/process-launch behaviors were not observed; it constrains the verdict and justifies the remaining decision point.",
+      "confidence_change": {
+        "direction": "unchanged",
+        "previous_max": 0.98,
+        "new": 0.97,
+        "justification": "Direct tool observation; small reduction only because the svchost-gate rejection is inferred from load-then-rollback, not a captured return value."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": [
+        "Validates debugger reachability only, not the natural svchost module graph.",
+        "Rejection inside DllMain is inferred, not directly captured."
+      ]
+    }
+  ],
+  "contradictions": [
+    {
+      "id": "contradiction-static-capability-vs-dynamic-absence",
+      "topic": "Static task-execution/C2 capabilities present vs. dynamic behavior not reproduced",
+      "claims": [
+        {
+          "stage": "static-pass1",
+          "claim": "The sample has a CreateProcessW-compatible task-execution path and an obfuscated C2 network subsystem.",
+          "evidence_ids": [
+            "ev-process-1",
+            "ev-process-2",
+            "ev-network-1",
+            "ev-network-3"
+          ]
+        },
+        {
+          "stage": "dynamic",
+          "claim": "No worker thread, network exchange, or process-launch attributable to the sample occurred.",
+          "evidence_ids": [
+            "ev-noc2-2",
+            "behavior-worker-001",
+            "behavior-network-001",
+            "behavior-task-exec-001"
+          ]
+        }
+      ],
+      "analysis": "The apparent conflict is between reachable/static capability and executed behavior. Crucially, both claims share the same precondition: behavior requires the worker thread queued by sub_6400F350, which in turn requires the DLL to load under the svchost.exe host gate. The dynamic session used x64dbg's DLLLoader32 helper, which does not host svchost; the DLL was loaded-then-rolled-back and never retained. Dynamic absence is therefore explained by environment (missing natural host), not by contradiction of capability.",
+      "resolution": "Resolved as non-contradiction: dynamic non-observation is an absence attributable to the helper-hosted environment. Static capability claims are preserved as capability-level; they are not promoted to confirmed behavior. Confidence on the dynamic side (0.88 not_observed) and static side (0.7/0.55) retained.",
+      "resolved": true,
+      "final_confidence": 0.92
+    },
+    {
+      "id": "contradiction-service-context-vs-helper-loader",
+      "topic": "Intended svchost service context vs. observed DLLLoader32 helper hosting",
+      "claims": [
+        {
+          "stage": "static-pass1",
+          "claim": "The sample is a svchost-hosted service DLL whose worker only runs inside svchost.exe.",
+          "evidence_ids": [
+            "ev-sample-identity-2",
+            "ev-anti-1"
+          ]
+        },
+        {
+          "stage": "unpack",
+          "claim": "The guest debug smoke test loaded the DLL through x64dbg's DLLLoader32_0E62.exe helper, not the natural svchost service host.",
+          "evidence_ids": [
+            "ev-loader-2",
+            "ev-loader-3"
+          ]
+        }
+      ],
+      "analysis": "The unpack/dynamic stages repeatedly observed a helper-loader main module (DLLLoader32_*), whereas the sample is designed to be hosted by svchost.exe. This is not a contradiction of the sample's design; it is a tooling-environment mismatch. The helper loader is x64dbg's standard way to attach to a DLL and does not replicate svchost's service dispatch, so the sample's natural module graph and gates cannot fire.",
+      "resolution": "Resolved: the two claims describe different objects (sample design vs. debugger bootstrap). The helper-loader observation limits what runtime could validate and is recorded as the root cause of missing milestones; it does not refute the svchost-hosting design.",
+      "resolved": true,
+      "final_confidence": 0.95
+    },
+    {
+      "id": "contradiction-host-gate-rejection-direction",
+      "topic": "Direction/cause of the DLL not being retained under the helper loader",
+      "claims": [
+        {
+          "stage": "dynamic",
+          "claim": "The sample module was never retained after LoadLibraryExW, consistent with DllMain svchost-gate rejection outside svchost.exe.",
+          "evidence_ids": [
+            "ev-helper-not-retained-1",
+            "ev-helper-load-sample-1"
+          ]
+        },
+        {
+          "stage": "dynamic",
+          "claim": "The reason the DLL is not retained is inferred from load-then-rollback; a captured DllMain return value or explicit error was not obtained.",
+          "evidence_ids": [
+            "ev-gate-2"
+          ]
+        }
+      ],
+      "analysis": "The observation (module absent, no MZ mapping) is solid, but the causal attribution to the svchost host-gate is an inference. Alternative causes include an exception in DllMain (e.g., a failed dependency or a crash) also producing rollback. These cannot be fully distinguished from the helper-hosted trace alone.",
+      "resolution": "Partially resolved: host-gating is the most parsimonious explanation consistent with the statically-verified host-path check, but it is not conclusive. Kept as an assumption; the final report may state the DLL was not retained but must caveat the cause as svchost-gating (inferred), not confirmed.",
+      "resolved": false,
+      "final_confidence": 0.8
+    }
+  ],
+  "hypotheses": [
+    {
+      "id": "hyp-wkssvc-service-proxy-rat",
+      "statement": "The sample is an svchost-hosted wkssvc service-proxy remote-access/tasking trojan whose worker thread phones home to an obfuscated C2 endpoint pool, fingerprints the host, and can launch local processes in response to C2 task data.",
+      "confidence": 0.68,
+      "supporting_evidence_ids": [
+        "ev-sample-identity-2",
+        "ev-loader-1",
+        "ev-network-1",
+        "ev-network-3",
+        "ev-process-2",
+        "ev-collection-1"
+      ],
+      "counter_evidence_ids": [
+        "ev-noc2-2"
+      ],
+      "validation_plan": [
+        "Install/launch the DLL through its intended svchost service host in the approved guest.",
+        "Break on the host gate (RVA 0x11672), the inet_addr sites (sub_64010390), and C2 frame sites (RVA 0xA76F/0xA8A4).",
+        "Recover plaintext IP pool, mutex name, and any task payload; confirm whether task data reaches the CreateProcessW-compatible path.",
+        "Capture outbound network exchange to confirm callback endpoint and protocol."
+      ],
+      "falsification_condition": "If, in the natural svchost context, the sample never opens a socket, never decodes an IP pool, and never invokes a process-launch, the trojan/C2 capability would be refuted or reclassified as dormant.",
+      "status": "supported"
+    },
+    {
+      "id": "hyp-dll-broken-load-outside-svchost",
+      "statement": "The DLL's failure to be retained under the helper loader is caused by its own DllMain host-gate rejecting a non-svchost process, i.e., the driver of runtime non-observation is the svchost dependency.",
+      "confidence": 0.8,
+      "supporting_evidence_ids": [
+        "ev-sample-identity-2",
+        "ev-anti-1",
+        "ev-helper-load-sample-1",
+        "ev-helper-not-retained-1"
+      ],
+      "counter_evidence_ids": [
+        "ev-gate-2"
+      ],
+      "validation_plan": [
+        "Attach the debugger to a real svchost.exe that hosts the sample, or launch via the service manager.",
+        "Observe the worker thread creation at sub_6400F350/CreateThread.",
+        "Capture DllMain return path / thread start to confirm the gate was satisfied."
+      ],
+      "falsification_condition": "If the DLL loads and its worker runs even under a non-svchost host (e.g., by patching the host-path check), the host-gate cause would be refuted; if a crash/exception in DllMain is found instead, that is the true cause.",
+      "status": "supported"
+    },
+    {
+      "id": "hyp-secondary-payload-via-c2",
+      "statement": "Received C2 task data passes through the custom protocol decoder into a buffer that, when non-empty, is handed to the CreateProcessW-compatible path, i.e., the implant can download-and-run a secondary payload.",
+      "confidence": 0.5,
+      "supporting_evidence_ids": [
+        "ev-process-1",
+        "ev-process-2",
+        "ev-network-3"
+      ],
+      "counter_evidence_ids": [
+        "ev-noc2-2"
+      ],
+      "validation_plan": [
+        "In a svchost-hosted run, break at the CreateProcessW-compatible call at RVA 0x101C3.",
+        "Inspect the Unicode command line/application string and spawned PID.",
+        "Check for delete-or-move-on-reboot or dropped-file behavior after process creation."
+      ],
+      "falsification_condition": "If the non-empty response path never invokes a process-launch, or if the executed object is not a secondary executable, the secondary-payload hypothesis would be weakened/rejected.",
+      "status": "open"
+    },
+    {
+      "id": "hyp-decoys-or-anti-analysis-hidden",
+      "statement": "Additional anti-analysis or decoy branches (beyond the svchost gate) may exist hidden behind command traffic or unrecovered strings, so absence of active anti-debug in Pass 1 is not proof none exists.",
+      "confidence": 0.3,
+      "supporting_evidence_ids": [
+        "ev-anti-3"
+      ],
+      "counter_evidence_ids": [
+        "ev-noc2-2"
+      ],
+      "validation_plan": [
+        "During svchost-hosted execution, monitor for IsDebuggerPresent/timing/API-hash checks not visible statically.",
+        "Inspect decoded strings as they are materialized by sub_64006890 during runtime.",
+        "Compare resolved API identities against the import directory and reported resolver strings."
+      ],
+      "falsification_condition": "If a full static + dynamic trace of the worker shows no additional anti-analysis branches, the hypothesis is weakened; if an active anti-analysis routine is observed, it is supported.",
+      "status": "weakened"
+    }
+  ],
+  "root_cause_analysis": [
+    {
+      "id": "rca-payload-execution-not-reached",
+      "problem": "None of the sample's worker-thread behaviors (obfuscated IP pool decode, C2 network exchange, CreateProcessW task execution) and no concrete IOC (IPs, mutex, task payload) could be observed at runtime.",
+      "candidate_causes": [
+        {
+          "cause": "Debugger helper-loader (DLLLoader32_<suffix>.exe) does not replicate svchost service hosting, so the sample's DllMain/host-gate rejects and unloads the DLL.",
+          "likelihood": 0.85,
+          "reason": "Directly observed: x64dbg hosted via DLLLoader32, LoadLibraryExW fired with the sample path, and the module was never retained (no MZ mapping), matching the statically-verified svchost.exe host-gate."
+        },
+        {
+          "cause": "An unresolved exception/crash inside DllMain under the helper also produces load-then-rollback, indistinguishable from host-gating from the trace alone.",
+          "likelihood": 0.1,
+          "reason": "Plausible alternative; the observed rollback is consistent with either content-rejection or DllMain failure, and no explicit return value was captured."
+        },
+        {
+          "cause": "A dependency (another DLL/COM object) required by the sample is unavailable in the helper-hosted session, causing load failure.",
+          "likelihood": 0.05,
+          "reason": "The sample depends on COM and storage APIs; a missing dependency could abort initialization, but the statically-verified deliberate host-path check makes host-gating a likelier driver."
+        }
+      ],
+      "most_likely_cause": "The x64dbg DLLLoader32 helper does not expose the intended svchost.exe service context, and the sample's delayed host-gate (svchost path check) rejects or aborts initialization, so the DLL is loaded-then-rolled-back and the worker/C2/task path never runs.",
+      "confidence": 0.82,
+      "evidence_gap": "A captured DllMain return value or an exception breakpoint inside DllMain is needed to distinguish host-gate rejection (create-mutex/return-false) from an exception/crash; none was obtained in the helper-hosted session."
+    },
+    {
+      "id": "rca-forwarded-export-names-unrecovered",
+      "problem": "The two wkssvc export names resolved into dword_6402D4B8/dword_6402D4BC were never recovered, so the exact legitimately-proxied service callbacks are unidentified.",
+      "candidate_causes": [
+        {
+          "cause": "The names are runtime-decoded by sub_64006890 and were never executed (forwarder path not reached under helper).",
+          "likelihood": 0.8,
+          "reason": "The decode only runs inside sub_6400F350, which requires a loaded/hosted service context that was never reproduced."
+        },
+        {
+          "cause": "The naming convention made static recovery of the decoded ASCII impractical in Pass 1.",
+          "likelihood": 0.2,
+          "reason": "Obfuscated string blobs at 0x640242CC/0x64024288 were not fully leet-decoded, leaving the export names unresolved statically."
+        }
+      ],
+      "most_likely_cause": "The decoded wkssvc export names are only materialized at runtime inside the proxy forwarder, which never executed under the helper-hosted session.",
+      "confidence": 0.75,
+      "evidence_gap": "Recover the two sub_64006890 outputs inside sub_6400F350 (breakpoint after each decode at RVA 0xF37B) during a svchost-hosted run, or complete the static string-decode manually."
+    }
+  ],
+  "investigation_targets": [
+    {
+      "id": "inv-svchost-hosted-runtime",
+      "priority": 5,
+      "target": "Launch/attach the sample through its intended svchost.exe service host to exercise the worker thread (gate at RVA 0x11672, CreateThread at sub_6400F350).",
+      "reason": "Blocks verdict and payload-stage classification: it is the only way to reach and validate the worker-thread C2/task-execution behaviors that static analysis strongly implies but runtime could not reproduce.",
+      "recommended_action": "Install and start the sample as a real Windows service under svchost.exe in the approved guest (or attach the debugger to the hosting svchost) using the verified wkssvc proxy scenario; break on the gate and worker launch, then capture decoded state.",
+      "success_criteria": "Observe svchost.exe hosting, worker-thread creation, resolved wkssvc forwards/endpoints, and recover the plaintext mutex name and IPv4 pool."
+    },
+    {
+      "id": "inv-recover-wkssvc-forwarded-names",
+      "priority": 4,
+      "target": "Decoded wkssvc export names behind dword_6402D4B8/dword_6402D4BC in sub_6400F350 (RVA 0xF37B).",
+      "reason": "Confirms which legitimate service callbacks are proxied, materially strengthening the proxy/RAT structural fingerprint.",
+      "recommended_action": "Break after each sub_64006890 call inside sub_6400F350 and read the ASCII buffer before GetProcAddress.",
+      "success_criteria": "Identify both forwarded wkssvc export names and verify they resolve into the legitimate wkssvc.dll module."
+    },
+    {
+      "id": "inv-recover-ip-pool-and-mutex",
+      "priority": 4,
+      "target": "Plaintext IPv4 pool (inet_addr sites in sub_64010390) and singleton mutex name (sub_64010690).",
+      "reason": "Produces concrete, reportable network/persistence IOCs; currently only obfuscated blobs exist.",
+      "recommended_action": "In a svchost-hosted run, break after each decode in sub_64010390 and on CreateMutexW, logging decoded strings.",
+      "success_criteria": "Recover every endpoint (including duplicates), rotation logic, and the mutex identifier."
+    },
+    {
+      "id": "inv-c2-task-payload-and-launch",
+      "priority": 3,
+      "target": "Decoded C2 task buffers and the CreateProcessW-compatible handoff (sub_6400A620 frame sites RVA 0xA76F/0xA8A4; launch at RVA 0x101C3).",
+      "reason": "Determines whether C2 delivers behavior strings or a secondary executable payload and validates the task-to-process-launch chain.",
+      "recommended_action": "Instrument the protocol decode and break at the process-launch call; inspect command line, spawned PID, and any delete/move-on-reboot behavior.",
+      "success_criteria": "Recover decoded task/command data and confirm whether it contains an executable PE/raw payload or only command strings."
+    },
+    {
+      "id": "inv-distinguish-host-gate-vs-dllmain-fail",
+      "priority": 2,
+      "target": "Capture the true reason the DLL is not retained under a non-service host (DllMain return path).",
+      "reason": "Converts the load-then-rollback inference into a confirmed root cause and informs whether a host-gate bypass is needed for dynamic analysis.",
+      "recommended_action": "At DllMain entry (0x64012FAA) and the host-gate (0x64011672), capture the branch outcome and DllMain return value; enable exception breakpoints early.",
+      "success_criteria": "Determine whether rejection is a deliberate return-false host-gate or an exception/crash, and confirm by hitting the gate branch in a service context."
+    },
+    {
+      "id": "inv-static-string-decode-of-config",
+      "priority": 2,
+      "target": "Registry path/value (sub_640039D0), resource UUID (sub_64006340), and obfuscated string blobs via sub_64006890.",
+      "reason": "Recovers config-embedded IOCs (registry key, GUID, COM identity) and resolves inferred API identities without requiring execution.",
+      "recommended_action": "Complete the static decode of sub_64006890 outputs for the config/collection blobs using IDA, or script the decoder.",
+      "success_criteria": "Recover the plaintext registry path/value, resource GUID, and any additional endpoint/API strings."
+    }
+  ],
+  "final_claim_policy": {
+    "allowed_claims": [
+      "The sample is a 32-bit PE service DLL gated on svchost.exe hosting, with ServiceMain/SvchostPushServiceGlobals/DllEntryPoint.",
+      "The exported service callbacks load and proxy wkssvc.dll: they decode two export names, resolve them via GetProcAddress, and spawn a worker thread before forwarding.",
+      "The worker thread maintains an obfuscated IPv4 endpoint pool (decoded via a custom routine and converted with inet_addr), waits for connectivity, and exchanges custom 0x1D0-byte-framed, magic-validated network messages.",
+      "The sample fingerprints the host via storage-device IOCTLs, Windows service enumeration, OS/architecture labeling, and COM-backed inventory routines.",
+      "The sample contains a code path, reached only after C2 task data, that invokes a CreateProcessW-compatible API, at capability level (code present, not observed executed).",
+      "Under x64dbg's generic DLLLoader32 helper, the DLL was requested for load (LoadLibraryExW with the sample path) but was not retained as a mapped module, consistent with a svchost host-gate; as a direct tool observation.",
+      "No startup packer or self-decoding stub was observed; protection is runtime string/API obfuscation. Verified by host PE triage (normal sections, populated import directory).",
+      "No C2 connection, process launch, persistence write, or exfiltration was observed at runtime."
+    ],
+    "caveated_claims": [
+      "Classifying the sample as a 'backdoor'/RAT/trojan may be stated only as a structural/capability interpretation, not as a runtime-confirmed behavior or family attribution.",
+      "The CreateProcessW-compatible task-execution path may be reported as a capability, explicitly noting it was not executed and the API identity is inferred from calling convention, not a recovered resolver string.",
+      "The reason the DLL was not retained under the helper loader may be stated as 'consistent with svchost host-gating' but must carry the caveat that the cause is inferred (load-then-rollback), not a captured DllMain return.",
+      "Collection/fingerprinting routines may be described as present; any inference that collected data is exfiltrated must be flagged as unverified (only enumeration/encoding observed statically).",
+      "The wkssvc proxy pattern implies hijacking, but the exact proxied export names are unrecovered and the persistence/installation mechanism is not proven from the standalone DLL.",
+      "Optional network-delivered secondary content is not excluded; any claim about a second-stage payload must be limited to a hypothesis."
+    ],
+    "prohibited_claims": [
+      "Do not claim any C2 connection was established or any specific endpoint/domain was contacted (no plaintext IPs, domains, mutex names, or task payloads were captured).",
+      "Do not claim payload execution or process injection of a secondary payload occurred.",
+      "Do not claim ransomware behavior (no encryption/ransom indicator observed).",
+      "Do not claim exfiltration or credential theft (no exfiltration/credential API observed executed; only host/device collection routines present).",
+      "Do not assert a specific malware-family identity/attribution.",
+      "Do not claim a persistence mechanism was installed (no registry/service-write observed; installation path invisible from the DLL).",
+      "Do not present any IOC values (IPs, domains, hashes, mutex names) as confirmed, since none were recovered."
+    ]
+  },
+  "limitations": [
+    "Dynamic analysis was helper-hosted (x64dbg DLLLoader32_<suffix>.exe) and never reached the sample's intended svchost.exe service context, so the worker thread, C2 exchange, and task-launch path were not executed.",
+    "The reason the DLL was not retained under the helper is inferred as svchost host-gating from privileged-but-consistent load-then-rollback evidence; a captured DllMain return value was not obtained.",
+    "Plaintext C2 IPs, domains, mutex names, proxy-forwarded wkssvc export names, registry path/value, resource GUID, and any command payloads are unrecovered and remain live targets.",
+    "Several runtime-resolved API identities (e.g., the CreateProcessW-compatible function, connectivity-check, COM calls) are inferred from argument layouts and constants rather than recovered plaintext resolver strings.",
+    "No 04-static-pass2.json or external-intelligence JSON was supplied; only 01-prepare-env, 02-static-pass1, 03-unpack, 05-dynamic and the 05-trace_guest_loader / 05-prepare-vm artifacts were consumed.",
+    "The verdict is 'malicious' on strong static capability/structure; runtime payload-stage classification (what C2 can do) remains unresolved without a svchost-hosted run."
+  ],
+  "upstream_inputs": [
+    "reports/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423/01-prepare-env.json",
+    "reports/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423/02-static-pass1.json",
+    "reports/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423/03-unpack.json",
+    "reports/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423/05-dynamic.json",
+    "reports/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423/artifacts/05-prepare-vm.json",
+    "reports/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423/artifacts/05-trace_guest_loader.json"
+  ]
+}

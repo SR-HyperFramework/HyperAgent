@@ -1,0 +1,334 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HyperAgent Intel Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "stage",
+    "sample_sha256",
+    "status",
+    "summary",
+    "provider_queries",
+    "claim_checks",
+    "ioc_correlation",
+    "enrichment_candidates",
+    "limitations",
+    "upstream_inputs"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "stage": {
+      "const": "intel"
+    },
+    "sample_sha256": {
+      "type": "string",
+      "pattern": "^[A-Fa-f0-9]{64}$"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "partial",
+        "blocked",
+        "failed",
+        "not_needed"
+      ]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "provider_queries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/provider_query"
+      }
+    },
+    "claim_checks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/claim_check"
+      }
+    },
+    "ioc_correlation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "matched_local",
+        "local_only_no_public_match",
+        "external_only"
+      ],
+      "properties": {
+        "matched_local": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ioc_item"
+          }
+        },
+        "local_only_no_public_match": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ioc_item"
+          }
+        },
+        "external_only": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ioc_item"
+          }
+        }
+      }
+    },
+    "enrichment_candidates": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/enrichment_candidate"
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "upstream_inputs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "provider_query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "provider",
+        "query_scope",
+        "query_type",
+        "query_value",
+        "result",
+        "matched_identity",
+        "reference",
+        "notes"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "query_scope": {
+          "enum": [
+            "original_sample",
+            "recovered_artifact",
+            "local_ioc",
+            "other"
+          ]
+        },
+        "query_type": {
+          "enum": [
+            "sha256",
+            "domain",
+            "url",
+            "ip",
+            "mutex",
+            "registry_key",
+            "filename",
+            "other"
+          ]
+        },
+        "query_value": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "result": {
+          "enum": [
+            "match",
+            "no_match",
+            "ambiguous",
+            "error",
+            "not_supported"
+          ]
+        },
+        "matched_identity": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reference": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "claim_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "claim_text",
+        "related_stage",
+        "related_finding_ids",
+        "verification_status",
+        "provider_query_ids",
+        "analysis",
+        "report_use"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "claim_text": {
+          "type": "string"
+        },
+        "related_stage": {
+          "type": "string"
+        },
+        "related_finding_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "verification_status": {
+          "enum": [
+            "corroborated",
+            "partially_corroborated",
+            "conflicting",
+            "public_label_only",
+            "no_public_evidence",
+            "insufficient_input"
+          ]
+        },
+        "provider_query_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "analysis": {
+          "type": "string"
+        },
+        "report_use": {
+          "description": "How this CLAIM CHECK finding should be used in the report. Not the same field as enrichment_candidate.usage below (different object, different allowed values) -- do not mix the two enums.",
+          "enum": [
+            "supporting_context",
+            "caveat_only",
+            "followup_only",
+            "exclude"
+          ]
+        }
+      }
+    },
+    "ioc_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "category",
+        "value",
+        "upstream_evidence_ids",
+        "provider_query_ids",
+        "notes"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "category": {
+          "enum": [
+            "network",
+            "host",
+            "persistence",
+            "other"
+          ]
+        },
+        "value": {
+          "type": "string"
+        },
+        "upstream_evidence_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "provider_query_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "enrichment_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "value",
+        "provider_query_ids",
+        "confidence",
+        "usage",
+        "notes"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "family_label",
+            "malware_type",
+            "campaign",
+            "related_sample",
+            "public_report",
+            "sandbox_verdict",
+            "behavior_tag",
+            "other"
+          ]
+        },
+        "value": {
+          "type": "string"
+        },
+        "provider_query_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "usage": {
+          "description": "How this ENRICHMENT CANDIDATE (external label/context, not a verified claim) should be treated downstream. Not the same field as claim_check.report_use above (different object, different allowed values) -- 'followup_only' is a report_use value and is NOT valid here.",
+          "enum": [
+            "context_only",
+            "needs_local_confirmation",
+            "conflicting_signal"
+          ]
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

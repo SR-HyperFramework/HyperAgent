@@ -1,0 +1,1410 @@
+{
+  "schema_version": "1.0",
+  "stage": "deepdive",
+  "sample_sha256": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+  "status": "partial",
+  "executive_assessment": {
+    "verdict": "malicious",
+    "confidence": 0.85,
+    "technical_summary": "The sample is a multi-layer packed malware. The outermost PE32 GUI stub is a loader that XOR-decrypts 1717 bytes of position-independent shellcode (fin-decryptor-reproduced). That shellcode is a self-relocating two-phase PE loader / in-place process-hollower (fin-shellcode-self-loader): it reads its own module file, delta-decodes an embedded PECompact2-packed second-stage PE at file offset 0x50BA (fin-key-reuse, fin-embedded-second-stage-pe), maps it, and rewrites the parent PEB/LDR entry. The terminal capability of the PECompact2-packed second stage (fin-second-stage-packed) is not statically observable. The parent process terminates during loader init with STATUS_ENTRYPOINT_NOT_FOUND (fin-loader-gate-termination) before the module entry point runs, due to two unresolved IAT slots (DispatchMessageA slot NULL, DESK.cpl!DisplaySaveSettings unpatched). No free-running dynamic execution was possible; all runtime evidence is limited to the loader phase. Public sandbox reports (external only) describe C2 HTTP callback to 112.121.178.189, RunOnce persistence, and file writes, but these were not locally reproduced. The local evidence chain confirms the sample is malicious via the verified multi-layer packing, key reuse, and the loader shellcode's process-hollowing capability, but the terminal payload behavior and full IOC surface remain unresolved.",
+    "highest_value_resolution": "The loader architecture is fully resolved: layer 1 is a XOR-decrypting stub, layer 2 is a self-relocating PE loader shellcode, layer 3 is a PECompact2-packed PE. The 0x9A246A73 key is reused across layers 1 and 2. The loader gate termination is caused by unresolved DispatchMessageA and DESK.cpl!DisplaySaveSettings IAT entries, not an intentional anti-debug check.",
+    "remaining_decision_point": "Terminal payload capability of the PECompact2-packed second stage cannot be determined without further unpacking or a bypass of the loader gate. The fwprintf hook's enable state and target remain unconfirmed. Public IOCs (C2 IP 112.121.178.189, RunOnce persistence) are external-only and not locally confirmed."
+  },
+  "finding_reviews": [
+    {
+      "id": "rev-fin-load-cmp",
+      "title": "Obfuscated dynamic module loading of devenum.dll",
+      "original_claims": [
+        {
+          "stage": "static-pass1",
+          "finding_id": "fin-load-cmp",
+          "claim": "The entry point reconstructs the WCHAR name 'devenum.dll' byte-by-byte and calls LoadLibraryW to obtain a loaded base used as scratch context.",
+          "confidence": 0.9
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.9,
+      "evidence_chain": [
+        {
+          "id": "ev-start-decompile",
+          "kind": "static",
+          "source": { "stage": "static-pass1", "artifact": null, "location": "IDA decompile 0x4018A0" },
+          "observation": "start: lstrcatW(0,0) decoy; BYTE1(v2)=((unsigned __int16)&unk_46B200>>8)-1; *((_BYTE*)v2+14)+=4; LoadLibraryW(v2); *(base+e_lfanwen+28) compared to 0x10; else infinite loop; then sub_401090().",
+          "address": "0x4018A0",
+          "confidence": 0.95
+        },
+        {
+          "id": "ev-name-mutation",
+          "kind": "static",
+          "source": { "stage": "static-pass1", "artifact": null, "location": "IDA disasm 0x4018B9-0x4018C4" },
+          "observation": "WCHAR buffer at 0x46B100 contains 'd','e','v','e','n','u','m','*','d','l','l'; byte 14 (0x2A) incremented by 4 to 0x2E ('.') giving devenum.dll.",
+          "address": "0x46B100",
+          "confidence": 0.9
+        },
+        {
+          "id": "ev-dec-disasm-live",
+          "kind": "dynamic",
+          "source": { "stage": "unpack", "artifact": null, "location": "x64dbg MCP disassembly_range 0x401DF8-0x401E81" },
+          "observation": "The decryptor sub_401DF8 was reached by the wrapper chain; the LoadLibraryW scratch base is used for destination computation, confirming the dynamic module loading scaffolding.",
+          "address": "0x401DF8",
+          "confidence": 0.95
+        }
+      ],
+      "reasoning": "Bypassing the decoy lstrcatW call, the WCHAR mutation of 'devenum*dll' to 'devenum.dll' via byte[14]+=4 is directly observed. LoadLibraryW is called with the corrected name. The returned base is then validated (PE magic check) and propagated through the wrapper chain as scratch context. The unpack stage's live disassembly of the decryptor confirms the LoadLibraryW return value feeds into the destination computation (sub_401DF8 at 0x401E31-0x401E3C).",
+      "confidence_change": {
+        "direction": "unchanged",
+        "previous_max": 0.9,
+        "new": 0.9,
+        "justification": "Sufficiently supported by static pass1 and unpack stage; no contradictory evidence."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": []
+    },
+    {
+      "id": "rev-fin-pe-magic-gate",
+      "title": "PE32 integrity / magic gate with anti-tamper infinite loop",
+      "original_claims": [
+        {
+          "stage": "static-pass1",
+          "finding_id": "fin-pe-magic-gate",
+          "claim": "After LoadLibraryW the stub reads OptionalHeader.Magic and branches: if the magic is not 0x10B (PE32) it enters an infinite loop.",
+          "confidence": 0.8
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.85,
+      "evidence_chain": [
+        {
+          "id": "ev-magic-cmp",
+          "kind": "static",
+          "source": { "stage": "static-pass1", "artifact": null, "location": "IDA disasm 0x4018D0-0x4018E6" },
+          "observation": "PE optional header magic compared to 0x10; failure path is an infinite while(1) loop at 0x4018E6.",
+          "address": "0x4018D0",
+          "confidence": 0.9
+        },
+        {
+          "id": "ev-run1",
+          "kind": "dynamic",
+          "source": { "stage": "05-dynamic", "artifact": "run1.json", "location": "_state/run1.json" },
+          "observation": "The process never reached the infinite loop (0x4018E6) because it terminated earlier at the loader gate with STATUS_ENTRYPOINT_NOT_FOUND. The PE magic gate was not a factor in the termination.",
+          "address": "0x773434A0",
+          "confidence": 1.0
+        }
+      ],
+      "reasoning": "The static disassembly is clear: the magic comparison and infinite loop exist in the code at the documented addresses. The dynamic run terminated before reaching the entry point, so the magic gate was never exercised. The gate's existence is confirmed, but its runtime behavior is not observed. The finding is valid as a static anti-tamper mechanism.",
+      "confidence_change": {
+        "direction": "increased",
+        "previous_max": 0.8,
+        "new": 0.85,
+        "justification": "Static disassembly is unambiguous; the gate exists in the code. Confidence slightly increased by the unpack stage confirming the code path is reachable from the entry."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": [
+        "The gate was never exercised at runtime because the process terminated earlier at the loader gate."
+      ]
+    },
+    {
+      "id": "rev-fin-callchain-obfuscation",
+      "title": "50-deep linear wrapper call chain obfuscation",
+      "original_claims": [
+        {
+          "stage": "static-pass1",
+          "finding_id": "fin-callchain-obfuscation",
+          "claim": "The stub calls 50 small wrapper functions in a linear daisy chain, each calling the next with dword-offset reads and decoy API calls, terminating at the real decryptor (sub_401DF8).",
+          "confidence": 0.85
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.9,
+      "evidence_chain": [
+        {
+          "id": "ev-chain",
+          "kind": "static",
+          "source": { "stage": "static-pass1", "artifact": null, "location": "IDA callgraph from 0x401090" },
+          "observation": "Linear chain of ~50 wrapper functions from 0x401090 terminating at sub_401DF8; decoy self-loop edges present in multiple wrappers.",
+          "address": "0x401090",
+          "confidence": 0.85
+        },
+        {
+          "id": "ev-dec-disasm-live",
+          "kind": "dynamic",
+          "source": { "stage": "unpack", "artifact": null, "location": "x64dbg MCP disassembly_range 0x401DF8-0x401E81" },
+          "observation": "The decryptor sub_401DF8 is the sole real function at the end of the chain; its live disassembly shows the XOR transform matching the static analysis.",
+          "address": "0x401DF8",
+          "confidence": 0.95
+        }
+      ],
+      "reasoning": "The call chain was verified by IDA callgraph analysis in static pass1. The unpack stage confirmed that sub_401DF8 is the real decryptor reached by the chain, and its live disassembly matches the expected XOR transform. The chain serves purely as obfuscation to delay and confuse analysis.",
+      "confidence_change": {
+        "direction": "increased",
+        "previous_max": 0.85,
+        "new": 0.9,
+        "justification": "The unpack stage confirmed the chain terminates at the correct decryptor and that the decoy loops are harmless."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": []
+    },
+    {
+      "id": "rev-fin-decryptor",
+      "title": "Single XOR decryptor sub_401DF8 materializes a 1716-byte executable stub",
+      "original_claims": [
+        {
+          "stage": "static-pass1",
+          "finding_id": "fin-decryptor",
+          "claim": "sub_401DF8 runs a 0x6B4 (1716)-byte loop with XOR key 0x9A246A73, reading from 0x402A47 and writing decoded output to a runtime-dependent destination.",
+          "confidence": 0.85
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.95,
+      "evidence_chain": [
+        {
+          "id": "ev-dec-disasm",
+          "kind": "static",
+          "source": { "stage": "static-pass1", "artifact": null, "location": "IDA disasm 0x401DF8" },
+          "observation": "push 6B4h; mov esi,9A246A73h; loop: xor ecx,[edx]; pop [ebx+ecx*2]; add edi,4; cmp edi,6B4h; jnz.",
+          "address": "0x401DF8",
+          "confidence": 0.9
+        },
+        {
+          "id": "ev-dec-disasm-live",
+          "kind": "dynamic",
+          "source": { "stage": "unpack", "artifact": null, "location": "x64dbg MCP disassembly_range 0x401DF8-0x401E81" },
+          "observation": "Live disassembly confirms the key schedule: 0x401E4D mov esi,0x9A246A73; 0x401E5C xor ecx,[edx]; 0x401E61 dec [esp]; 0x401E64 pop [ebx+ecx*2]; 0x401E79 cmp edi,0x6B4; jnz. Key alternates via negation each iteration.",
+          "address": "0x401E5A",
+          "confidence": 0.95
+        },
+        {
+          "id": "ev-offline-decrypt",
+          "kind": "analyst",
+          "source": { "stage": "unpack", "artifact": null, "location": "Python replication" },
+          "observation": "Key schedule verified: (key^src)-1 with alternating key; result matches disassembled shellcode blob; SHA256 537c40bc...",
+          "address": null,
+          "confidence": 0.95
+        },
+        {
+          "id": "ev-shellcode-disasm",
+          "kind": "artifact",
+          "source": { "stage": "unpack", "artifact": "decrypted_shellcode_1717.raw", "location": "capstone CS_MODE_32 disassembly" },
+          "observation": "Recovered blob is coherent position-independent x86 shellcode with call+6 get-EIP, API hash resolution, and 'el32.dll' string.",
+          "address": null,
+          "confidence": 0.9
+        }
+      ],
+      "reasoning": "The decryptor loop was fully characterized: 429 dword iterations, key 0x9A246A73 alternating with its negation, transform (key XOR src) - 1, priming byte 0x50, writes at dest+1+4j. The offline Python replication produced a 1717-byte blob that capstone disassembles into a coherent x86 shellcode with the same SHA256 every time. The decrypted content is destination-independent, and the key schedule is fully deterministic.",
+      "confidence_change": {
+        "direction": "increased",
+        "previous_max": 0.85,
+        "new": 0.95,
+        "justification": "Live disassembly confirmed the key schedule and transform. Offline replication produced a validated shellcode artifact, proving the decryptor characterization is correct."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": [
+        "Destination buffer address (from LoadLibraryW return + 0x11C) was not confirmed live because the process terminates before entry."
+      ]
+    },
+    {
+      "id": "rev-fin-decryptor-dest-unknown",
+      "title": "Decryptor destination address is runtime-dependent",
+      "original_claims": [
+        {
+          "stage": "static-pass1",
+          "finding_id": "fin-decryptor-dest-unknown",
+          "claim": "sub_401DF8 computes its plaintext write destination from the return value of LoadLibraryW and offset 0x11C, which is NULL in the file-loaded state.",
+          "confidence": 0.5
+        }
+      ],
+      "final_status": "partial",
+      "final_confidence": 0.65,
+      "evidence_chain": [
+        {
+          "id": "ev-dest-ptr",
+          "kind": "static",
+          "source": { "stage": "static-pass1", "artifact": null, "location": "IDA disasm 0x401E31-0x401E3C" },
+          "observation": "Write destination = [LoadLibraryW_return + 0x11C]; return is NULL for the invalid module name in the file, so the address is unresolved statically.",
+          "address": "0x401E36",
+          "confidence": 0.7
+        },
+        {
+          "id": "ev-offline-decrypt",
+          "kind": "analyst",
+          "source": { "stage": "unpack", "artifact": null, "location": "Python replication" },
+          "observation": "The decrypted byte content is a pure function of the source bytes and key sequence; the destination address does not affect the decoded content. The shellcode was recovered without the destination.",
+          "address": null,
+          "confidence": 0.95
+        }
+      ],
+      "reasoning": "The destination address remains unresolved because the process terminates during loader init before reaching the decryptor. However, the unpack stage proved that the decrypted content is destination-independent. The destination only matters for the live memory layout of the shellcode, not for understanding its logic. The finding is partial: the destination is still unknown, but its significance is reduced.",
+      "confidence_change": {
+        "direction": "increased",
+        "previous_max": 0.5,
+        "new": 0.65,
+        "justification": "The destination is still unknown, but the content was recovered without it, proving it is content-independent. The finding's impact is reduced."
+      },
+      "report_disposition": "include_with_caveat",
+      "limitations": [
+        "The destination address could not be confirmed live due to the loader gate termination.",
+        "The destination may matter for full process-level reconstruction or for understanding the memory layout of the shellcode at runtime."
+      ]
+    },
+    {
+      "id": "rev-fin-decoy-imports",
+      "title": "Import surface is largely decoy; no network/injection/registry/persistence APIs reachable",
+      "original_claims": [
+        {
+          "stage": "static-pass1",
+          "finding_id": "fin-decoy-imports",
+          "claim": "The 42-entry import table is dominated by USER32, KERNEL32 utility, CRYPTNET, and DESK. No VirtualAlloc, CreateRemoteThread, Reg*, URL/network, or shell-execution APIs are imported. Many imported APIs are called with NULL/0 args as decoy noise.",
+          "confidence": 0.8
+        }
+      ],
+      "final_status": "partial",
+      "final_confidence": 0.75,
+      "evidence_chain": [
+        {
+          "id": "ev-imports",
+          "kind": "static",
+          "source": { "stage": "static-pass1", "artifact": null, "location": "IDA imports_query" },
+          "observation": "42 IAT entries across KERNEL32 (20), USER32 (13), CRYPTNET (5), DESK (1); no VirtualAlloc/CreateRemoteThread/Reg*/URL/WriteProcessMemory.",
+          "address": "0x404000",
+          "confidence": 0.95
+        },
+        {
+          "id": "ev-iat-cryptnet",
+          "kind": "memory",
+          "source": { "stage": "05-dynamic", "artifact": "iat_abort.json", "location": "_state/iat_abort.json" },
+          "observation": "cryptnet IAT slots at 0x40408C-0x40409C contain 0x7372... addresses, within cryptnet.dll base 0x73720000. These are real cryptnet addresses, not fabricated/garbage exports.",
+          "address": "0x40408C",
+          "confidence": 0.9
+        },
+        {
+          "id": "ev-iat-abort",
+          "kind": "memory",
+          "source": { "stage": "05-dynamic", "artifact": "iat_abort.json", "location": "_state/iat_abort.json" },
+          "observation": "At abort: 0x404088 = 00000000 (NULL DispatchMessageA slot), 0x4040A4 = 6A440000 (unpatched DESK.cpl descriptor field). These are the genuinely unresolved slots.",
+          "address": "0x404088",
+          "confidence": 1.0
+        }
+      ],
+      "reasoning": "The original claim that cryptnet imports were 'fabricated' or 'decoy' is contradicted by live IAT reads showing they resolve to real cryptnet.dll addresses. The genuinely unresolved slots are DispatchMessageA (USER32, slot NULL) and DisplaySaveSettings (DESK.cpl, unpatched). The core claim that no network/injection/registry/persistence APIs are directly imported is still correct. However, the cryptnet sub-claim needs refinement: cryptnet functions are real resolved imports, not decoys. The 'decoy calls with NULL args' observation for some APIs (lstrcatW, timing APIs) remains valid for the visible stub.",
+      "confidence_change": {
+        "direction": "decreased",
+        "previous_max": 0.8,
+        "new": 0.75,
+        "justification": "The cryptnet 'fabricated exports' sub-claim was contradicted by live IAT resolution, reducing overall confidence in the 'decoy' characterization. The core claim about no network/injection/registry APIs is still correct."
+      },
+      "report_disposition": "include_with_caveat",
+      "limitations": [
+        "The cryptnet imports resolve to real addresses, contradicting the 'fabricated exports' hypothesis.",
+        "The DispatchMessageA slot being NULL may be an artifact of x64dbg import-name reconstruction; the raw file may have a different import name at that slot.",
+        "The real capability of the decrypted shellcode and PECompact2 stage may use dynamically resolved APIs not visible in the parent stub's import table."
+      ]
+    },
+    {
+      "id": "rev-fin-payload-handoff",
+      "title": "Payload handoff occurs inside the decrypted blob; OEP is its first decrypted dword",
+      "original_claims": [
+        {
+          "stage": "static-pass1",
+          "finding_id": "fin-payload-handoff",
+          "claim": "No direct jump/call/ret into the ciphertext region exists in the visible stub. The effective payload entry (OEP) is the first decrypted dword of the 1716-byte blob at 0x402A47.",
+          "confidence": 0.5
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.85,
+      "evidence_chain": [
+        {
+          "id": "ev-nohandoff",
+          "kind": "static",
+          "source": { "stage": "static-pass1", "artifact": null, "location": "IDA xrefs to 0x402A47" },
+          "observation": "No code/data cross-reference into the ciphertext region from the visible stub.",
+          "address": "0x402A47",
+          "confidence": 0.5
+        },
+        {
+          "id": "ev-offset0",
+          "kind": "artifact",
+          "source": { "stage": "static-pass2", "artifact": "decrypted_shellcode_1717.raw", "location": "capstone CS_MODE_32 from offset 0" },
+          "observation": "0x0 50 push eax; 0x1 58 pop eax; 0x4 e8 call 0xf; resolves cleanly; 705 instructions total. Entry offset 0 confirmed.",
+          "address": "0x0000",
+          "confidence": 0.85
+        },
+        {
+          "id": "ev-phase-a",
+          "kind": "artifact",
+          "source": { "stage": "static-pass2", "artifact": "decrypted_shellcode_1717.raw", "location": "disasm 0x0-0xAE" },
+          "observation": "Phase A: NOP-sled entry, call+6 get-EIP, API resolution, VirtualAlloc(NULL,0x6A4,0x1000,0x40), self-relocation, ret into relocated body.",
+          "address": "0x0000",
+          "confidence": 0.9
+        }
+      ],
+      "reasoning": "The original claim was that the handoff target is the first decrypted dword. Static pass2 confirmed the shellcode entry offset is 0 (priming byte 0x50), and the blob is a self-relocating loader. The handoff is not a jump into ciphertext but a decrypt-and-ret into the recovered shellcode. The call chain returns through the wrapper chain into the now-decrypted shellcode's entry. The handoff mechanism is fully understood even though it was not live-observed.",
+      "confidence_change": {
+        "direction": "increased",
+        "previous_max": 0.5,
+        "new": 0.85,
+        "justification": "The shellcode entry offset 0 was confirmed by static-pass2 disassembly. The handoff mechanism (decrypt-and-ret through the wrapper chain) is fully understood from the recovered artifact."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": [
+        "Caller-side live confirmation is blocked by the parent's loader gate termination."
+      ]
+    },
+    {
+      "id": "rev-fin-rdata-decoy",
+      "title": "Oversized writable .rdata is zero-filled decoy/reserved region",
+      "original_claims": [
+        {
+          "stage": "static-pass1",
+          "finding_id": "fin-rdata-decoy",
+          "claim": "The .rdata section spans 0x4040A8-0x46B000 (~0x66f58 bytes) and is marked writable, but at rest it is almost entirely zero-filled. It is not an embedded payload buffer.",
+          "confidence": 0.7
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.8,
+      "evidence_chain": [
+        {
+          "id": "ev-rdata-zero",
+          "kind": "static",
+          "source": { "stage": "static-pass1", "artifact": null, "location": "IDA segments + get_bytes .rdata" },
+          "observation": ".rdata 0x4040A8-0x46B000 marked rw, raw size 0x600, remainder zero-filled at rest.",
+          "address": "0x4040A8",
+          "confidence": 0.7
+        },
+        {
+          "id": "ev-pe-header",
+          "kind": "artifact",
+          "source": { "stage": "static-pass2", "artifact": "decoded_second_stage_pe.bin", "location": "PE header parse" },
+          "observation": "The real embedded second stage lives at file offset 0x50BA, a trailing region of the parent file, not in .rdata.",
+          "address": "0x40A4D5",
+          "confidence": 0.95
+        }
+      ],
+      "reasoning": "While the .rdata region was not directly revisited, the static-pass2 discovery that the delta-encoded second-stage PE is at file offset 0x50BA (a trailing region, not in .rdata) is consistent with the .rdata being a decoy/reserved region. The .rdata's raw size of 0x600 vs virtual size of ~0x66f58 confirms it is not a carrier for embedded payload data.",
+      "confidence_change": {
+        "direction": "increased",
+        "previous_max": 0.7,
+        "new": 0.8,
+        "justification": "Static-pass2 confirmed the real embedded payload is at file offset 0x50BA, not in .rdata, consistent with the decoy-interpretation."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": [
+        "Runtime writes into .rdata cannot be excluded because no live execution past the entry point was possible."
+      ]
+    },
+    {
+      "id": "rev-fin-decryptor-reproduced",
+      "title": "Decryptor sub_401DF8 replicated offline; recovered 1717-byte shellcode",
+      "original_claims": [
+        {
+          "stage": "unpack",
+          "finding_id": "fin-decryptor-reproduced",
+          "claim": "The in-place self-decoding routine was fully reconstructed and replicated against file-resident ciphertext. The transform is (key XOR src) - 1 with alternating key, priming byte, and writes at dest+1+4j.",
+          "confidence": 0.95
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.95,
+      "evidence_chain": [
+        {
+          "id": "ev-dec-disasm-live",
+          "kind": "dynamic",
+          "source": { "stage": "unpack", "artifact": null, "location": "x64dbg MCP disassembly_range 0x401DF8-0x401E81" },
+          "observation": "Full disassembly of the decryptor loop: push 0x6B4; mov esi,0x9A246A73; xor ecx,[edx]; dec [esp]; pop [ebx+ecx*2]; sub [esp],esi; cmp edi,0x6B4; jnz.",
+          "address": "0x401E5A",
+          "confidence": 0.95
+        },
+        {
+          "id": "ev-offline-decrypt",
+          "kind": "analyst",
+          "source": { "stage": "unpack", "artifact": null, "location": "Python replication" },
+          "observation": "Key schedule verified: (key^src)-1 with alternating key; result matches disassembled shellcode blob; SHA256 537c40bc...",
+          "address": null,
+          "confidence": 0.95
+        },
+        {
+          "id": "ev-shellcode-disasm",
+          "kind": "artifact",
+          "source": { "stage": "unpack", "artifact": "decrypted_shellcode_1717.raw", "location": "capstone CS_MODE_32 disassembly" },
+          "observation": "Recovered blob is coherent position-independent x86 shellcode with API resolution table and 'el32.dll' string.",
+          "address": null,
+          "confidence": 0.9
+        }
+      ],
+      "reasoning": "The decryptor was fully characterized and replicated. The recovered blob was validated by capstone disassembly showing coherent x86 shellcode. The SHA256 fingerprint (537c40bc...) is deterministic and reproducible. Static-pass2 independently confirmed the blob as a self-relocating PE loader, further validating the decryptor output.",
+      "confidence_change": {
+        "direction": "unchanged",
+        "previous_max": 0.95,
+        "new": 0.95,
+        "justification": "Finding is fully confirmed by both the unpack stage's replication and static-pass2's independent analysis of the output."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": [
+        "Destination buffer address was not confirmed live due to the loader gate termination."
+      ]
+    },
+    {
+      "id": "rev-fin-early-exit-antidebug",
+      "title": "Process terminates during loader init before entry under free-running execution",
+      "original_claims": [
+        {
+          "stage": "unpack",
+          "finding_id": "fin-early-exit-antidebug",
+          "claim": "Under free-running execution the sample process exits during ntdll loader initialization before the module entry point is reached. Consistent with an early anti-debug/anti-VM check.",
+          "confidence": 0.8
+        }
+      ],
+      "final_status": "partial",
+      "final_confidence": 0.95,
+      "evidence_chain": [
+        {
+          "id": "ev-run-exits",
+          "kind": "dynamic",
+          "source": { "stage": "unpack", "artifact": null, "location": "x64dbg MCP debug_run + poll" },
+          "observation": "After debug_init and setting breakpoint at 0x4018A0, debug_run returns state 'running' then 'stopped'; breakpoint never trips.",
+          "address": "0x4018A0",
+          "confidence": 0.8
+        },
+        {
+          "id": "ev-run1",
+          "kind": "dynamic",
+          "source": { "stage": "05-dynamic", "artifact": "run1.json", "location": "_state/run1.json" },
+          "observation": "debug_run paused at ntdll!NtTerminateProcess 0x773434A0 with stop_reason breakpoint_or_exception; esi=0xC0000139 (STATUS_ENTRYPOINT_NOT_FOUND).",
+          "address": "0x773434A0",
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-stack1",
+          "kind": "dynamic",
+          "source": { "stage": "05-dynamic", "artifact": "stack1.json", "location": "_state/stack1.json" },
+          "observation": "Stack at abort has only 2 frames: NtTerminateProcess <- ntdll+0xA4171; no user/module frames.",
+          "address": "0x77374171",
+          "confidence": 0.95
+        },
+        {
+          "id": "ev-disasm-callsite",
+          "kind": "dynamic",
+          "source": { "stage": "05-dynamic", "artifact": "disasm_callsite.json", "location": "_state/disasm_callsite.json" },
+          "observation": "ntdll+0xA416C: 'call NtTerminateProcess' preceded by 'push esi(0xC0000139); push 0xFFFFFFFF' - fatal loader fail-fast path.",
+          "address": "0x7737416C",
+          "confidence": 0.9
+        },
+        {
+          "id": "ev-iat-abort",
+          "kind": "memory",
+          "source": { "stage": "05-dynamic", "artifact": "iat_abort.json", "location": "_state/iat_abort.json" },
+          "observation": "Two IAT slots unresolved: 0x404088 = NULL (DispatchMessageA), 0x4040A4 = 0x446A (DESK.cpl DisplaySaveSettings).",
+          "address": "0x404088",
+          "confidence": 1.0
+        }
+      ],
+      "reasoning": "The unpack stage's 'anti-debug/anti-VM' hypothesis is refined by the dynamic stage. The termination is not an intentional anti-analysis check within the sample. It is a loader-phase import-resolution failure: the process terminates with STATUS_ENTRYPOINT_NOT_FOUND (0xC0000139) because two IAT slots cannot be resolved. The DispatchMessageA slot (USER32 export) is NULL, and the DESK.cpl!DisplaySaveSettings slot is unpatched (the DESK.cpl module is missing from the VM). This is an environment-gated import dependency, not an anti-debug check. The unpack stage's 'anti-debug' characterization was a reasonable initial hypothesis, but the dynamic stage provides the definitive explanation.",
+      "confidence_change": {
+        "direction": "increased",
+        "previous_max": 0.8,
+        "new": 0.95,
+        "justification": "The dynamic stage precisely identified the termination mechanism: STATUS_ENTRYPOINT_NOT_FOUND from unresolved IAT slots, not an anti-debug check. The cause is now understood with high confidence."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": [
+        "The specific DESK.cpl export (DisplaySaveSettings) is a Control Panel applet, likely not available in the analysis VM. The DispatchMessageA slot being NULL could be an import-name reconstruction artifact."
+      ]
+    },
+    {
+      "id": "rev-fin-shellcode-self-loader",
+      "title": "Recovered shellcode is a self-relocating two-phase PE loader / in-place process-hollower",
+      "original_claims": [
+        {
+          "stage": "static-pass2",
+          "finding_id": "fin-shellcode-self-loader",
+          "claim": "The 1717-byte blob is a self-relocating two-phase PE loader. Phase A resolves APIs, VirtualAlloc's RWX, self-relocates. Phase B reads the parent module file, delta-decodes an embedded PE, maps it, and rewrites the parent's PEB/LDR entry.",
+          "confidence": 0.9
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.9,
+      "evidence_chain": [
+        {
+          "id": "ev-phase-a",
+          "kind": "artifact",
+          "source": { "stage": "static-pass2", "artifact": "decrypted_shellcode_1717.raw", "location": "disasm 0x0-0xAE" },
+          "observation": "0x4 e8 call +6; 0x30 add dword ptr [eax],0x85612acb (decodes 'Kernel32.dll'); 0x96 call [ebp+0x10] VirtualAlloc(NULL,0x6A4,0x1000,0x40); 0xAC f3 rep movsb 0x6A4; 0xAE c3 ret.",
+          "address": "0x0000",
+          "confidence": 0.9
+        },
+        {
+          "id": "ev-phase-b",
+          "kind": "artifact",
+          "source": { "stage": "static-pass2", "artifact": "decrypted_shellcode_1717.raw", "location": "disasm 0xAF-0x1EA" },
+          "observation": "0x5FB GetModuleFileNameA+CreateFileA on own module; 0xCE/0xDF SetFilePointer+ReadFile(size 0x4D200); 0x1A9-0x1EA PEB walk then mov [eax+0x18],edi (DllBase) / [eax+0x1C],esi (EntryPoint) / [eax+8],edi (PEB.ImageBaseAddress).",
+          "address": "0x05fb",
+          "confidence": 0.85
+        },
+        {
+          "id": "ev-key-derive",
+          "kind": "analyst",
+          "source": { "stage": "static-pass2", "artifact": null, "location": "slot 0x70 ^ 0x7845EA91" },
+          "observation": "0xE26180E2 ^ 0x7845EA91 = 0x9A246A73, matching the parent stub's decryptor key.",
+          "address": null,
+          "confidence": 0.95
+        },
+        {
+          "id": "ev-decode-mz",
+          "kind": "artifact",
+          "source": { "stage": "static-pass2", "artifact": "decoded_second_stage_pe.bin", "location": "delta-decode of parent 0x50BA" },
+          "observation": "Decoded head 4d 5a 90 00 03 00 00 00 ... = MZ, e_lfanew=0x108 points to 'PE\\0\\0'.",
+          "address": null,
+          "confidence": 0.95
+        }
+      ],
+      "reasoning": "The full disassembly of the recovered shellcode shows two phases. Phase A resolves 18 APIs (including VirtualAlloc, VirtualProtect, CreateFileA, ReadFile), allocates an RWX buffer, and self-relocates. Phase B reads the parent module file, delta-decodes an embedded PE at file offset 0x50BA, maps it, and rewrites the parent's PEB/LDR entry. The key reuse (0x9A246A73) confirms the connection between layers. The offline delta-decode of the parent file at offset 0x50BA produces a valid PE32, proving the loader's mechanism.",
+      "confidence_change": {
+        "direction": "unchanged",
+        "previous_max": 0.9,
+        "new": 0.9,
+        "justification": "Fully supported by static-pass2 disassembly, offline delta-decode, and key reuse evidence."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": [
+        "Runtime image base and final mapped layout not live-confirmed due to the loader gate termination."
+      ]
+    },
+    {
+      "id": "rev-fin-api-slot-table",
+      "title": "18-slot hash-based API resolution table at config base 0x640",
+      "original_claims": [
+        {
+          "stage": "static-pass2",
+          "finding_id": "fin-api-slot-table",
+          "claim": "Config/API-slot table occupies offsets 0x640-0x68F (18 dwords) plus numeric config 0x698-0x6B3, addressing via ebp set to 0x640. All 18 slots identified by hash matching Windows export names.",
+          "confidence": 0.95
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.95,
+      "evidence_chain": [
+        {
+          "id": "ev-table-bytes",
+          "kind": "artifact",
+          "source": { "stage": "static-pass2", "artifact": "decrypted_shellcode_1717.raw", "location": "bytes 0x640-0x6B4" },
+          "observation": "0x640 fb d4 a2 61 (LoadLibraryA hash) ... 0x680 8d bf 5c 26 (HeapAlloc hash); 0x6A4 50 ba 00 00 = 0x50BA; 0x6A8 00 d2 04 00 = 0x4D200; 0x6B0 e2 80 61 e2 = 0xE26180E2.",
+          "address": "0x0640",
+          "confidence": 0.95
+        },
+        {
+          "id": "ev-hash-match",
+          "kind": "analyst",
+          "source": { "stage": "static-pass2", "artifact": null, "location": "hash-slot cross-check" },
+          "observation": "All 18 slot hashes verified against Kernel32/msvcrt export names using the ror/rol accumulator.",
+          "address": null,
+          "confidence": 0.9
+        }
+      ],
+      "reasoning": "The hash table bytes at 0x640-0x68F are directly readable from the recovered artifact. Each call site [ebp+X] in the disassembly was cross-checked against the hash values. The numeric config values (0x50BA, 0x4D200, 0xE26180E2) are verified by the offline delta-decode: 0x50BA is the file offset of the embedded PE, 0x4D200 is its size, and 0xE26180E2 XOR 0x7845EA91 = 0x9A246A73 (the decode key).",
+      "confidence_change": {
+        "direction": "unchanged",
+        "previous_max": 0.95,
+        "new": 0.95,
+        "justification": "Directly observed in the artifact bytes and verified by hash matching and offline delta-decode."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": [
+        "Slot 0x44 (HeapFree) is resolved but unused in phase B per static trace."
+      ]
+    },
+    {
+      "id": "rev-fin-key-reuse",
+      "title": "Decode key 0x9A246A73 is reused between the parent stub and the recovered loader",
+      "original_claims": [
+        {
+          "stage": "static-pass2",
+          "finding_id": "fin-key-reuse",
+          "claim": "The loader's embedded second-stage decode uses key slot 0x70 XOR 0x7845EA91 = 0x9A246A73, identical to the key used by the parent stub's decryptor sub_401DF8.",
+          "confidence": 0.95
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.95,
+      "evidence_chain": [
+        {
+          "id": "ev-key-derive",
+          "kind": "analyst",
+          "source": { "stage": "static-pass2", "artifact": null, "location": "slot 0x70 ^ 0x7845EA91" },
+          "observation": "0xE26180E2 ^ 0x7845EA91 = 0x9A246A73.",
+          "address": null,
+          "confidence": 0.95
+        },
+        {
+          "id": "ev-decode-mz",
+          "kind": "artifact",
+          "source": { "stage": "static-pass2", "artifact": "decoded_second_stage_pe.bin", "location": "delta-decode of parent 0x50BA" },
+          "observation": "Delta-decode using the derived key produces a valid PE header.",
+          "address": null,
+          "confidence": 0.95
+        },
+        {
+          "id": "ev-dec-disasm-live",
+          "kind": "dynamic",
+          "source": { "stage": "unpack", "artifact": null, "location": "x64dbg MCP disassembly_range 0x401DF8" },
+          "observation": "Parent stub's decryptor uses key 0x9A246A73 at 0x401E4D.",
+          "address": "0x401E4D",
+          "confidence": 0.95
+        }
+      ],
+      "reasoning": "The key is directly observed in the parent stub's decryptor (0x401E4D mov esi,0x9A246A73). The recovered shellcode's config slot 0x70 (0xE26180E2) XOR 0x7845EA91 = 0x9A246A73, confirming the same key material is reused. The offline delta-decode using this key produces a valid PE, proving the key is correct for both layers.",
+      "confidence_change": {
+        "direction": "unchanged",
+        "previous_max": 0.95,
+        "new": 0.95,
+        "justification": "Directly observed in both the parent stub (live disassembly) and the recovered shellcode (artifact bytes)."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": []
+    },
+    {
+      "id": "rev-fin-embedded-second-stage-pe",
+      "title": "Parent file embeds a delta-encoded second-stage PE at file offset 0x50BA",
+      "original_claims": [
+        {
+          "stage": "static-pass2",
+          "finding_id": "fin-embedded-second-stage-pe",
+          "claim": "The loader reads 0x4D200 bytes from its own module file at SetFilePointer offset 0x50BA, delta-decodes, and maps the result as a PE32 (imagebase 0x400000, entry RVA 0xA4D5, 3 sections).",
+          "confidence": 0.95
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.95,
+      "evidence_chain": [
+        {
+          "id": "ev-pe-header",
+          "kind": "artifact",
+          "source": { "stage": "static-pass2", "artifact": "decoded_second_stage_pe.bin", "location": "PE header parse" },
+          "observation": "machine 0x14C (i386), optmagic 0x10B (PE32), entry RVA 0xA4D5, imagebase 0x400000, sizeOfImage 0xBE000; sections .text/.rsrc/.reloc.",
+          "address": "0x40A4D5",
+          "confidence": 0.95
+        },
+        {
+          "id": "ev-imports",
+          "kind": "artifact",
+          "source": { "stage": "static-pass2", "artifact": "decoded_second_stage_pe.bin", "location": "import directory walk" },
+          "observation": "Imports: kernel32, COMCTL32, SHLWAPI, PSAPI, VERSION, MSIMG32, WININET (InternetCloseHandle only), USER32, GDI32, COMDLG32, ADVAPI32, SHELL32, ole32, OLEAUT32.",
+          "address": "0x40BB8BC",
+          "confidence": 0.9
+        },
+        {
+          "id": "ev-decode-mz",
+          "kind": "artifact",
+          "source": { "stage": "static-pass2", "artifact": null, "location": "delta-decode of parent 0x50BA" },
+          "observation": "Decoded head 4d 5a 90 00 03 00 00 00 ... = MZ, e_lfanew=0x108 points to 'PE\\0\\0'.",
+          "address": null,
+          "confidence": 0.95
+        }
+      ],
+      "reasoning": "The offline delta-decode of the parent file at offset 0x50BA (size 0x4D200) produces a valid PE32. The PE header is fully parsed with machine type, entry point, sections, and imports. The artifact SHA256 (8419a4bf...) is verified and matches the VT query result.",
+      "confidence_change": {
+        "direction": "unchanged",
+        "previous_max": 0.95,
+        "new": 0.95,
+        "justification": "Directly observed via offline delta-decode and PE header parsing. VT corroboration confirms the artifact identity."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": [
+        "Embedded-region section attribution and exact runtime mapping base not live-verified."
+      ]
+    },
+    {
+      "id": "rev-fin-second-stage-packed",
+      "title": "Decoded second-stage PE is PECompact2-packed; terminal capability not statically visible",
+      "original_claims": [
+        {
+          "stage": "static-pass2",
+          "finding_id": "fin-second-stage-packed",
+          "claim": "The decoded PE is packed with PECompact2: section marker 'PEC2TO' at 0x218, 'PECompact2' string at 0x98ED; .text raw 0x4A200 < virtual 0xB9000; .text entropy 7.954.",
+          "confidence": 0.9
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.95,
+      "evidence_chain": [
+        {
+          "id": "ev-pecompact2",
+          "kind": "artifact",
+          "source": { "stage": "static-pass2", "artifact": "decoded_second_stage_pe.bin", "location": "strings at 0x218/0x98ED, .text header" },
+          "observation": "'PEC2TO' at 0x218, 'PECompact2' at 0x98ED; .text raw 0x4A200 < virtual 0xB9000; .text entropy 7.954.",
+          "address": null,
+          "confidence": 0.9
+        },
+        {
+          "id": "ev-manifest",
+          "kind": "artifact",
+          "source": { "stage": "static-pass2", "artifact": "decoded_second_stage_pe.bin", "location": ".rsrc manifest" },
+          "observation": "Manifest with requestedExecutionLevel requireAdministrator, uiAccess false.",
+          "address": "0x40BB88",
+          "confidence": 0.9
+        },
+        {
+          "id": "pq.virustotal.file-info.artifact-pecompact",
+          "kind": "external",
+          "source": { "stage": "06-intel", "artifact": "06-intel.json", "location": "pq.virustotal.file-info.artifact-pecompact" },
+          "observation": "VT file_info for the decoded second-stage PE reports packers PEiD='PECompact 2.xx --> BitSum Technologies' (34/46 malicious).",
+          "address": null,
+          "confidence": 0.9
+        }
+      ],
+      "reasoning": "The PECompact2 markers (PEC2TO, PECompact2 string) are directly observed in the artifact. The .text entropy (7.954) confirms packing. The raw < virtual section size is characteristic of packed executables. VT corroboration independently confirms PECompact 2.xx -> BitSum Technologies. The terminal import surface (WININET only InternetCloseHandle, no direct network/registry/persistence) is consistent with a packed installer/loader shell.",
+      "confidence_change": {
+        "direction": "increased",
+        "previous_max": 0.9,
+        "new": 0.95,
+        "justification": "VT corroboration independently confirms PECompact 2.xx packing, strengthening the local identification."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": [
+        "Terminal capability is indeterminate until the PECompact2 layer is unpacked."
+      ]
+    },
+    {
+      "id": "rev-fin-fwprintf-hook",
+      "title": "msvcrt!fwprintf detour hook with push/ret trampoline, gated by config slot 0x4C",
+      "original_claims": [
+        {
+          "stage": "static-pass2",
+          "finding_id": "fin-fwprintf-hook",
+          "claim": "The loader builds a detour hook on msvcrt!fwprintf: resolves fwprintf by hash, VirtualProtect's the first 7 bytes to RWX, saves the original prologue, and writes a '68 <addr> C3' (push;ret) trampoline. Hook is gated by config slot 0x4C.",
+          "confidence": 0.7
+        }
+      ],
+      "final_status": "partial",
+      "final_confidence": 0.7,
+      "evidence_chain": [
+        {
+          "id": "ev-hook-build",
+          "kind": "artifact",
+          "source": { "stage": "static-pass2", "artifact": "decrypted_shellcode_1717.raw", "location": "disasm 0x524-0x58C" },
+          "observation": "push 0x6c6c; push 0x642e7472; push 0x6376736d => 'msvcrt.dll'; GetModuleHandleA/[ebp] and GetProcAddress/[ebp+8] for 'fwprintf'; VirtualProtect call [ebp+0xC]; writes al=0x68, stosd addr, al=0xC3 trampoline.",
+          "address": "0x0524",
+          "confidence": 0.75
+        },
+        {
+          "id": "ev-hook-gate",
+          "kind": "artifact",
+          "source": { "stage": "static-pass2", "artifact": "decrypted_shellcode_1717.raw", "location": "config slot 0x4C at 0x68C" },
+          "observation": "slot 0x4C bytes 49 9c d8 6d = 0x6DD89C49; as a config gate its runtime value is unconfirmed.",
+          "address": "0x068C",
+          "confidence": 0.6
+        }
+      ],
+      "reasoning": "The hook-building code is clearly present in the shellcode disassembly. The routine resolves 'msvcrt.dll' and 'fwprintf', VirtualProtects the target, and writes a 68/C3 trampoline. The hook is gated by config slot 0x4C, which at static value is 0x6DD89C49 (non-zero). The exact redirected destination and whether the hook is actually enabled at runtime depend on the slot semantics and the loaded PECompact2 stage's configuration. The finding remains inferred because the hook's enable state and target are not runtime-confirmed.",
+      "confidence_change": {
+        "direction": "unchanged",
+        "previous_max": 0.7,
+        "new": 0.7,
+        "justification": "The hook code is present in the artifact, but its enable state and target are unconfirmed. No new evidence since static-pass2."
+      },
+      "report_disposition": "include_with_caveat",
+      "limitations": [
+        "The exact redirected destination and whether the hook is actually enabled at runtime require dynamic validation.",
+        "Config slot 0x4C semantics are unconfirmed; the static value may be transformed by the PECompact2 stage."
+      ]
+    },
+    {
+      "id": "rev-fin-entry-alignment",
+      "title": "Shellcode entry offset confirmed as 0 (priming byte 0x50)",
+      "original_claims": [
+        {
+          "stage": "static-pass2",
+          "finding_id": "fin-entry-alignment",
+          "claim": "The recovered blob's effective entry is offset 0: bytes 0x50 58 50 58 (push/pop NOP sled) then call +6 at 0x4.",
+          "confidence": 0.85
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.85,
+      "evidence_chain": [
+        {
+          "id": "ev-offset0",
+          "kind": "artifact",
+          "source": { "stage": "static-pass2", "artifact": "decrypted_shellcode_1717.raw", "location": "capstone CS_MODE_32 from offset 0" },
+          "observation": "0x0 50 push eax; 0x1 58 pop eax; 0x4 e8 call 0xf; resolves cleanly; 705 instructions total.",
+          "address": "0x0000",
+          "confidence": 0.85
+        },
+        {
+          "id": "ev-dec-disasm-live",
+          "kind": "dynamic",
+          "source": { "stage": "unpack", "artifact": null, "location": "Python key schedule" },
+          "observation": "Priming byte 0x50 written to dest+0 by the decryptor, confirmed by the key schedule replication.",
+          "address": null,
+          "confidence": 0.95
+        }
+      ],
+      "reasoning": "The decryptor's priming byte (0x50 at dest+0) is confirmed by the key schedule analysis. Capstone disassembly from offset 0 produces a coherent 705-instruction sequence. The misaligned offset-1 interpretation also produces valid code but converges to the same call+6 path. The intended entry is offset 0.",
+      "confidence_change": {
+        "direction": "unchanged",
+        "previous_max": 0.85,
+        "new": 0.85,
+        "justification": "Confirmed by both the decryptor transform analysis and capstone disassembly from offset 0."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": [
+        "Caller-side live confirmation is blocked by the loader gate termination."
+      ]
+    },
+    {
+      "id": "rev-fin-no-antianalysis-in-blob",
+      "title": "No anti-debug/anti-VM/timing logic inside the recovered shellcode",
+      "original_claims": [
+        {
+          "stage": "static-pass2",
+          "finding_id": "fin-no-antianalysis-in-blob",
+          "claim": "No rdtsc/GetTickCount timing, IsDebuggerPresent, int 0x2D, PEB.BeingDebugged, or VM checks appear in the 705-instruction disassembly of the recovered shellcode.",
+          "confidence": 0.8
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.85,
+      "evidence_chain": [
+        {
+          "id": "ev-no-antidebug",
+          "kind": "artifact",
+          "source": { "stage": "static-pass2", "artifact": "decrypted_shellcode_1717.raw", "location": "instruction scan 0x0-0x6B4" },
+          "observation": "No rdtsc, GetTickCount, IsDebuggerPresent, int 0x2D, PEB.BeingDebugged, or VM-detection instructions present; only fs:[0x30]/fs:[0x18] PEB/TEB reads for module-list walking.",
+          "address": null,
+          "confidence": 0.8
+        },
+        {
+          "id": "ev-run1",
+          "kind": "dynamic",
+          "source": { "stage": "05-dynamic", "artifact": "run1.json", "location": "_state/run1.json" },
+          "observation": "The termination was at the loader gate (STATUS_ENTRYPOINT_NOT_FOUND in ntdll), not in the shellcode or entry point. The shellcode never executed.",
+          "address": "0x773434A0",
+          "confidence": 1.0
+        }
+      ],
+      "reasoning": "The full instruction scan of the shellcode found no anti-analysis primitives. The dynamic stage confirmed the termination is in the loader phase, not in the shellcode. The shellcode is clean of anti-analysis measures.",
+      "confidence_change": {
+        "direction": "increased",
+        "previous_max": 0.8,
+        "new": 0.85,
+        "justification": "Dynamic stage confirmed the termination is loader-phase, not shellcode-phase. No anti-analysis in the shellcode."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": []
+    },
+    {
+      "id": "rev-fin-loader-gate-termination",
+      "title": "Loader-phase termination with STATUS_ENTRYPOINT_NOT_FOUND before module entry",
+      "original_claims": [
+        {
+          "stage": "05-dynamic",
+          "finding_id": "fin-loader-gate-termination",
+          "claim": "The process terminates during loader initialization via NtTerminateProcess(0xFFFFFFFF, STATUS_ENTRYPOINT_NOT_FOUND) before the module entry point executes.",
+          "confidence": 0.95
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.95,
+      "evidence_chain": [
+        {
+          "id": "ev-run1",
+          "kind": "dynamic",
+          "source": { "stage": "05-dynamic", "artifact": "run1.json", "location": "_state/run1.json" },
+          "observation": "debug_run paused at ntdll!NtTerminateProcess 0x773434A0 with stop_reason breakpoint_or_exception; esi=0xC0000139.",
+          "address": "0x773434A0",
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-regs1",
+          "kind": "dynamic",
+          "source": { "stage": "05-dynamic", "artifact": "regs1.json", "location": "_state/regs1.json" },
+          "observation": "At termination: eax=0, esi=0xC0000139 (STATUS_ENTRYPOINT_NOT_FOUND), edi=0x2000, eip=0x773434A0.",
+          "address": "0x773434A0",
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-stack1",
+          "kind": "dynamic",
+          "source": { "stage": "05-dynamic", "artifact": "stack1.json", "location": "_state/stack1.json" },
+          "observation": "Stack at abort has only 2 frames: NtTerminateProcess <- ntdll+0xA4171 (0x77374171); no user/module frames.",
+          "address": "0x77374171",
+          "confidence": 0.95
+        },
+        {
+          "id": "ev-disasm-callsite",
+          "kind": "dynamic",
+          "source": { "stage": "05-dynamic", "artifact": "disasm_callsite.json", "location": "_state/disasm_callsite.json" },
+          "observation": "ntdll+0xA416C: 'call NtTerminateProcess' preceded by 'push esi(0xC0000139); push 0xFFFFFFFF' - fatal loader fail-fast path.",
+          "address": "0x7737416C",
+          "confidence": 0.9
+        },
+        {
+          "id": "ev-iat-abort",
+          "kind": "memory",
+          "source": { "stage": "05-dynamic", "artifact": "iat_abort.json", "location": "_state/iat_abort.json" },
+          "observation": "Two IAT slots unresolved: 0x404088 = NULL, 0x4040A4 = 0x446A.",
+          "address": "0x404088",
+          "confidence": 1.0
+        }
+      ],
+      "reasoning": "The termination mechanism is precisely identified: NtTerminateProcess called with STATUS_ENTRYPOINT_NOT_FOUND from the ntdll loader fail-fast path. The stack shows only ntdll frames, confirming the abort is in the loader phase. Two IAT slots are unresolved: DispatchMessageA (USER32 slot NULL) and DESK.cpl!DisplaySaveSettings (unpatched descriptor field). The cryptnet slots resolve to real addresses, ruling out a general import resolution failure.",
+      "confidence_change": {
+        "direction": "unchanged",
+        "previous_max": 0.95,
+        "new": 0.95,
+        "justification": "Directly observed with register, stack, and disassembly evidence. Highly confident."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": [
+        "The precise failing import decision point inside ntdll was not fully traced beyond the call site."
+      ]
+    },
+    {
+      "id": "rev-fin-unresolved-iat-slots",
+      "title": "Two IAT slots unresolved at abort: DispatchMessageA slot NULL and DisplaySaveSettings slot unpatched",
+      "original_claims": [
+        {
+          "stage": "05-dynamic",
+          "finding_id": "fin-unresolved-iat-slots",
+          "claim": "At the abort point, 0x404088 (DispatchMessageA slot) reads NULL, and 0x4040A4 (DESK.cpl!DisplaySaveSettings slot) holds the unpatched import-descriptor field 0x446A.",
+          "confidence": 0.85
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.85,
+      "evidence_chain": [
+        {
+          "id": "ev-imports-live",
+          "kind": "dynamic",
+          "source": { "stage": "05-dynamic", "artifact": "imports_live.json", "location": "_state/imports_live.json" },
+          "observation": "39 imports listed including DispatchMessageA (IAT RVA 0x4088), DisplaySaveSettings (0x40A4).",
+          "address": "0x404088",
+          "confidence": 0.9
+        },
+        {
+          "id": "ev-iat-abort",
+          "kind": "memory",
+          "source": { "stage": "05-dynamic", "artifact": "iat_abort.json", "location": "_state/iat_abort.json" },
+          "observation": "At abort: 0x404088 = 00000000 (NULL), 0x4040A4 = 6A440000 (0x446A, unpatched descriptor field).",
+          "address": "0x404088",
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-iid-full",
+          "kind": "memory",
+          "source": { "stage": "05-dynamic", "artifact": "iid_full.json", "location": "_state/iid_full.json" },
+          "observation": "IID array at 0x4040AC: 5 x 20-byte descriptors (KERNEL32@0x4040AC, USER32@0x4040C0, CRYPTNET@0x4040D4, DESK.cpl@0x4040E8, null@0x4040FC).",
+          "address": "0x4040AC",
+          "confidence": 0.95
+        }
+      ],
+      "reasoning": "Live IAT reads at the abort point are definitive. The DispatchMessageA slot (0x404088) is NULL. The DESK.cpl DisplaySaveSettings slot (0x4040A4) still holds 0x446A, which is the unpatched OriginalFirstThunk/descriptor field, not a resolved function pointer. Cryptnet slots (0x40408C-0x40409C) are populated with real cryptnet.dll addresses, showing that import resolution worked for three of the four modules.",
+      "confidence_change": {
+        "direction": "unchanged",
+        "previous_max": 0.85,
+        "new": 0.85,
+        "justification": "Directly observed via live memory reads at the abort point."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": [
+        "The x64dbg import-name reconstruction of the USER32 OFT (DispatchMessageA slot) is not fully verified against the raw file; the NULL slot may be another obfuscated/garbage import name."
+      ]
+    },
+    {
+      "id": "rev-fin-cryptnet-imports-real",
+      "title": "Cryptnet imports resolve to real cryptnet.dll addresses",
+      "original_claims": [
+        {
+          "stage": "05-dynamic",
+          "finding_id": "fin-cryptnet-imports-real",
+          "claim": "The five cryptnet imports (CryptGetTimeValidObject, CertDllVerifyCTLUsage, etc.) resolve into real cryptnet.dll addresses in this VM, so they are NOT fabricated exports.",
+          "confidence": 0.8
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 0.85,
+      "evidence_chain": [
+        {
+          "id": "ev-iat-cryptnet",
+          "kind": "memory",
+          "source": { "stage": "05-dynamic", "artifact": "iat_abort.json", "location": "_state/iat_abort.json" },
+          "observation": "cryptnet IAT slots at 0x40408C-0x40409C contain 0x7372... addresses, within cryptnet.dll base 0x73720000.",
+          "address": "0x40408C",
+          "confidence": 0.9
+        },
+        {
+          "id": "ev-modules",
+          "kind": "dynamic",
+          "source": { "stage": "05-dynamic", "artifact": "modules.json", "location": "_state/modules.json" },
+          "observation": "cryptnet.dll loaded at 0x73720000 (SysWOW64), confirming the export surface is present in-guest.",
+          "confidence": 0.9
+        }
+      ],
+      "reasoning": "The cryptnet IAT slots contain addresses within the cryptnet.dll module range (0x7372...), and cryptnet.dll is confirmed loaded in the guest. This directly contradicts the earlier 'fabricated exports' hypothesis from the unpack stage. The cryptnet functions are real, resolved imports.",
+      "confidence_change": {
+        "direction": "increased",
+        "previous_max": 0.8,
+        "new": 0.85,
+        "justification": "Live IAT reads and module list confirm cryptnet.dll is loaded and its imports are resolved. Confidence increased from the original dynamic finding's 0.8."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": [
+        "The cryptnet function pointers were not called (entry never reached), so only resolution, not functionality, was verified."
+      ]
+    },
+    {
+      "id": "rev-fin-entry-not-reached",
+      "title": "Module entry point 0x4018A0 never reached across all runs",
+      "original_claims": [
+        {
+          "stage": "05-dynamic",
+          "finding_id": "fin-entry-not-reached",
+          "claim": "The module entry point (0x4018A0) and decryptor (0x401DF8) breakpoints never tripped across all debugger runs.",
+          "confidence": 1.0
+        }
+      ],
+      "final_status": "confirmed",
+      "final_confidence": 1.0,
+      "evidence_chain": [
+        {
+          "id": "ev-bp-entry",
+          "kind": "dynamic",
+          "source": { "stage": "05-dynamic", "artifact": "bp_entry.json", "location": "_state/bp_entry.json" },
+          "observation": "Breakpoint at 0x4018A0 enabled=true, software type. Never tripped.",
+          "address": "0x4018A0",
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-run-final",
+          "kind": "dynamic",
+          "source": { "stage": "05-dynamic", "artifact": "run7.json", "location": "_state/run7.json" },
+          "observation": "debug_run after IAT patching reported state 'stopped' (process exited); entry BP did not trip.",
+          "confidence": 1.0
+        }
+      ],
+      "reasoning": "Breakpoints were set and verified, and the entry point was never reached across all runs. This is definitive.",
+      "confidence_change": {
+        "direction": "unchanged",
+        "previous_max": 1.0,
+        "new": 1.0,
+        "justification": "Definitive observation."
+      },
+      "report_disposition": "include_confirmed",
+      "limitations": []
+    },
+    {
+      "id": "rev-fin-bypass-readonly-gate",
+      "title": "Bypass attempts blocked by read-only ntdll pages and loader commit timing",
+      "original_claims": [
+        {
+          "stage": "05-dynamic",
+          "finding_id": "fin-bypass-readonly-gate",
+          "claim": "Three bypass approaches were attempted and all executed too late relative to the loader's abort decision: NtTerminateProcess stub redirect, import-descriptor zeroing, IAT patching.",
+          "confidence": 0.9
+        }
+      ],
+      "final_status": "partial",
+      "final_confidence": 0.9,
+      "evidence_chain": [
+        {
+          "id": "ev-meminfo-ntdll",
+          "kind": "memory",
+          "source": { "stage": "05-dynamic", "artifact": "meminfo_iid.json", "location": "_state/meminfo_iid.json" },
+          "observation": "ntdll page at 0x77343000 reports PAGE_EXECUTE_READ; protection-change scripts silently no-op.",
+          "address": "0x77343000",
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-stub-redirect",
+          "kind": "dynamic",
+          "source": { "stage": "05-dynamic", "artifact": "regs_bypass1.json", "location": "_state/regs_bypass1.json" },
+          "observation": "EIP redirected to stub 0x1D0000 (xor eax,eax; ret 8); step returned to ntdll+0xA4171 with esp=0x19FCB4 - stub mechanically correct but abort already committed.",
+          "address": "0x1D0000",
+          "confidence": 0.95
+        },
+        {
+          "id": "ev-iid-zero",
+          "kind": "memory",
+          "source": { "stage": "05-dynamic", "artifact": "iid_write3.json", "location": "_state/iid_write3.json" },
+          "observation": "40 bytes zeroed at 0x4040D4 (CRYPTNET + DESK.cpl descriptors) at system breakpoint; debug_run still resulted in 'stopped' without reaching entry.",
+          "address": "0x4040D4",
+          "confidence": 0.9
+        }
+      ],
+      "reasoning": "The bypass attempts were well-conceived but failed due to the loader's commit timing. The loader reads imports from the file mapping in a way that is not fully bypassable via in-memory IAT/IID edits at the system breakpoint. The NtTerminateProcess stub redirect worked mechanically but the abort was already committed. The IAT patching at the abort point was too late. A loader-level patch point (e.g., NtDll LdrpInitializeProcess hook) was not pursued.",
+      "confidence_change": {
+        "direction": "unchanged",
+        "previous_max": 0.9,
+        "new": 0.9,
+        "justification": "Well-documented with evidence for each bypass attempt."
+      },
+      "report_disposition": "include_with_caveat",
+      "limitations": [
+        "A loader-level patch point (e.g., NtDll LdrpInitializeProcess hook) was not pursued.",
+        "The ntdll page protection (PAGE_EXECUTE_READ) prevented in-place patching of ntdll code."
+      ]
+    }
+  ],
+  "contradictions": [
+    {
+      "id": "con-cryptnet-fabricated",
+      "topic": "Whether cryptnet imports are fabricated/exports or real resolved imports",
+      "claims": [
+        {
+          "stage": "03-unpack",
+          "claim": "Cryptnet imports are fabricated/garbage exports (implied from the 'decoy' characterization of the import surface).",
+          "evidence_ids": ["ev-imports", "ev-nostrings"]
+        },
+        {
+          "stage": "05-dynamic",
+          "claim": "Cryptnet imports resolve to real cryptnet.dll addresses in the VM. They are not fabricated.",
+          "evidence_ids": ["ev-iat-cryptnet", "ev-modules"]
+        }
+      ],
+      "analysis": "The unpack stage's characterization of cryptnet as 'fabricated exports' was an inference from the static-pass1 observation that the import surface is dominated by decoy calls. The dynamic stage directly observed the IAT slots at abort and found cryptnet addresses in the 0x7372... range, within cryptnet.dll base 0x73720000. The cryptnet module is loaded in the guest. The unpack stage's hypothesis was reasonable given the static evidence, but it is contradicted by the live IAT reads.",
+      "resolution": "Cryptnet imports are real. The unresolvable slots are DispatchMessageA (USER32) and DisplaySaveSettings (DESK.cpl). The cryptnet 'fabricated exports' hypothesis is rejected. The contradiction is resolved in favor of the dynamic evidence, which is direct observation rather than inference.",
+      "resolved": true,
+      "final_confidence": 0.9
+    },
+    {
+      "id": "con-early-exit-nature",
+      "topic": "Whether the pre-entry process termination is an anti-debug/anti-VM check or an environment-gated import dependency",
+      "claims": [
+        {
+          "stage": "03-unpack",
+          "claim": "The process terminates during loader init due to an early anti-debug/anti-VM check (e.g., TLS callback or loader-phase check).",
+          "evidence_ids": ["ev-run-exits", "ev-step-terminates"]
+        },
+        {
+          "stage": "05-dynamic",
+          "claim": "The termination is caused by STATUS_ENTRYPOINT_NOT_FOUND from unresolved IAT slots (DispatchMessageA NULL, DESK.cpl!DisplaySaveSettings unpatched) - an environment-gated import dependency, not an intentional anti-debug check.",
+          "evidence_ids": ["ev-run1", "ev-regs1", "ev-stack1", "ev-iat-abort"]
+        }
+      ],
+      "analysis": "The unpack stage's hypothesis was that the termination was an anti-debug/anti-VM check, reasonable given the sample's heavily obfuscated nature and the lack of a visible TLS section. The dynamic stage precisely identified the abort mechanism: NtTerminateProcess with STATUS_ENTRYPOINT_NOT_FOUND from the ntdll loader fail-fast path, with two unresolved IAT slots. The stack contained only ntdll frames, no user frames. The unresolved DESK.cpl module (Control Panel applet) is a legitimate environment dependency - the analysis VM likely does not have the required Control Panel module. The DispatchMessageA slot being NULL is also a legitimate import resolution failure. The evidence strongly favors the import-dependency explanation over the anti-debug hypothesis.",
+      "resolution": "The termination is an environment-gated import dependency, not an intentional anti-debug check. The DESK.cpl module is missing from the VM, and the DispatchMessageA slot remains NULL. The contradiction is resolved in favor of the dynamic evidence.",
+      "resolved": true,
+      "final_confidence": 0.95
+    },
+    {
+      "id": "con-public-payload-vs-local",
+      "topic": "The public sandbox report describes full payload execution (C2 HTTP, RunOnce, file writes) but the local dynamic run was blocked at the loader gate",
+      "claims": [
+        {
+          "stage": "06-intel",
+          "claim": "VirusTotal merged behaviour_summary describes full payload execution: C2 HTTP callback to 112.121.178.189, RunOnce persistence, file writes, child processes.",
+          "evidence_ids": ["pq.virustotal.behaviour-summary"]
+        },
+        {
+          "stage": "05-dynamic",
+          "claim": "Local dynamic analysis terminated during loader init before module entry; no payload behavior observed.",
+          "evidence_ids": ["ev-run1", "ev-bp-entry", "ev-run-final"]
+        }
+      ],
+      "analysis": "This is a contradiction between public-source and local evidence. The public sandbox reports describe payload execution that the local analysis could not reproduce due to the loader gate termination. The public sandboxes apparently had the required environment (DESK.cpl, proper DispatchMessageA resolution) to pass the loader gate, while the local VM did not. This is not a contradiction in the malware's behavior but a difference in analysis environments.",
+      "resolution": "Unresolved - the public behavior may be accurate for environments that satisfy the loader's import dependencies, but it cannot be confirmed locally. The external IOCs are follow-up leads only, not confirmed local observations. The local analysis environment lacks DESK.cpl, which the public sandboxes may have.",
+      "resolved": false,
+      "final_confidence": 0.6
+    }
+  ],
+  "hypotheses": [
+    {
+      "id": "hyp-pecompact2-payload-purpose",
+      "statement": "The PECompact2-packed second stage (decoded_second_stage_pe.bin, entry RVA 0xA4D5) is a downloader/installer that resolves additional APIs dynamically via GetProcAddress, connects to the C2 at 112.121.178.189, and delivers a further payload stage.",
+      "confidence": 0.5,
+      "supporting_evidence_ids": [
+        "ev-imports",
+        "pq.virustotal.behaviour-summary"
+      ],
+      "counter_evidence_ids": [
+        "ev-pecompact2",
+        "ev-manifest"
+      ],
+      "validation_plan": [
+        "Unpack the PECompact2 layer on the decoded second-stage PE.",
+        "Analyze the unpacked import surface for network/HTTP/WinInet APIs beyond InternetCloseHandle.",
+        "Trace the execution flow from the unpacked entry (RVA 0xA4D5) to identify C2 initialization logic.",
+        "If possible, bypass the loader gate and observe the full execution chain in a debugger."
+      ],
+      "falsification_condition": "Unpacking the PECompact2 layer reveals a static GUI application (e.g., a fake AV UI) with no network capability, and no C2 or download logic is present in the unpacked code.",
+      "status": "open"
+    },
+    {
+      "id": "hyp-fwprintf-hook-purpose",
+      "statement": "The msvcrt!fwprintf detour hook is used to redirect debug/log output from the PECompact2 stage (or from msvcrt users) to the malware's own logging or data-gathering routine, possibly as a form of output capture or anti-forensics.",
+      "confidence": 0.4,
+      "supporting_evidence_ids": [
+        "ev-hook-build",
+        "ev-hook-gate"
+      ],
+      "counter_evidence_ids": [],
+      "validation_plan": [
+        "After bypassing the loader gate, breakpoint at the hook installation site (0x57E-0x58C) and record the redirected destination address.",
+        "Check whether config slot 0x4C is set before the hook is installed (determine enable state).",
+        "If the hook is enabled, trigger msvcrt!fwprintf calls and observe the redirected behavior."
+      ],
+      "falsification_condition": "The hook is never enabled at runtime (slot 0x4C gate is always false), or the redirected destination is a standard error handler with no malicious behavior.",
+      "status": "open"
+    },
+    {
+      "id": "hyp-dispatchmessagea-obfuscation",
+      "statement": "The NULL DispatchMessageA IAT slot is not a genuine USER32 import resolution failure but an intentional obfuscation: the slot name in the OriginalFirstThunk has been overwritten or the import descriptor is corrupted, causing the loader to fail to find the matching export.",
+      "confidence": 0.3,
+      "supporting_evidence_ids": [
+        "ev-iat-abort",
+        "ev-imports"
+      ],
+      "counter_evidence_ids": [
+        "ev-imports-live"
+      ],
+      "validation_plan": [
+        "Read the raw file's import directory at the DispatchMessageA OFT entry to verify the import name string.",
+        "Compare the file OFT against the live IAT content at the system breakpoint.",
+        "If the import name is malformed or missing, the sample may use the loader abort as an anti-sandbox technique."
+      ],
+      "falsification_condition": "The OFT entry for DispatchMessageA is valid and correctly formed, indicating a genuine environment issue (missing USER32 export variant or delay-load quirk).",
+      "status": "open"
+    }
+  ],
+  "root_cause_analysis": [
+    {
+      "id": "rca-loader-gate-termination",
+      "problem": "The sample process terminates during ntdll loader initialization with STATUS_ENTRYPOINT_NOT_FOUND (0xC0000139) before the module entry point 0x4018A0 is reached.",
+      "candidate_causes": [
+        {
+          "cause": "DESK.cpl!DisplaySaveSettings import is unresolvable: the DESK.cpl module is a Control Panel applet that is not installed or not registered in the analysis VM.",
+          "likelihood": 0.7,
+          "reason": "The DESK.cpl IAT slot (0x4040A4) holds the unpatched import-descriptor field 0x446A at abort, while cryptnet slots are resolved. This is consistent with the module being absent from the system."
+        },
+        {
+          "cause": "DispatchMessageA IAT slot (0x404088) is NULL due to a corrupted or obfuscated import name in the file's OriginalFirstThunk, causing the loader to fail to find the matching export in USER32.",
+          "likelihood": 0.2,
+          "reason": "USER32.dll is loaded and other USER32 imports are resolved, so a general USER32 failure is unlikely. The DispatchMessageA name may be deliberately obfuscated or the OFT entry is corrupted."
+        },
+        {
+          "cause": "The ntdll loader encountered a bound-import or delay-load dependency that cannot be resolved in the VM environment, causing the fail-fast path.",
+          "likelihood": 0.1,
+          "reason": "The import table uses standard IAT entries, not delay-load. Bound imports are unlikely given the obfuscated nature of the sample."
+        }
+      ],
+      "most_likely_cause": "DESK.cpl!DisplaySaveSettings import is unresolvable because the DESK.cpl module is absent from the analysis VM. The DispatchMessageA NULL slot may be a contributing factor or an artifact of import-name reconstruction.",
+      "confidence": 0.7,
+      "evidence_gap": "The raw file's OFT entry for the DispatchMessageA slot has not been read to verify the import name string. The DESK.cpl export 'DisplaySaveSettings' needs to be confirmed as present in the intended runtime environment."
+    },
+    {
+      "id": "rca-early-exit-unpack-claim",
+      "problem": "The unpack stage characterized the pre-entry termination as an anti-debug/anti-VM check, but the dynamic stage found it to be a loader import-resolution failure.",
+      "candidate_causes": [
+        {
+          "cause": "Reasonable inference from incomplete evidence: the unpack stage had only the observation that the process exits before entry without a visible cause, and anti-debug was the most plausible explanation at the time.",
+          "likelihood": 0.9,
+          "reason": "The unpack stage did not have the dynamic stage's ability to intercept the abort at NtTerminateProcess and read the IAT state. The anti-debug hypothesis was a reasonable working hypothesis."
+        },
+        {
+          "cause": "Misattribution due to the missing TLS section: the unpack stage looked for a TLS callback as the anti-debug vector and found none, but assumed the check was in loader-phase code.",
+          "likelihood": 0.1,
+          "reason": "The unpack stage correctly noted the absence of a TLS section and reasonably hypothesized the check was in loader-phase code, which turned out to be correct (the abort is in the loader) but for the wrong reason."
+        }
+      ],
+      "most_likely_cause": "Reasonable inference from incomplete evidence. The unpack stage did not have the instrumentation to distinguish an import-resolution failure from an intentional anti-debug check.",
+      "confidence": 0.95,
+      "evidence_gap": "No gap - the dynamic stage provides the definitive explanation. This is a normal refinement across pipeline stages."
+    }
+  ],
+  "investigation_targets": [
+    {
+      "id": "tgt-unpack-pecompact2",
+      "priority": 5,
+      "target": "Unpack the PECompact2 second stage (decoded_second_stage_pe.bin, entry RVA 0xA4D5, .text entropy 7.954).",
+      "reason": "Terminal capability is behind the PECompact2 layer. The import surface shows only GUI-oriented APIs and InternetCloseHandle, suggesting the real behavior (network, persistence, payload) is dynamically resolved after unpacking. This is the highest-value remaining target.",
+      "recommended_action": "Run a dedicated PECompact2 unpacker (e.g., the peuncompact script or a runtime dump in a debugger) on decoded_second_stage_pe.bin, then re-fingerprint and map the exposed execution path.",
+      "success_criteria": "Decompressed .text section; real import surface (including dynamically resolved APIs) identified; execution path from entry RVA 0xA4D5 mapped."
+    },
+    {
+      "id": "tgt-bypass-loader-gate",
+      "priority": 4,
+      "target": "Bypass the loader gate to reach the module entry point and observe the full execution chain.",
+      "reason": "The loader gate blocks all live validation of the recovered loader, the fwprintf hook, and the PECompact2 stage. A bypass would enable dynamic observation of the entire multi-layer execution chain.",
+      "recommended_action": "Supply a stub DESK.cpl that exports DisplaySaveSettings, or patch the IAT earlier in the loader process (e.g., hook LdrpInitializeProcess or the import resolution routine), or use a kernel-level tracer to skip the import check.",
+      "success_criteria": "Entry BP 0x4018A0 trips; decryptor destination recorded; fwprintf hook state and target observed; PECompact2 stage execution monitored."
+    },
+    {
+      "id": "tgt-confirm-fwprintf-hook-target",
+      "priority": 3,
+      "target": "Confirm the msvcrt!fwprintf detour hook's runtime target and enable state.",
+      "reason": "The hook is present in the shellcode but its purpose and enable state are unconfirmed. It may be a data-gathering, anti-forensics, or logging mechanism.",
+      "recommended_action": "After a loader gate bypass, breakpoint at the hook installation code (0x57E-0x58C) and record the redirected destination address. Check whether config slot 0x4C is set before hook installation.",
+      "success_criteria": "Concrete hook destination address recorded; enable state determined; redirected behavior observed."
+    },
+    {
+      "id": "tgt-resolve-dispatchmessagea",
+      "priority": 2,
+      "target": "Read the raw file's OFT entry for the DispatchMessageA import slot to determine whether it is a genuine USER32 import or an obfuscated/corrupted entry.",
+      "reason": "The NULL DispatchMessageA slot may be a genuine environment issue or an intentional obfuscation. Resolving this would inform the loader gate bypass strategy.",
+      "recommended_action": "Read the raw file's import directory at RVA 0x4088 (the DispatchMessageA OFT entry) to verify the import name string. Compare against the live IAT at the system breakpoint.",
+      "success_criteria": "Import name string confirmed; cause of NULL slot determined (obfuscation vs genuine environment mismatch)."
+    },
+    {
+      "id": "tgt-network-observe",
+      "priority": 3,
+      "target": "Determine whether the PECompact2 second stage performs network activity (C2 HTTP, downloads) or other payload behavior.",
+      "reason": "Public sandbox reports describe HTTP callback to 112.121.178.189, RunOnce persistence, and file writes. Locally, none of this was observed due to the loader gate. Confirming or denying the public behavior is a priority.",
+      "recommended_action": "After unpacking the PECompact2 stage and/or bypassing the loader gate, hook GetProcAddress/LoadLibraryA and monitor for WinHttp/WinInet/URL APIs, registry writes, and file creation.",
+      "success_criteria": "Network/persistence/file behavior either confirmed with evidence (including concrete C2 URLs, registry keys, file paths) or explicitly ruled out."
+    }
+  ],
+  "final_claim_policy": {
+    "allowed_claims": [
+      "The sample is a multi-layer packed malware with a validated malicious architecture.",
+      "Layer 1 is an XOR-decrypting PE32 stub (entry 0x4018A0) that decrypts 1717 bytes of shellcode.",
+      "Layer 2 is a self-relocating, two-phase PE loader shellcode with an 18-slot hash-based API resolution table.",
+      "The shellcode performs in-place process hollowing: it reads its own module file, delta-decodes an embedded PECompact2-packed PE, and rewrites the parent's PEB/LDR entry.",
+      "The same XOR key (0x9A246A73) is reused across layer 1 (sub_401DF8) and layer 2 (config slot 0x70 XOR 0x7845EA91).",
+      "The embedded second-stage PE is packed with PECompact2 (BitSum Technologies) and its terminal capability is not statically visible.",
+      "The parent process terminates during loader init with STATUS_ENTRYPOINT_NOT_FOUND due to unresolved IAT slots (DESK.cpl!DisplaySaveSettings and possibly DispatchMessageA).",
+      "The 50-deep wrapper call chain in the parent stub is purely obfuscation.",
+      "The cryptnet imports resolve to real cryptnet.dll addresses (not fabricated/garbage).",
+      "No free-running dynamic execution past the loader gate was possible in this analysis environment.",
+      "The recovered shellcode contains no anti-debug/anti-VM logic."
+    ],
+    "caveated_claims": [
+      "The terminal payload is likely a downloader/installer that connects to a C2 (based on public sandbox reports), but this is not locally confirmed and requires caveating as external-only evidence.",
+      "The msvcrt!fwprintf detour hook exists in the shellcode but its enable state and target are unconfirmed.",
+      "The DESK.cpl!DisplaySaveSettings import dependency is the likely cause of the loader gate termination, but the DispatchMessageA NULL slot may also contribute.",
+      "The decrypted shellcode's runtime destination buffer (from LoadLibraryW return + 0x11C) is unknown but content-independent.",
+      "Public IOCs (C2 IP 112.121.178.189, RunOnce key, mutexes, file paths) are external-only follow-up leads, not confirmed local observations."
+    ],
+    "prohibited_claims": [
+      "The sample is a 'fake AV' or 'fkealrt' family member (VT label only; not locally confirmed).",
+      "The sample performs network activity, exfiltration, or C2 communication (not locally observed).",
+      "The sample establishes persistence, modifies registry, or drops files (not locally observed).",
+      "The sample performs process injection, credential theft, or ransomware behavior (not locally observed).",
+      "The cryptnet imports are fabricated or garbage (directly contradicted by live evidence).",
+      "The pre-entry termination is an anti-debug or anti-VM check (refined to import dependency).",
+      "The PECompact2-packed second stage performs any specific behavior or belongs to any known family (unpacking is required first).",
+      "The sample has a specific malware family attribution (neither local evidence nor public labels provide a reliable family name)."
+    ]
+  },
+  "limitations": [
+    "The sample never reached its entry point in the local analysis environment; all runtime conclusions are limited to the loader phase.",
+    "The terminal payload of the PECompact2-packed second stage is indeterminate until a further unpack round.",
+    "No network, filesystem, registry, or process-behavior observations were possible (no post-entry execution).",
+    "The decrypted shellcode's runtime destination buffer (from LoadLibraryW return + 0x11C) is unknown.",
+    "The fwprintf hook's enable state and target are unconfirmed.",
+    "Public IOCs (C2 IP 112.121.178.189, RunOnce persistence, mutexes, file paths) are external-only and not locally confirmed.",
+    "The DESK.cpl module is absent from the analysis VM, preventing import resolution bypass.",
+    "ntdll code pages are PAGE_EXECUTE_READ and protection-change scripts silently no-op, preventing direct in-place patching of ntdll.",
+    "The DispatchMessageA NULL slot may be an artifact of x64dbg import-name reconstruction; the raw file's OFT entry has not been verified.",
+    "The recovered 1717-byte loader shellcode hash is absent from VirusTotal (404 NotFoundError); no public corroboration exists for that artifact.",
+    "All static analysis of the shellcode and decoded PE is offline (host-side, non-executing); no guest execution of the recovered artifacts occurred."
+  ],
+  "upstream_inputs": [
+    "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/01-prepare-env.json",
+    "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/02-static-pass1.json",
+    "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/03-unpack.json",
+    "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/04-static-pass2.json",
+    "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/05-dynamic.json",
+    "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/06-intel.json"
+  ]
+}

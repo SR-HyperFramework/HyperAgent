@@ -1,0 +1,71 @@
+{
+  "schema_version": "1.0",
+  "timestamp_utc": "2026-08-16T05:04:59Z",
+  "sample_sha256": "fad70909641171fcd8ed42c52980f443faf090b502d6db641a958e541f4ea49c",
+  "input_path": "C:\\Users\\ADMIN\\HyperAgent\\hyperagent\\tests\\fixtures\\corpus\\benign\\ben_b.exe",
+  "stages": {
+    "01-prepare-env": {
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "error": null,
+      "updated_at": null
+    },
+    "02-static-pass1": {
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "error": null,
+      "updated_at": null
+    },
+    "03-unpack": {
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "error": null,
+      "updated_at": null
+    },
+    "04-static-pass2": {
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "error": null,
+      "updated_at": null
+    },
+    "05-dynamic": {
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "error": null,
+      "updated_at": null
+    },
+    "06-intel": {
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "error": null,
+      "updated_at": null
+    },
+    "07-deepdive": {
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "error": null,
+      "updated_at": null
+    },
+    "08-report": {
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "error": null,
+      "updated_at": null
+    },
+    "09-summary": {
+      "status": "pending",
+      "output_path": null,
+      "progress_path": null,
+      "error": null,
+      "updated_at": null
+    }
+  }
+}

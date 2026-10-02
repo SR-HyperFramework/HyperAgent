@@ -1,0 +1,204 @@
+{
+  "schema_version": "1.0",
+  "stage": "static-pass2",
+  "sample": {
+    "original_sha256": "000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+    "target_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6\\decoded_payload.bin",
+    "target_sha256": "9f8e47944d294db5888d3cab9dd35f43f212b8b7dff92ae4439fe5358d7303e3"
+  },
+  "status": "completed",
+  "summary": "Pass 2 analysis of the recovered stage-1 shellcode (decoded_payload.bin, 1728 bytes, x86 position-independent). The shellcode is a full-featured first-stage PE loader stub: it PEB-walks to find kernel32.dll, resolves 16 APIs via custom rolling hash (ror/rol/add), allocates a 0x6AC-byte RWX buffer via VirtualAlloc, copies an embedded XOR+bswap-encoded second-stage PE from shellcode offset 0x15, decodes it in-place (key = config[0x70] XOR 0x7845EA91 = 0x22CC456A), then performs a complete manual PE load (section mapping, relocation fixup, import resolution via PEB walk, and initterm call). No anti-debug, anti-VM, or timing checks are present. The second-stage PE (0x6AC bytes, encoded) requires an additional unpack round to recover the actual PE payload for further analysis. The original sample's loader chain (49 wrapper functions, obfuscated entry gate, GlobalFlags anti-debug) is confirmed as a custom packer that decodes this shellcode, which in turn loads the final PE payload.",
+  "findings": [
+    {
+      "id": "fin-p2-001",
+      "title": "Recovered shellcode is a first-stage PE loader stub",
+      "category": "loader",
+      "status": "confirmed",
+      "confidence": 0.95,
+      "description": "The 1728-byte decoded artifact is a position-independent x86 shellcode that functions as a first-stage PE loader. It PEB-walks (fs:[0x30]) to locate kernel32.dll, resolves 16 APIs via a custom rolling hash (ror eax,7 / rol [esp],0xd / add), allocates a 0x6AC-byte RWX buffer (VirtualAlloc), copies an embedded encoded second-stage PE from shellcode offset 0x15, decodes it with an XOR+bswap dword loop, then performs a full manual PE load (section mapping, relocation fixup, import resolution, and initterm call).",
+      "reasoning": "Capstone disassembly of all 716 instructions confirms the complete loader pipeline: GetPC prologue (0x00-0x1D), Kernel32 discovery via MZ/PE scan (0x3D-0x4F), API hash resolution table at 0x64A (16 dwords), VirtualAlloc RWX (0x91), rep movsb copy of 0x6AC bytes from offset 0x15 (0xAA-0xB5), XOR+bswap decode loop at 0x4DA, PE section mapping at 0xF5-0x1B6, and msvcrt.initterm thunk construction at 0x52F-0x5A0.",
+      "sources": [
+        {"stage": "unpack", "artifact": "03-unpack.json", "location": "findings[3] (fin-004)"},
+        {"stage": "static-pass2", "artifact": null, "location": "capstone disassembly decoded_payload.bin"}
+      ],
+      "evidence": [
+        {"id": "ev-p2-001", "kind": "static", "source": {"stage": "static-pass2", "artifact": "decoded_payload.bin", "location": "capstone disassembly"}, "observation": "716 instructions, 16 call targets, 15 ret, 0 int3. Key regions: 0x1E GetPC call, 0x3D Kernel32 find, 0x5D API hash resolution (16 iterations), 0x91 VirtualAlloc(0,0x6AC,0x1000,0x40), 0xAA rep movsb 0x6AC bytes, 0x4DA XOR+bswap decode, 0xF5 PE section mapping, 0x1B6 PEB walk fs:[0x30], 0x52F msvcrt.initterm thunk.", "address": "0x0", "confidence": 0.95}
+      ],
+      "limitations": ["Second-stage PE not decoded in this pass; requires additional unpack round."]
+    },
+    {
+      "id": "fin-p2-002",
+      "title": "Embedded second-stage PE at shellcode offset 0x15",
+      "category": "packing",
+      "status": "confirmed",
+      "confidence": 0.9,
+      "description": "The shellcode contains an encoded 0x6AC-byte second-stage PE embedded at offset 0x15. The encoding is an XOR+bswap dword loop (function at 0x4DA): for each dword, out = bswap(src) ^ key, then key = src (raw source dword). Initial key = config_block[0x70] XOR 0x7845EA91 = 0x5A89AFFB XOR 0x7845EA91 = 0x22CC456A. The decode skips the first 0x200 bytes (PE header area) and decodes the remainder. The config block at shellcode offset 0x6A5 specifies: size=0x52000 (335872), alignment=0x400, and the XOR key component.",
+      "reasoning": "The rep movsb at 0xB5 copies ecx=0x6AC bytes from esi=[ebp-0x638]=0x64A-0x638=0x12 (file offset 0x12, but the actual embedded data starts at 0x15 after the call instruction). The decode loop at 0x4DA reads parameters from the config block at 0x6A5: [ebp+0x60]=PE offset (0x6AA), [ebp+0x68]=size (0x6B2), [ebp+0x70]=key (0x6BA). The initial key XOR with 0x7845EA91 yields 0x22CC456A, matching the original sample's decode seed key.",
+      "sources": [
+        {"stage": "static-pass2", "artifact": "decoded_payload.bin", "location": "capstone disassembly 0x4DA-0x52D and config block at 0x6A5"}
+      ],
+      "evidence": [
+        {"id": "ev-p2-002", "kind": "static", "source": {"stage": "static-pass2", "artifact": "decoded_payload.bin", "location": "capstone disassembly + hex dump"}, "observation": "rep movsb at 0xB5: ecx=0x6AC, esi=0x12 (file offset). Config block at 0x6A5: [0x6AA]=0x0 (PE offset), [0x6B2]=0x52000 (size), [0x6BA]=0x5A89AFFB (key). Decode at 0x4DA: bswap(src) XOR key, key=src. Initial key=0x5A89AFFB XOR 0x7845EA91=0x22CC456A.", "address": "0x15", "confidence": 0.9}
+      ],
+      "limitations": ["Second-stage PE content not materialized; decode requires correct handling of the 0x200-byte skip region and the key evolution."]
+    },
+    {
+      "id": "fin-p2-003",
+      "title": "API resolution via custom rolling hash",
+      "category": "loader",
+      "status": "confirmed",
+      "confidence": 0.9,
+      "description": "The shellcode resolves 16 APIs from kernel32.dll using a custom rolling hash function at 0x354. The hash algorithm: for each character of the API name, ror(hash, 7); rol(stack_buffer, 0xd); add(hash, char). The 16 hash values are stored in a table at shellcode offset 0x64A (64 bytes). Additionally, the strings 'HeapAlloc' and 'HeapFree' are pushed on the stack for GetProcAddress-based resolution. The resolved API pointers are stored in a table relative to ebp (the GetPC base), forming a vtable-like dispatch structure.",
+      "reasoning": "The hash function at 0x354 is called from the main resolution loop at 0x5D-0x65 (16 iterations, ecx=0x10). The hash table at 0x64A contains 16 dwords. The stack-pushed strings at 0x67-0x88 ('HeapAlloc' at 0x6F6C6C41, 'HeapFree' at 0x65657246) are used for GetProcAddress fallback resolution. The resolved APIs are accessed via [ebp+N] offsets throughout the shellcode.",
+      "sources": [
+        {"stage": "static-pass2", "artifact": "decoded_payload.bin", "location": "capstone disassembly 0x354-0x3DD and 0x5D-0x90"}
+      ],
+      "evidence": [
+        {"id": "ev-p2-003", "kind": "static", "source": {"stage": "static-pass2", "artifact": "decoded_payload.bin", "location": "capstone disassembly"}, "observation": "Hash function at 0x354: ror eax,7; rol [esp],0xd; add [esp],eax; lodsb; test al,al; jne loop. Hash table at 0x64A: 16 dwords. Stack strings: push 0x6F6C6C41 ('Allo'), push 0x70616548 ('Hea') at 0x69-0x6E; push 0x65657246 ('Free'), push 0x70616548 ('Hea') at 0x7C-0x81.", "address": "0x354", "confidence": 0.9}
+      ],
+      "limitations": ["Individual API-to-hash mappings not resolved; the 16 hash values in the table could be mapped by recomputing the hash over known kernel32 export names."]
+    },
+    {
+      "id": "fin-p2-004",
+      "title": "No anti-analysis mechanisms in recovered shellcode",
+      "category": "anti_analysis",
+      "status": "not_observed",
+      "confidence": 0.95,
+      "description": "The recovered shellcode contains no anti-debug, anti-VM, timing check, or integrity check mechanisms. No int3 (0xCC), int 0x2D, rdtsc, cpuid, IsDebuggerPresent, NtGlobalFlag, or exception-based control flow was found in any of the 716 instructions. The only obfuscation is a bswap/std/cld filler sequence at the entry prologue (0x00-0x1D) designed to mislead linear disassemblers.",
+      "reasoning": "Exhaustive scan of all 716 instructions via capstone: 0 int3 instructions, 0 int 0x2D, 0 rdtsc, 0 syscall, 0 sysenter. The bswap/std/cld sequence at 0x00-0x1D is a simple anti-disassembly technique that does not affect runtime behavior. The original sample's GlobalFlags anti-debug checks (fin-005 in Pass 1) belong to the original packer stub and are not present in the recovered shellcode.",
+      "sources": [
+        {"stage": "static-pass2", "artifact": "decoded_payload.bin", "location": "capstone disassembly full scan"}
+      ],
+      "evidence": [
+        {"id": "ev-p2-004", "kind": "static", "source": {"stage": "static-pass2", "artifact": "decoded_payload.bin", "location": "capstone instruction scan"}, "observation": "0 int3, 0 int 0x2D, 0 rdtsc, 0 syscall, 0 sysenter in 716 instructions. Entry prologue (0x00-0x1D): bswap eax; xchg esi,eax; mov ecx,0xC80FFCFD; std; cld; bswap eax; std; cld; ... sub ecx,ecx; add ecx,3; push ebp; pop esi; loop 0x18; add esp,-0xC; call 0x3D.", "address": "0x00", "confidence": 0.95}
+      ],
+      "limitations": []
+    },
+    {
+      "id": "fin-p2-005",
+      "title": "Shellcode reads original PE file from disk for second-stage",
+      "category": "loader",
+      "status": "confirmed",
+      "confidence": 0.85,
+      "description": "The shellcode includes a file I/O path at 0x606 that calls GetModuleFileNameA (via [ebp+0x20]) and CreateFileA (via [ebp+0x24]) to open the original PE file from disk. This provides an alternative source for the second-stage PE data, supplementing the embedded copy at shellcode offset 0x15.",
+      "reasoning": "The function at 0x606: VirtualAlloc(0, [ebp+0x68], 0x1000, 4) allocates a buffer, then GetModuleFileNameA retrieves the current module path, and CreateFileA opens it. This is a fallback mechanism to read the second-stage from the PE file's overlay data if the embedded copy is unavailable or corrupted.",
+      "sources": [
+        {"stage": "static-pass2", "artifact": "decoded_payload.bin", "location": "capstone disassembly 0x606-0x646"}
+      ],
+      "evidence": [
+        {"id": "ev-p2-005", "kind": "static", "source": {"stage": "static-pass2", "artifact": "decoded_payload.bin", "location": "capstone disassembly"}, "observation": "0x606: mov edi,[ebp+0x68]; push 4; push 0x1000; push edi; push 0; call [ebp+0x10] (VirtualAlloc). 0x620: push 0x104; push edi; push ebx; call [ebp+0x20] (GetModuleFileNameA). 0x637: push 0x80000000; push edi; call [ebp+0x24] (CreateFileA).", "address": "0x606", "confidence": 0.85}
+      ],
+      "limitations": ["The file I/O path may be a fallback; the primary path uses the embedded copy at offset 0x15."]
+    },
+    {
+      "id": "fin-p2-006",
+      "title": "Second-stage PE requires additional unpack round",
+      "category": "packing",
+      "status": "confirmed",
+      "confidence": 0.9,
+      "description": "The 0x6AC-byte second-stage PE embedded at shellcode offset 0x15 is encoded with an XOR+bswap dword loop and cannot be analyzed without decoding. The decode key (0x22CC456A) and algorithm (bswap(src) XOR key, key=src) are known from the shellcode analysis. The decoded PE is expected to be a 32-bit portable executable with section mapping, relocation fixup, and import resolution performed by the shellcode loader.",
+      "reasoning": "The decode function at 0x4DA is fully understood: initial key = config[0x70] XOR 0x7845EA91 = 0x22CC456A; for each dword, out = bswap(src) XOR key; key = src. The first 0x200 bytes (PE header area) are skipped during decode. The config block specifies size=0x52000 and alignment=0x400, consistent with a PE image. The shellcode's PE loader at 0xF5-0x1B6 handles section mapping, relocation fixup (0x2AA), and import resolution (0x225).",
+      "sources": [
+        {"stage": "static-pass2", "artifact": "decoded_payload.bin", "location": "capstone disassembly 0x4DA-0x52D and 0xF5-0x1B6"}
+      ],
+      "evidence": [
+        {"id": "ev-p2-006", "kind": "static", "source": {"stage": "static-pass2", "artifact": "decoded_payload.bin", "location": "capstone disassembly"}, "observation": "Decode at 0x4DA: lodsd; push eax; bswap eax; xor eax,edx; pop edx; stosd; sub ecx,3; loop. PE loader at 0xF5: mov eax,[esi+0x3C]; lea eax,[esi+eax]; test word ptr [eax+0x16],0x2000; cmp [eax+0x34],ebx; mov ebx,[eax+0x34]; push 4; push 0x3000; push [eax+0x50]; push ebx; call [ebp+0x10] (VirtualAlloc).", "address": "0x4DA", "confidence": 0.9}
+      ],
+      "limitations": ["Second-stage PE not decoded in this pass; decode requires correct handling of the 0x200-byte skip region and key evolution chain."]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "art-p2-001",
+      "path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6\\decoded_payload.bin",
+      "sha256": "9f8e47944d294db5888d3cab9dd35f43f212b8b7dff92ae4439fe5358d7303e3",
+      "type": "x86_shellcode_stage1_loader",
+      "validation_status": "validated",
+      "context": "1728-byte first-stage shellcode recovered from the original sample's custom decode loop. PEB-walking API resolver with embedded second-stage PE loader. Contains an encoded 0x6AC-byte second-stage PE at offset 0x15."
+    },
+    {
+      "id": "art-p2-002",
+      "path": "H:\\Dataset\\files\\malware\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+      "sha256": "000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+      "type": "packed_pe32",
+      "validation_status": "validated",
+      "context": "Original submitted sample; the packer decodes the stage-1 shellcode which in turn loads the stage-2 PE. Retained for provenance."
+    }
+  ],
+  "investigation_targets": [
+    {
+      "id": "tgt-p2-001",
+      "priority": 1,
+      "target": "decoded_payload.bin offset 0x15 (0x6AC bytes, encoded second-stage PE)",
+      "reason": "The embedded second-stage PE is encoded with XOR+bswap. Decoding it will reveal the actual PE payload for further analysis.",
+      "recommended_action": "Extract 0x6AC bytes from shellcode offset 0x15. Decode using: key=0x22CC456A; for each dword: out=bswap(src)^key; key=src. Skip first 0x200 bytes (PE header area). Save as decoded_stage2_pe.bin.",
+      "success_criteria": "Decoded output is a valid 32-bit PE with MZ/PE signatures, import table, and entry point."
+    },
+    {
+      "id": "tgt-p2-002",
+      "priority": 1,
+      "target": "decoded_payload.bin API hash table at offset 0x64A",
+      "reason": "The 16 API hashes in the table can be mapped to specific kernel32 export names by recomputing the custom rolling hash (ror/rol/add) over known exports.",
+      "recommended_action": "Reimplement the hash function (ror eax,7; rol [esp],0xd; add [esp],eax; lodsb; loop) and compute hashes over kernel32 export names to map each hash to its API.",
+      "success_criteria": "All 16 API hashes mapped to specific function names."
+    },
+    {
+      "id": "tgt-p2-003",
+      "priority": 2,
+      "target": "Decoded second-stage PE (after unpack round)",
+      "reason": "The second-stage PE contains the actual malware logic (C2, persistence, payload delivery). Must be analyzed after decoding.",
+      "recommended_action": "After decoding, perform static analysis on the recovered PE: identify imports, strings, configuration, and execution logic.",
+      "success_criteria": "Full capability assessment of the malware's second-stage payload."
+    }
+  ],
+  "limitations": [
+    "Second-stage PE not decoded in this pass; requires an additional unpack round (05-unpack2 or equivalent).",
+    "API hash-to-name mapping not performed; 16 kernel32 API hashes in the table are unresolved.",
+    "The shellcode's file I/O path (GetModuleFileNameA + CreateFileA) was not tested; its role as primary vs fallback is inferred.",
+    "The second-stage PE's actual content, imports, and capabilities are unknown until decoded.",
+    "The original sample's packer (49 wrapper functions, obfuscated entry gate) is confirmed as a custom loader but its exact toolchain/author is unidentified."
+  ],
+  "upstream_inputs": [
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/01-prepare-env.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/02-static-pass1.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/03-unpack.json"
+  ],
+  "handoff_validation": {
+    "artifact_matches": true,
+    "candidate_entry_validity": "confirmed",
+    "artifact_quality": "analyzable",
+    "issues": [
+      "Second-stage PE embedded at offset 0x15 is encoded and requires an additional decode round.",
+      "API hash table (16 entries) not mapped to specific function names."
+    ]
+  },
+  "comparison": {
+    "new_capabilities": [
+      "Full PE loader with section mapping, relocation fixup, and import resolution via PEB walk",
+      "Embedded second-stage PE (0x6AC bytes, encoded with XOR+bswap)",
+      "Custom rolling hash API resolution (ror/rol/add, 16 kernel32 APIs)",
+      "File I/O path: GetModuleFileNameA + CreateFileA for reading PE from disk",
+      "msvcrt.initterm thunk construction for C runtime initialization",
+      "No anti-analysis mechanisms in the recovered shellcode (all anti-debug belongs to the original packer stub)"
+    ],
+    "confirmed_pass1": [
+      "fin-001: Sample identity and basic file format (confirmed, original PE32 GUI)",
+      "fin-003: Obfuscated entry point control flow (confirmed, packer gate passes to loader chain)",
+      "fin-004: Custom decode loop in sub_401B84 (confirmed, seed key corrected to 0x22CC456A, output is stage-1 shellcode)",
+      "fin-006: Import table self-modification (confirmed, packer uses import-address arithmetic for dynamic resolution)",
+      "fin-007: Deep single-call wrapper chain (confirmed, 49 wrappers are the packer's obfuscated loader)"
+    ],
+    "refined_pass1": [
+      "fin-002: Anomalous section layout indicates packing (refined: the 407KB .rdata section is reserved for the decoded second-stage PE, not just payload expansion)",
+      "fin-005: Anti-debug via GlobalFlags(NULL) checks (refined: confirmed at runtime returning 0x8000, but these checks belong to the packer stub, not the recovered shellcode)",
+      "fin-008: No embedded configuration or PE payload in static data (refined: the 1724-byte encrypted blob at byte_401ED1 decodes to the stage-1 shellcode, which contains the encoded stage-2 PE)"
+    ],
+    "rejected_pass1": [],
+    "still_unresolved": [
+      "Second-stage PE content and capabilities (requires additional decode round)",
+      "API hash-to-name mapping (16 kernel32 hashes unresolved)",
+      "Original packer toolchain/author identification"
+    ]
+  },
+  "outcome": "recovered_loader_requires_another_unpack_round"
+}

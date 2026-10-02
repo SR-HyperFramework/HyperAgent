@@ -1,0 +1,326 @@
+{
+  "schema_version": "1.0",
+  "stage": "dynamic",
+  "sample": {
+    "original_sha256": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+    "target_path": "C:\\Users\\h26v\\Desktop\\000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+    "target_sha256": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423"
+  },
+  "status": "partial",
+  "summary": "Runtime analysis of this 32-bit svchost-hosted service DLL via the approved guest/x64dbg path did not reach the sample's natural service context. x64dbg directly launched the DLL through its generic helper loader (DLLLoader32_<suffix>.exe). A breakpoint traced on ntdll/kernel32 LoadLibraryExW fired with the exact guest copy path C:\\Users\\h26v\\Desktop\\000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423 as argument, but the sample module was never retained in the loaded-module set and no PE image was mapped in memory afterward, consistent with DllMain rejecting initialization outside an svchost.exe hosting context. No worker thread, obfuscated IP pool decode, network exchange, or task-execution path could be exercised from this helper-hosted session. The observed behavior corroborates the static Pass 1 and unpack-stage finding that the sample is gated on svchost hosting; collecting the runtime IP pool, mutex, and C2 IOCs requires launching the DLL through its intended service host rather than x64dbg's DLLLoader. The process is a service DLL (access denied from sub_6400F350's host-gating gate context), so it does not execute standalone. The VM was reverted to the clean VMRunV4 snapshot and no guest analysis process remains.",
+  "findings": [
+    {
+      "id": "runtime-helper-hosted-session-001",
+      "title": "Runtime session was hosted by x64dbg's generic DLL loader, not the intended svchost service host",
+      "category": "loader",
+      "status": "observed",
+      "confidence": 0.98,
+      "description": "debug_init against the guest copy of the DLL bootstrapped the session through a DLLLoader32_<suffix>.exe helper. module_get_main reported the helper as the main module and the sample DLL never appeared as a retained loaded module or persisted PE mapping during controlled runs.",
+      "reasoning": "The supplied target is a DLL, so x64dbg's launch path used its helper executable. Even after arming software breakpoints on both kernel32 LoadLibraryW (0x75971960) and LoadLibraryExW (0x7596F640) and confirming LoadLibraryExW was invoked with the exact sample path, the sample module was absent from module_list and a memory search for the 'MZ' signature in the expected image region returned no results. This is the same helper-hosted limitation recorded in the unpack stage and does not reproduce the sample's natural svchost-hosted runtime graph.",
+      "sources": [
+        {
+          "stage": "dynamic",
+          "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+          "location": "debug_init; module_get_main; module_list"
+        },
+        {
+          "stage": "dynamic",
+          "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+          "location": "breakpoint_set LoadLibraryW/LoadLibraryExW; trace_load"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-helper-main-1",
+          "kind": "tool_output",
+          "source": {
+            "stage": "dynamic",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "debug_init; module_get_main"
+          },
+          "observation": "After debug_init, module_get_main reported main module DLLLoader32_3A41.exe / DLLLoader32_01E3.exe at helper bases 0x00D40000 / 0x00D60000, not the sample.",
+          "address": "0x0000000000D60000",
+          "confidence": 0.98
+        },
+        {
+          "id": "ev-helper-load-sample-1",
+          "kind": "tool_output",
+          "source": {
+            "stage": "dynamic",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "breakpoint_set 0x7596F640; memory_read"
+          },
+          "observation": "At the LoadLibraryExW breakpoint (0x7596F640), the first stack argument pointed to an ASCII/UTF-16 string equal to C:\\Users\\h26v\\Desktop\\000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423, i.e., the helper requested a load of the sample DLL's guest copy.",
+          "address": "0x000000007596F640",
+          "confidence": 0.96
+        },
+        {
+          "id": "ev-helper-not-retained-1",
+          "kind": "tool_output",
+          "source": {
+            "stage": "dynamic",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "module_list; memory_search"
+          },
+          "observation": "Across repeated runs after the sample-requesting LoadLibraryExW, module_list never included a 000d1bab*/...eb5423 module, and memory_search for pattern '4D 5A' in 0x62000000-0x66000000 returned 0 results.",
+          "address": null,
+          "confidence": 0.94
+        }
+      ],
+      "limitations": [
+        "This validates debugger reachability only; it does not prove the sample's natural module graph under svchost.exe.",
+        "Because the DLL was not retained as a mapped module, host-gating (svchost) rejection is inferred from the observed load-then-rollback behavior rather than from a captured return value inside DllMain."
+      ]
+    },
+    {
+      "id": "runtime-gate-not-exercised-001",
+      "title": "The svchost host-gate and singleton gate were not reachable in the helper-hosted session",
+      "category": "anti_analysis",
+      "status": "partial",
+      "confidence": 0.85,
+      "description": "Static analysis located the svchost.exe environment comparison and the CreateMutexW/WaitForSingleObject singleton gate (targets bp-svchost-gate in sub_64011630). These were not observed firing because the sample DLL did not load under DLLLoader32_<suffix>.exe outside svchost.exe.",
+      "reasoning": "The operational guard path enforces svchost.exe hosting and a mutex singleton before launching the worker thread. With the DLL never retained as a mapped module under the helper, the gate code was never entered, so no plaintext mutex name or gate branch outcome could be captured. This is consistent with the static finding anti-analysis-host-gating-001 (host-context and singleton checks rather than active anti-debug).",
+      "sources": [
+        {
+          "stage": "static-pass1",
+          "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+          "location": "reports/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423/02-static-pass1.json#finding=anti-analysis-host-gating-001"
+        },
+        {
+          "stage": "dynamic",
+          "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+          "location": "module_list (absence of sample module)"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-gate-1",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "reports/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423/02-static-pass1.json#target=bp-svchost-gate"
+          },
+          "observation": "Pass 1 described the svchost.exe comparison and CreateMutexW/WaitForSingleObject singleton gate at RVA 0x11672 in sub_64011630 firing before worker launch.",
+          "address": "0x64011672",
+          "confidence": 0.88
+        },
+        {
+          "id": "ev-gate-2",
+          "kind": "tool_output",
+          "source": {
+            "stage": "dynamic",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "module_list"
+          },
+          "observation": "No breakpoint on the gate address could be armed because the sample module was never present in the loaded-module set; the gate path never executed in the session.",
+          "address": null,
+          "confidence": 0.9
+        }
+      ],
+      "limitations": [
+        "The mutex name and any persistence registry keys are runtime-derived IOCs that could not be collected without hosting under svchost.",
+        "No debugger-detection or timing-check bypass was required because the sample did not reach its payload in this context."
+      ]
+    },
+    {
+      "id": "runtime-no-ip-pool-or-c2-001",
+      "title": "No obfuscated IP pool decode, network exchange, or task-execution behavior could be observed",
+      "category": "network",
+      "status": "not_observed",
+      "confidence": 0.88,
+      "description": "Although static analysis located an obfuscated IPv4 pool (sub_64010390), a custom 0x1D0-byte framed protocol (sub_6400A620), and a CreateProcessW-compatible task-execution path (sub_6400FF30), none of these behaviors occurred because the worker thread was never launched in the helper-hosted session.",
+      "reasoning": "All runtime capabilities (host fingerprinting, connectivity wait, C2 framing, task launch) are implemented in the long-lived worker thread that only starts after the svchost gate. Since the DLL was not retained under the helper loader, no network connection attempt, decoded IP string, or process-handoff occurred. This is an absence-of-observation attributable to the missing natural host, not contradictory evidence.",
+      "sources": [
+        {
+          "stage": "static-pass1",
+          "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+          "location": "reports/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423/02-static-pass1.json#finding=network-obfuscated-ip-pool-001"
+        },
+        {
+          "stage": "dynamic",
+          "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+          "location": "module_list (no sample module); debug state observations"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-noc2-1",
+          "kind": "static",
+          "source": {
+            "stage": "static-pass1",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "reports/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423/02-static-pass1.json#finding=process-task-launch-001"
+          },
+          "observation": "Static analysis inferred a CreateProcessW-compatible handoff after a non-empty response body and an inet_addr-driven obfuscated IPv4 pool.",
+          "address": null,
+          "confidence": 0.86
+        },
+        {
+          "id": "ev-noc2-2",
+          "kind": "tool_output",
+          "source": {
+            "stage": "dynamic",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "debug_get_state observations during controlled runs"
+          },
+          "observation": "Controlled runs of the helper process idled in ntdll/win32u waits; no network API calls, thread creation for the worker, or DNS/socket activity attributable to the sample was observed because the DLL did not load.",
+          "address": null,
+          "confidence": 0.86
+        }
+      ],
+      "limitations": [
+        "No plaintext C2 IPs, domains, mutex names, or command payloads were recoverable in this session.",
+        "These IOCs remain live targets for a svchost-hosted follow-up run."
+      ]
+    },
+    {
+      "id": "cleanup-revert-success-001",
+      "title": "Debugger session stopped and VM reverted to clean snapshot",
+      "category": "execution",
+      "status": "confirmed",
+      "confidence": 0.97,
+      "description": "After the controlled runtime session, debug_stop returned success true and the VMware guest was stopped and reverted to the fixed VMRunV4 snapshot, leaving no running VMs.",
+      "reasoning": "The skill requires cleanup regardless of runtime outcome. debug_stop succeeded, the vmrun stop and revertToSnapshot VMRunV4 sequence completed without error, and vmrun list reported 0 running VMs.",
+      "sources": [
+        {
+          "stage": "dynamic",
+          "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+          "location": "debug_stop; vmrun stop; vmrun revertToSnapshot; vmrun list"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-cleanup-1",
+          "kind": "tool_output",
+          "source": {
+            "stage": "dynamic",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "debug_stop"
+          },
+          "observation": "The x64dbg MCP debug_stop call returned success true.",
+          "address": null,
+          "confidence": 0.97
+        },
+        {
+          "id": "ev-cleanup-2",
+          "kind": "tool_output",
+          "source": {
+            "stage": "dynamic",
+            "artifact": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+            "location": "vmrun stop; vmrun revertToSnapshot VMRunV4; vmrun list"
+          },
+          "observation": "After stop and revert to VMRunV4, vmrun list reported Total running VMs: 0.",
+          "address": null,
+          "confidence": 0.98
+        }
+      ],
+      "limitations": []
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "artifact-original-dll",
+      "path": "H:\\Dataset\\files\\malware\\000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+      "sha256": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+      "type": "original-sample-pe32-dll",
+      "validation_status": "validated",
+      "context": "Sample copied to guest path C:\\Users\\h26v\\Desktop\\000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423 for runtime analysis; debugger reachability was validated but the DLL did not load under the helper host."
+    }
+  ],
+  "investigation_targets": [
+    {
+      "id": "svchost-hosted-runtime-001",
+      "priority": 1,
+      "target": "Service-hosted runtime under svchost.exe to exercise the worker thread",
+      "reason": "The sample is svchost-gated; x64dbg's DLLLoader32 helper did not retain the DLL as a mapped module, so worker-thread behaviors (IP pool decode, C2 framing, task launch) could not be observed.",
+      "recommended_action": "Install/launch the sample through its intended service host (svchost.exe) in the approved guest, or attach the debugger to the hosting svchost, then break on the gate (RVA 0x11672) and capture the decoded mutex name, IP pool (inet_addr sites in sub_64010390), and C2 frame sites (RVA 0xA76F/0xA8A4).",
+      "success_criteria": "Observe svchost.exe hosting, worker-thread launch, resolved wkssvc forwards/endpoints, and capture plaintext mutex name and IPv4 pool."
+    },
+    {
+      "id": "network-secondary-content-002",
+      "priority": 2,
+      "target": "Decoded network task buffers after protocol processing",
+      "reason": "Static analysis indicates custom-framed network exchanges and a CreateProcessW-compatible handoff; any secondary artifact is expected after network decode rather than at startup.",
+      "recommended_action": "Instrument the protocol decode and task-execution path (sub_6400A620, sub_6400FF30) in a svchost-hosted run to recover decoded task data.",
+      "success_criteria": "Recover decoded task/command data and determine whether it contains an executable PE/raw payload or only behavior/command strings."
+    }
+  ],
+  "limitations": [
+    "The runtime session was helper-hosted (DLLLoader32_<suffix>.exe) and did not reach the sample's intended svchost-service runtime context, so the worker thread was never launched.",
+    "Plaintext C2 IPs, domains, mutex names, and command payloads were not collectible in this session and remain live targets for a svchost-hosted follow-up.",
+    "The load-then-rollback behavior of the sample under the helper loader is consistent with svchost gating but was inferred rather than observed as an explicit DllMain return value.",
+    "No sandbox-bypass patch was required because the sample did not reach payload code in this context."
+  ],
+  "upstream_inputs": [
+    "reports/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423/01-prepare-env.json",
+    "reports/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423/02-static-pass1.json",
+    "reports/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423/03-unpack.json"
+  ],
+  "runtime": {
+    "executed": true,
+    "guest_only": true,
+    "aslr_base": "0x0000000000D60000",
+    "stop_reason": "process stopped; debugger session closed and VM reverted after helper-hosted session that did not load the sample DLL",
+    "observation_window": "Debugger-controlled helper startup through CRT init, LoadLibraryExW request for the sample guest path, and repeated module-list/memory checks confirming the sample module was not retained"
+  },
+  "behaviors": [
+    {
+      "id": "behavior-helper-dllload-001",
+      "type": "loader",
+      "status": "observed",
+      "confidence": 0.97,
+      "description": "x64dbg hosted the session via DLLLoader32_<suffix>.exe and issued a LoadLibraryExW for the sample's guest path, confirming an attempt to load the DLL occurred.",
+      "evidence_ids": [
+        "ev-helper-main-1",
+        "ev-helper-load-sample-1"
+      ]
+    },
+    {
+      "id": "behavior-sample-not-retained-001",
+      "type": "loader",
+      "status": "observed",
+      "confidence": 0.94,
+      "description": "The sample DLL was not retained as a mapped module after the LoadLibraryExW request, consistent with DllMain svchost-gate rejection outside svchost.exe.",
+      "evidence_ids": [
+        "ev-helper-not-retained-1"
+      ]
+    },
+    {
+      "id": "behavior-worker-001",
+      "type": "process",
+      "status": "not_observed",
+      "confidence": 0.88,
+      "description": "The svchost-gated worker thread was never launched; no process/thread creation attributable to the sample occurred in the helper-hosted session.",
+      "evidence_ids": [
+        "ev-noc2-2"
+      ]
+    },
+    {
+      "id": "behavior-network-001",
+      "type": "network",
+      "status": "not_observed",
+      "confidence": 0.88,
+      "description": "No C2 IP-pool decode, DNS/socket activity, or custom-framed network exchange occurred because the worker did not run.",
+      "evidence_ids": [
+        "ev-noc2-2"
+      ]
+    },
+    {
+      "id": "behavior-task-exec-001",
+      "type": "process",
+      "status": "not_observed",
+      "confidence": 0.86,
+      "description": "The CreateProcessW-compatible task-execution handoff did not occur because no network task data was received.",
+      "evidence_ids": [
+        "ev-noc2-1",
+        "ev-noc2-2"
+      ]
+    }
+  ],
+  "iocs": {
+    "network": [],
+    "host": [],
+    "persistence": []
+  }
+}

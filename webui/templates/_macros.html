@@ -1,0 +1,80 @@
+{# Shared visual helpers for the report view. #}
+{% macro confidence_meter(run) -%}
+<div class="confidence-meter sev-{{ run.verdict }}" aria-label="Confidence {{ run.confidence_percent }} percent, {{ run.confidence_label }} confidence">
+  <div class="confidence-meter-head">
+    <span class="confidence-meter-num">{{ run.confidence_percent }}%</span>
+    <span class="confidence-meter-label">{{ run.confidence_label }}</span>
+  </div>
+  <div class="confidence-track" aria-hidden="true">
+    <span class="confidence-fill" style="width: {{ run.confidence_percent }}%;"></span>
+  </div>
+</div>
+{%- endmacro %}
+
+{% macro ratio(run) -%}
+<span class="ratio sev-{{ run.verdict }}">
+  <span class="ratio-num">{{ run.confidence_percent }}%</span>
+  <span class="ratio-word">{{ run.verdict }}</span>
+</span>
+{%- endmacro %}
+
+{% macro finding_card(variant, title, summary, refs, caveat=None, reason=None) -%}
+<article class="finding finding-{{ variant }}">
+  <span class="finding-mark" aria-hidden="true"></span>
+  <div class="finding-body">
+    <h3>{{ title }}</h3>
+    {% if summary %}<p>{{ summary }}</p>{% endif %}
+    {% if caveat %}
+    <p class="finding-extra finding-caveat"><span class="key">Caveat</span>{{ caveat }}</p>
+    {% endif %}
+    {% if reason %}
+    <p class="finding-extra finding-reason"><span class="key">Why not</span>{{ reason }}</p>
+    {% endif %}
+    {{ source_refs(refs) }}
+  </div>
+</article>
+{%- endmacro %}
+
+{% macro indicator_group(title, items) -%}
+<section class="indicator-col">
+  <h3>{{ title }} <span class="pip">{{ items|length }}</span></h3>
+  {% if not items %}
+    <p class="dim">No {{ title|lower }} indicators were confirmed.</p>
+  {% else %}
+    <ul class="indicator-list">
+      {% for item in items %}
+      <li class="indicator-card">
+        <div class="indicator-head">
+          <code translate="no">{{ item.value }}</code>
+          <button class="copy" type="button" data-copy="{{ item.value }}"
+                  aria-label="Copy indicator to clipboard">Copy</button>
+        </div>
+        {% if item.label %}<p class="indicator-label">{{ item.label }}</p>{% endif %}
+        {% if item.note %}<p class="indicator-note">{{ item.note }}</p>{% endif %}
+        {{ source_refs(item.source_refs) }}
+      </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</section>
+{%- endmacro %}
+
+{# The server renders unambiguous UTC timestamps; app.js upgrades them to the
+   viewer's locale after first paint. #}
+{% macro stamp(moment) -%}
+<time datetime="{{ moment.isoformat() }}" data-stamp
+      title="{{ moment.strftime('%Y-%m-%d %H:%M:%S UTC') }}">{{ moment.strftime('%Y-%m-%d') }}</time>
+{%- endmacro %}
+
+{% macro time_counter(moment) -%}
+<time class="time-counter" datetime="{{ moment.isoformat() }}" data-time-counter
+      title="{{ moment.strftime('%Y-%m-%d %H:%M:%S UTC') }}">calculating…</time>
+{%- endmacro %}
+
+{% macro source_refs(refs) -%}
+  {% if refs %}
+  <ul class="refs">
+    {% for ref in refs %}<li><code translate="no">{{ ref }}</code></li>{% endfor %}
+  </ul>
+  {% endif %}
+{%- endmacro %}

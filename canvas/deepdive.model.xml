@@ -1,0 +1,219 @@
+<?xml version="1.0" ?>
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36" scale="1" border="0">
+  <diagram name="Stage 07 - Deepdive" id="HADD-diagram-1">
+    <mxGraphModel dx="2000" dy="1100" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- ===== Title ===== -->
+        <mxCell id="HADD-title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=22;fontStyle=1;" value="STAGE 07 - ĐỐI CHIẾU VÀ TỔNG HỢP BẰNG CHỨNG (Deepdive)" vertex="1">
+          <mxGeometry height="40" width="640" x="260" y="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-subtitle" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;" value="hyperagent-deepdive · 07-deepdive.json · final technical reviewer &amp; evidence-reconciliation engine" vertex="1">
+          <mxGeometry height="20" width="640" x="260" y="60" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Inputs (all upstream JSON) ===== -->
+        <mxCell id="HADD-in-label" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;" value="Đầu vào — toàn bộ JSON cùng SHA256" vertex="1">
+          <mxGeometry height="20" width="200" x="30" y="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-in1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="01-prepare-env.json" vertex="1">
+          <mxGeometry height="30" width="150" x="30" y="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-in2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="02-static-pass1.json" vertex="1">
+          <mxGeometry height="30" width="150" x="30" y="195" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-in3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="03-unpack.json" vertex="1">
+          <mxGeometry height="30" width="150" x="30" y="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-in4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="04-static-pass2.json" vertex="1">
+          <mxGeometry height="30" width="150" x="30" y="285" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-in5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="05-dynamic.json" vertex="1">
+          <mxGeometry height="30" width="150" x="30" y="330" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-in6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="06-intel.json" vertex="1">
+          <mxGeometry height="30" width="150" x="30" y="375" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-in7" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="Không tiêu thụ Markdown làm input chuẩn. JSON upstream lỗi → ghi limitation, không suy diễn." vertex="1">
+          <mxGeometry height="40" width="220" x="30" y="420" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Workflow steps (green parallelograms) ===== -->
+        <mxCell id="HADD-w1" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="1. Input &amp; provenance validation" vertex="1">
+          <mxGeometry height="54" width="230" x="360" y="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-w2" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="2. Normalize claims" vertex="1">
+          <mxGeometry height="54" width="230" x="360" y="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-w3" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="3. Build evidence chains" vertex="1">
+          <mxGeometry height="54" width="230" x="360" y="310" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-w4" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="4. Resolve contradictions" vertex="1">
+          <mxGeometry height="54" width="230" x="360" y="400" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-w5" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="5. Confidence reassessment" vertex="1">
+          <mxGeometry height="54" width="230" x="360" y="490" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-w6" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="6. Root-cause analysis&#10;(milestones thiếu)" vertex="1">
+          <mxGeometry height="54" width="230" x="360" y="580" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-w7" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="7. Focused follow-up analysis&#10;(IDA/x64dbg MCP, có giới hạn)" vertex="1">
+          <mxGeometry height="54" width="230" x="360" y="670" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-w8" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="8. Intel-assisted reconciliation" vertex="1">
+          <mxGeometry height="54" width="230" x="360" y="760" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-w9" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="9. Hypothesis discipline" vertex="1">
+          <mxGeometry height="54" width="230" x="360" y="850" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-w10" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="10. Final claim policy" vertex="1">
+          <mxGeometry height="54" width="230" x="360" y="940" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-w11" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" value="11. Investigation priorities" vertex="1">
+          <mxGeometry height="54" width="230" x="360" y="1030" as="geometry"/>
+        </mxCell>
+
+        <!-- edges between workflow steps -->
+        <mxCell id="HADD-e1" edge="1" parent="1" source="HADD-w1" target="HADD-w2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-e2" edge="1" parent="1" source="HADD-w2" target="HADD-w3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-e3" edge="1" parent="1" source="HADD-w3" target="HADD-w4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-e4" edge="1" parent="1" source="HADD-w4" target="HADD-w5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-e5" edge="1" parent="1" source="HADD-w5" target="HADD-w6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-e6" edge="1" parent="1" source="HADD-w6" target="HADD-w7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-e7" edge="1" parent="1" source="HADD-w7" target="HADD-w8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-e8" edge="1" parent="1" source="HADD-w8" target="HADD-w9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-e9" edge="1" parent="1" source="HADD-w9" target="HADD-w10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-e10" edge="1" parent="1" source="HADD-w10" target="HADD-w11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Detail boxes (blue) ===== -->
+        <mxCell id="HADD-d1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="Index mọi finding ID / evidence ID&#10;không cite ID không tồn tại" vertex="1">
+          <mxGeometry height="54" width="260" x="700" y="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-d2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="High-impact claims: verdict · payload exec · OEP · persistence · injection · credential access · network · family" vertex="1">
+          <mxGeometry height="54" width="260" x="700" y="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-d3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="Chuỗi: static → unpack → artifact → pass2 → dynamic&#10;+ intel như attribution (không thay thế quan sát local)" vertex="1">
+          <mxGeometry height="54" width="260" x="700" y="310" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-d4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="Giữ cả 2 claim · so sánh độ trực tiếp · giải thích nguyên nhân · chưa giải được thì giữ unresolved" vertex="1">
+          <mxGeometry height="54" width="260" x="700" y="400" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-d5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="Confidence 0.00–1.00 theo chất lượng bằng chứng&#10;mọi thay đổi phải kèm trước/sau + lý do" vertex="1">
+          <mxGeometry height="54" width="260" x="700" y="490" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-d6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="Xếp hạng nguyên nhân: unpack sai · dump sai timing · anti-debug/anti-VM · timeout · tool/MCP limitation..." vertex="1">
+          <mxGeometry height="54" width="260" x="700" y="580" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-d7" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="Chỉ 1 kiểm tra nhỏ có mục tiêu: 1 function · 1 xref · 1 memory region · PE headers" vertex="1">
+          <mxGeometry height="54" width="260" x="700" y="670" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-d8" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="claim_checks · matched_local (corroboration) · external_only (lead only) · giữ attribution" vertex="1">
+          <mxGeometry height="54" width="260" x="700" y="760" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-d9" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="Giả thuyết cần: evidence IDs · counter-evidence · validation plan · falsification condition · status" vertex="1">
+          <mxGeometry height="54" width="260" x="700" y="850" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-d10" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="allowed_claims · caveated_claims · prohibited_claims&#10;(cấm: ransomware/persistence/exfil/family khi thiếu evidence)" vertex="1">
+          <mxGeometry height="54" width="260" x="700" y="940" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-d11" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" value="Priority 1–5 · reason · action · success criteria&#10;5=block verdict · 4=major capability/payload · ... · 1=optional" vertex="1">
+          <mxGeometry height="54" width="260" x="700" y="1030" as="geometry"/>
+        </mxCell>
+
+        <!-- edges: workflow -> detail -->
+        <mxCell id="HADD-ed1" edge="1" parent="1" source="HADD-w1" target="HADD-d1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-ed2" edge="1" parent="1" source="HADD-w2" target="HADD-d2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-ed3" edge="1" parent="1" source="HADD-w3" target="HADD-d3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-ed4" edge="1" parent="1" source="HADD-w4" target="HADD-d4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-ed5" edge="1" parent="1" source="HADD-w5" target="HADD-d5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-ed6" edge="1" parent="1" source="HADD-w6" target="HADD-d6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-ed7" edge="1" parent="1" source="HADD-w7" target="HADD-d7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-ed8" edge="1" parent="1" source="HADD-w8" target="HADD-d8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-ed9" edge="1" parent="1" source="HADD-w9" target="HADD-d9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-ed10" edge="1" parent="1" source="HADD-w10" target="HADD-d10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-ed11" edge="1" parent="1" source="HADD-w11" target="HADD-d11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Output artifact ===== -->
+        <mxCell id="HADD-out" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="07-deepdive.json&#10;(authoritative claim state)" vertex="1">
+          <mxGeometry height="60" width="220" x="1060" y="490" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-valid" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="validate_output.py&#10;schema.json (deepdive)" vertex="1">
+          <mxGeometry height="60" width="220" x="1060" y="600" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-eout" edge="1" parent="1" source="HADD-w10" target="HADD-out" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1050" y="967"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HADD-evalid" edge="1" parent="1" source="HADD-out" target="HADD-valid" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-enote" connectable="0" parent="HADD-evalid" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="bắt buộc VALID" vertex="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-2" y="-16" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ===== Annotations ===== -->
+        <mxCell id="HADD-a1" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="Không giải quyết mâu thuẫn bằng cách chọn stage mới nhất" vertex="1">
+          <mxGeometry height="30" width="300" x="700" y="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-a2" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="imported API ≠ executed API · reachable ≠ executed · allocated ≠ payload exec · AV label ≠ family" vertex="1">
+          <mxGeometry height="30" width="340" x="700" y="260" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-a3" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="Không khởi động lại static/unpack/dynamic — chỉ follow-up có mục tiêu" vertex="1">
+          <mxGeometry height="30" width="300" x="700" y="700" as="geometry"/>
+        </mxCell>
+        <mxCell id="HADD-a4" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="Intel không mở rộng claim vượt quá bằng chứng local" vertex="1">
+          <mxGeometry height="30" width="300" x="700" y="890" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,1106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HyperAgent Static Output",
+  "oneOf": [
+    {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "static-pass1",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "stage",
+        "sample",
+        "status",
+        "summary",
+        "findings",
+        "artifacts",
+        "investigation_targets",
+        "limitations",
+        "upstream_inputs",
+        "binary_profile",
+        "unpack_decision"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0"
+        },
+        "stage": {
+          "const": "static-pass1"
+        },
+        "sample": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "original_sha256",
+            "target_path",
+            "target_sha256"
+          ],
+          "properties": {
+            "original_sha256": {
+              "type": "string",
+              "pattern": "^[A-Fa-f0-9]{64}$"
+            },
+            "target_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "target_sha256": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[A-Fa-f0-9]{64}$"
+            }
+          }
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "partial",
+            "blocked",
+            "failed",
+            "not_needed"
+          ]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/finding"
+          }
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact"
+          }
+        },
+        "investigation_targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/target"
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "upstream_inputs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "binary_profile": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "format",
+            "architecture",
+            "entry_point",
+            "image_base",
+            "packer",
+            "packed_confidence"
+          ],
+          "properties": {
+            "format": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "architecture": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "entry_point": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "image_base": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "packer": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "packed_confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "unpack_decision": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "required",
+            "confidence",
+            "reasons",
+            "strategy",
+            "breakpoint_plan"
+          ],
+          "properties": {
+            "required": {
+              "type": "boolean"
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "reasons": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "strategy": {
+              "enum": [
+                "none",
+                "dedicated_unpacker",
+                "in_place_dynamic",
+                "allocated_region_dynamic",
+                "process_injection_recovery",
+                "multi_stage",
+                "unknown"
+              ]
+            },
+            "breakpoint_plan": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/target"
+              }
+            }
+          }
+        }
+      },
+      "$defs": {
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stage",
+            "artifact",
+            "location"
+          ],
+          "properties": {
+            "stage": {
+              "type": "string"
+            },
+            "artifact": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "location": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "kind",
+            "source",
+            "observation"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "enum": [
+                "static",
+                "dynamic",
+                "memory",
+                "artifact",
+                "tool_output",
+                "external",
+                "analyst"
+              ]
+            },
+            "source": {
+              "$ref": "#/$defs/source"
+            },
+            "observation": {
+              "type": "string"
+            },
+            "address": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "finding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "title",
+            "category",
+            "status",
+            "confidence",
+            "description",
+            "reasoning",
+            "sources",
+            "evidence",
+            "limitations"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "title": {
+              "type": "string"
+            },
+            "category": {
+              "enum": [
+                "sample_identity",
+                "packing",
+                "loader",
+                "execution",
+                "anti_analysis",
+                "persistence",
+                "filesystem",
+                "registry",
+                "process",
+                "injection",
+                "network",
+                "credential_access",
+                "collection",
+                "exfiltration",
+                "impact",
+                "configuration",
+                "ioc",
+                "other"
+              ]
+            },
+            "status": {
+              "enum": [
+                "observed",
+                "confirmed",
+                "partial",
+                "inferred",
+                "hypothesized",
+                "not_observed",
+                "contradicted",
+                "rejected",
+                "unknown"
+              ]
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "description": {
+              "type": "string"
+            },
+            "reasoning": {
+              "type": "string"
+            },
+            "sources": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/source"
+              }
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/evidence"
+              }
+            },
+            "limitations": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "priority",
+            "target",
+            "reason",
+            "recommended_action",
+            "success_criteria"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "priority": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "target": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "recommended_action": {
+              "type": "string"
+            },
+            "success_criteria": {
+              "type": "string"
+            }
+          }
+        },
+        "artifact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "path",
+            "sha256",
+            "type",
+            "validation_status",
+            "context"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sha256": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[A-Fa-f0-9]{64}$"
+            },
+            "type": {
+              "type": "string"
+            },
+            "validation_status": {
+              "enum": [
+                "validated",
+                "partial",
+                "failed",
+                "not_validated",
+                "not_applicable"
+              ]
+            },
+            "context": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "static-pass2",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "stage",
+        "sample",
+        "status",
+        "summary",
+        "findings",
+        "artifacts",
+        "investigation_targets",
+        "limitations",
+        "upstream_inputs",
+        "handoff_validation",
+        "comparison",
+        "outcome"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0"
+        },
+        "stage": {
+          "const": "static-pass2"
+        },
+        "sample": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "original_sha256",
+            "target_path",
+            "target_sha256"
+          ],
+          "properties": {
+            "original_sha256": {
+              "type": "string",
+              "pattern": "^[A-Fa-f0-9]{64}$"
+            },
+            "target_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "target_sha256": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[A-Fa-f0-9]{64}$"
+            }
+          }
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "partial",
+            "blocked",
+            "failed",
+            "not_needed"
+          ]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/finding"
+          }
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact"
+          }
+        },
+        "investigation_targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/target"
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "upstream_inputs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "handoff_validation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "artifact_matches",
+            "candidate_entry_validity",
+            "artifact_quality",
+            "issues"
+          ],
+          "properties": {
+            "artifact_matches": {
+              "type": "boolean"
+            },
+            "candidate_entry_validity": {
+              "enum": [
+                "confirmed",
+                "plausible",
+                "rejected",
+                "unknown"
+              ]
+            },
+            "artifact_quality": {
+              "enum": [
+                "analyzable",
+                "partial",
+                "loader_only",
+                "invalid",
+                "unknown"
+              ]
+            },
+            "issues": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "comparison": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "new_capabilities",
+            "confirmed_pass1",
+            "refined_pass1",
+            "rejected_pass1",
+            "still_unresolved"
+          ],
+          "properties": {
+            "new_capabilities": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "confirmed_pass1": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "refined_pass1": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "rejected_pass1": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "still_unresolved": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "outcome": {
+          "enum": [
+            "recovered_payload_analyzable",
+            "recovered_loader_requires_another_unpack_round",
+            "artifact_useful_but_incomplete",
+            "candidate_handoff_rejected",
+            "pass2_blocked"
+          ]
+        }
+      },
+      "$defs": {
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stage",
+            "artifact",
+            "location"
+          ],
+          "properties": {
+            "stage": {
+              "type": "string"
+            },
+            "artifact": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "location": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "kind",
+            "source",
+            "observation"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "enum": [
+                "static",
+                "dynamic",
+                "memory",
+                "artifact",
+                "tool_output",
+                "external",
+                "analyst"
+              ]
+            },
+            "source": {
+              "$ref": "#/$defs/source"
+            },
+            "observation": {
+              "type": "string"
+            },
+            "address": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "finding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "title",
+            "category",
+            "status",
+            "confidence",
+            "description",
+            "reasoning",
+            "sources",
+            "evidence",
+            "limitations"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "title": {
+              "type": "string"
+            },
+            "category": {
+              "enum": [
+                "sample_identity",
+                "packing",
+                "loader",
+                "execution",
+                "anti_analysis",
+                "persistence",
+                "filesystem",
+                "registry",
+                "process",
+                "injection",
+                "network",
+                "credential_access",
+                "collection",
+                "exfiltration",
+                "impact",
+                "configuration",
+                "ioc",
+                "other"
+              ]
+            },
+            "status": {
+              "enum": [
+                "observed",
+                "confirmed",
+                "partial",
+                "inferred",
+                "hypothesized",
+                "not_observed",
+                "contradicted",
+                "rejected",
+                "unknown"
+              ]
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "description": {
+              "type": "string"
+            },
+            "reasoning": {
+              "type": "string"
+            },
+            "sources": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/source"
+              }
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/evidence"
+              }
+            },
+            "limitations": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "priority",
+            "target",
+            "reason",
+            "recommended_action",
+            "success_criteria"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "priority": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "target": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "recommended_action": {
+              "type": "string"
+            },
+            "success_criteria": {
+              "type": "string"
+            }
+          }
+        },
+        "artifact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "path",
+            "sha256",
+            "type",
+            "validation_status",
+            "context"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sha256": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[A-Fa-f0-9]{64}$"
+            },
+            "type": {
+              "type": "string"
+            },
+            "validation_status": {
+              "enum": [
+                "validated",
+                "partial",
+                "failed",
+                "not_validated",
+                "not_applicable"
+              ]
+            },
+            "context": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "artifact",
+        "location"
+      ],
+      "properties": {
+        "stage": {
+          "type": "string"
+        },
+        "artifact": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "location": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "source",
+        "observation"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "static",
+            "dynamic",
+            "memory",
+            "artifact",
+            "tool_output",
+            "external",
+            "analyst"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "observation": {
+          "type": "string"
+        },
+        "address": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "category",
+        "status",
+        "confidence",
+        "description",
+        "reasoning",
+        "sources",
+        "evidence",
+        "limitations"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "title": {
+          "type": "string"
+        },
+        "category": {
+          "enum": [
+            "sample_identity",
+            "packing",
+            "loader",
+            "execution",
+            "anti_analysis",
+            "persistence",
+            "filesystem",
+            "registry",
+            "process",
+            "injection",
+            "network",
+            "credential_access",
+            "collection",
+            "exfiltration",
+            "impact",
+            "configuration",
+            "ioc",
+            "other"
+          ]
+        },
+        "status": {
+          "enum": [
+            "observed",
+            "confirmed",
+            "partial",
+            "inferred",
+            "hypothesized",
+            "not_observed",
+            "contradicted",
+            "rejected",
+            "unknown"
+          ]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "reasoning": {
+          "type": "string"
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/source"
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "priority",
+        "target",
+        "reason",
+        "recommended_action",
+        "success_criteria"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "target": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "recommended_action": {
+          "type": "string"
+        },
+        "success_criteria": {
+          "type": "string"
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "path",
+        "sha256",
+        "type",
+        "validation_status",
+        "context"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[A-Fa-f0-9]{64}$"
+        },
+        "type": {
+          "type": "string"
+        },
+        "validation_status": {
+          "enum": [
+            "validated",
+            "partial",
+            "failed",
+            "not_validated",
+            "not_applicable"
+          ]
+        },
+        "context": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

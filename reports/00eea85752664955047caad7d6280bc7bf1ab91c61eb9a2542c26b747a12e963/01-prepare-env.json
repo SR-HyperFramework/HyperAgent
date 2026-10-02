@@ -1,0 +1,95 @@
+{
+  "schema_version": "1.0",
+  "stage": "prepare-env",
+  "sample": {
+    "file_name": "00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+    "absolute_path": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+    "sha256": "00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963"
+  },
+  "workspace": {
+    "report_directory": "C:/Users/ADMIN/HyperAgent/reports/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963",
+    "artifact_directory": "C:/Users/ADMIN/HyperAgent/reports/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963/artifacts"
+  },
+  "static_environment": {
+    "status": "ready",
+    "components": [
+      {
+        "name": "ida-idapython",
+        "status": "available",
+        "detail": "idalib MCP server health OK; auto_analysis_ready=true, hexrays_ready=true (server currently bound to a different sample DB, idalib workflow can open this sample)"
+      },
+      {
+        "name": "sample-path",
+        "status": "available",
+        "detail": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe readable (38400 bytes); sha256sum matches sample identity"
+      }
+    ]
+  },
+  "dynamic_environment": {
+    "status": "ready",
+    "components": [
+      {
+        "name": "vmware",
+        "status": "available",
+        "detail": "vmrun found at /e/Program/VMware Workstation 17/vmrun; VMX H:/VMware/WinVM/Windows 10 - RunSmt.vmx exists; revertToSnapshot VMRunV4 + start nogui + getGuestIPAddress all succeeded"
+      },
+      {
+        "name": "guest-os",
+        "status": "available",
+        "detail": "Windows 10 guest (RunSmt) booted; guest IP 192.168.248.169 via getGuestIPAddress -wait"
+      },
+      {
+        "name": "guest-credentials",
+        "status": "available",
+        "detail": "guest user h26v / password 123456 used successfully for CopyFileFromHostToGuest and runProgramInGuest"
+      },
+      {
+        "name": "guest-execution-path",
+        "status": "available",
+        "detail": "sample copied to C:\\Users\\h26v\\Desktop\\00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe via CopyFileFromHostToGuest"
+      },
+      {
+        "name": "x64dbg",
+        "status": "available",
+        "detail": "launched in guest via runProgramInGuest -noWait with C:\\Users\\h26v\\Downloads\\x64dbg\\release\\x96dbg.exe and sample path as argument"
+      },
+      {
+        "name": "x64dbg-mcp",
+        "status": "available",
+        "detail": "curl -Ss http://192.168.248.169:3000 returned {\"status\":\"ok\",\"service\":\"x64dbg-mcp\"}"
+      }
+    ]
+  },
+  "readiness": {
+    "static": "ready",
+    "dynamic": "ready",
+    "overall": "ready"
+  },
+  "blockers": [],
+  "provenance": [
+    {
+      "type": "command",
+      "location": "sha256sum H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe -> 00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963"
+    },
+    {
+      "type": "tool",
+      "location": "idalib MCP server_health: status=ok, auto_analysis_ready=true, hexrays_ready=true"
+    },
+    {
+      "type": "command",
+      "location": "vmrun -T ws revertToSnapshot VMRunV4 / start nogui / getGuestIPAddress -wait -> 192.168.248.169"
+    },
+    {
+      "type": "command",
+      "location": "vmrun CopyFileFromHostToGuest to C:\\Users\\h26v\\Desktop\\00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe"
+    },
+    {
+      "type": "command",
+      "location": "vmrun runProgramInGuest -noWait x96dbg.exe with sample path"
+    },
+    {
+      "type": "command",
+      "location": "curl -Ss http://192.168.248.169:3000 -> {\"status\":\"ok\",\"service\":\"x64dbg-mcp\"}"
+    }
+  ]
+}

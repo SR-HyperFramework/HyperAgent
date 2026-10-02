@@ -1,0 +1,146 @@
+{
+  "schema_version": "1.0",
+  "stage": "unpack",
+  "sample": {
+    "original_sha256": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+    "target_path": "H:/Dataset/files/malware/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+    "target_sha256": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069"
+  },
+  "status": "completed",
+  "summary": "Recovery of the encrypted second-stage payload succeeded by deterministic offline replication of the in-place self-decoding routine. The 1716-byte ciphertext at .text VA 0x402A47 is decrypted by sub_401DF8 (0x401DF8): it reads 429 dwords at 0x402A47 and writes (key_j XOR src_j) - 1 to a runtime-dependent buffer at dest+1+4j (priming byte 0x50 at dest+0), with key_0 = 0x9A246A73 and key_{j+1} = -key_j (mod 2^32). The destination pointer ([LoadLibraryW-return + 0x11C], per pass 1) does not affect the decrypted content, only where it lands, so the 1717-byte plaintext was recovered directly from file-resident source bytes. The recovered blob is validated position-independent x86 shellcode: it embeds the string 'el32.dll', contains a GetProcAddress-style API resolver that builds 'HeapAlloc' (push 0x6f6c6c41 'llA', 0x70616548 'H ea') and 'HeapFree' (0x65657246 'reeF', 0x70616548) and calls them via [ebp+8]/[ebp+0x10]-style tables, and begins with a call-0xf/jmp-over-data prologue. Live destination capture in the guest was attempted but blocked: the sample exits its process during loader initialization under free-running execution (debug_run/native run -> process terminated, entry breakpoint 0x4018A0 never trips), while step_into traverses ntdll loader init but terminates before reaching entry. This is recorded as an early anti-debug/anti-VM termination finding; it does not affect the determinism of the offline decrypt. The recovered shellcode is the handoff artifact for static pass 2.",
+  "findings": [
+    {
+      "id": "fin-decryptor-reproduced",
+      "title": "Decryptor sub_401DF8 replicated offline; recovered 1717-byte shellcode",
+      "category": "packing",
+      "status": "confirmed",
+      "confidence": 0.95,
+      "description": "The in-place self-decoding routine sub_401DF8 (0x401DF8) was fully reconstructed from runtime disassembly and replicated against the file-resident ciphertext at VA 0x402A47 (file offset 0x1E47). The loop runs 429 dword iterations (counter to 0x6B4): edx reads source at 0x402A47+4j, key esi alternates between 0x9A246A73 and its negation 0x65DB958D each iteration (push 0; sub [esp],esi; pop esi), and each decoded dword = (key XOR src) - 1 is written via pop dword ptr [ebx+ecx*2] with ecx=0 to dest+1+4j (ebx advanced by +4 per iteration via sub ebx,-4). Priming at 0x401E52-0x401E57 copies the dword at 0x402A46 to dest+0 then increments ebx, leaving byte 0x50 as the surviving first byte. The write destination (edi/ebx = [eax+0x11C] from a LoadLibraryW-return scratch) is runtime-dependent but does not influence the decrypted byte content. The recovered 1717 bytes decode to coherent position-independent x86 shellcode.",
+      "reasoning": "Direct disassembly of 0x401DF8-0x401E81 (live via x64dbg MCP) exposed the key schedule and transform. Replication in Python produced a 1717-byte blob that capstone disassembles into a GetProcAddress-style resolver (builds 'HeapAlloc' and 'HeapFree' strings, call [ebp+8]/[ebp+0x10]) with an embedded 'el32.dll' string, matching the expected second-stage shellcode. The transform is a pure function of file-resident source bytes, so offline recovery is deterministic independent of the runtime destination.",
+      "sources": [
+        { "stage": "unpack", "artifact": null, "location": "x64dbg MCP disassembly_range 0x401DF8-0x401E81" },
+        { "stage": "static-pass1", "artifact": "02-static-pass1.json", "location": "fin-decryptor / fin-decryptor-dest-unknown" }
+      ],
+      "evidence": [
+        { "id": "ev-dec-disasm-live", "kind": "dynamic", "source": { "stage": "unpack", "artifact": null, "location": "x64dbg MCP disassembly_range 0x401DF8-0x401E81" }, "observation": "0x401E01 push 0x6B4; 0x401E4D mov esi,0x9A246A73; 0x401E5C xor ecx,[edx]; 0x401E61 dec [esp]; 0x401E64 pop [ebx+ecx*2] (ecx=0); 0x401E69 sub [esp],esi; 0x401E71 sub edx,esi; 0x401E73 sub ebx,esi (esi=0xFFFFFFFC); 0x401E76 add edi,4; 0x401E79 cmp edi,0x6B4; jnz 0x401E5A.", "address": "0x401E5A", "confidence": 0.95 },
+        { "id": "ev-ciphertext-in-memory", "kind": "memory", "source": { "stage": "unpack", "artifact": null, "location": "x64dbg MCP memory_read 0x402A47" }, "observation": "Memory at 0x402A47 before execution: 2a 3a 7c 72 8a 95 db 65 71 1d 7d cc 03 d0 82 4e ... matching file bytes, confirming ciphertext loaded unmodified at the static base 0x400000.", "address": "0x402A47", "confidence": 0.95 },
+        { "id": "ev-shellcode-disasm", "kind": "artifact", "source": { "stage": "unpack", "artifact": "decrypted_shellcode_1717.raw", "location": "capstone CS_MODE_32 disassembly" }, "observation": "Recovered bytes: 0x50 58 50 58 e8 06 00 00 00 01 77 59 56 8d 45 59 2b c9 83 c1 03 55 5e e2 fd 83 c4 f4 e8 0d 00 00 00 80 3a 11 e9 65 6c 33 32 2e 64 6c 6c 00 ... containing 'el32.dll', push 0x6f6c6c41 ('llA')/0x70616548 ('Hea'), push 0x65657246 ('reeF')/0x70616548, call [ebp+8].", "address": null, "confidence": 0.9 },
+        { "id": "ev-offline-decrypt", "kind": "analyst", "source": { "stage": "unpack", "artifact": null, "location": "Python replication (host, non-executing)" }, "observation": "Key schedule verified: dw list regenerated with (key^src)-1 and alternating key; result equals the disassembled-shellcode blob; sha256 537c40bc4192ce13b43891f959688f6c712b9d4bf33fb06e6dd5998f51cf32ea.", "address": null, "confidence": 0.95 }
+      ],
+      "limitations": [
+        "Destination buffer address (from LoadLibraryW return + 0x11C) was not confirmed live because the process terminates before entry; the recovered content is destination-independent."
+      ]
+    },
+    {
+      "id": "fin-early-exit-antidebug",
+      "title": "Process terminates during loader init before entry under free-running execution",
+      "category": "anti_analysis",
+      "status": "observed",
+      "confidence": 0.8,
+      "description": "Under any free-running execution (debug_run via MCP, native 'run' via script_execute) the sample process exits during ntdll loader initialization, before the module entry point 0x4018A0 is reached. The guest process list confirmed the sample process is absent after run; the entry and decryptor breakpoints never trip (hit_count 0). Single-stepping (debug_step_into) keeps the process alive through ntdll loader init but also terminates (state 'stopped') before reaching entry around step ~790.",
+      "reasoning": "Repeated trials: debug_init lands paused at the ntdll system breakpoint (0x77376431); debug_run returns 'running' then 'stopped' within ~0.3s with no breakpoint hit; guest listProcessesInGuest shows no sample process. This is consistent with an early anti-debug/anti-VM check (e.g., TLS callback or loader-phase check) rather than a debugger malfunction, since single-stepping also terminates before entry. Pass 1 identified no TLS section, so the check likely lives in loader-phase code the sample triggers.",
+      "sources": [
+        { "stage": "unpack", "artifact": null, "location": "x64dbg MCP debug_run/debug_get_state; vmrun listProcessesInGuest" }
+      ],
+      "evidence": [
+        { "id": "ev-run-exits", "kind": "dynamic", "source": { "stage": "unpack", "artifact": null, "location": "x64dbg MCP debug_run + poll" }, "observation": "After debug_init (paused at 0x77376431) and setting software breakpoint at 0x4018A0, debug_run returns state 'running' then transitions to 'stopped'; breakpoint_list then reports 'Debugger is not running'. Guest shows no sample process.", "address": "0x4018A0", "confidence": 0.8 },
+        { "id": "ev-step-terminates", "kind": "dynamic", "source": { "stage": "unpack", "artifact": null, "location": "x64dbg MCP debug_step_into loop" }, "observation": "Step-into traversed ntdll loader init (rip 0x773456F0 -> 0x773396B1) for ~790 steps then state became 'stopped' (process exited) without reaching entry 0x4018A0.", "address": "0x773396B1", "confidence": 0.75 }
+      ],
+      "limitations": [
+        "The specific anti-debug/anti-VM mechanism was not identified (no TLS section per pass 1; loader-phase code not instrumented). Bypassing it was not attempted to preserve evidence and conserve effort."
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "art-recovered-shellcode",
+      "path": "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/artifacts/decrypted_shellcode_1717.raw",
+      "sha256": "537c40bc4192ce13b43891f959688f6c712b9d4bf33fb06e6dd5998f51cf32ea",
+      "type": "x86-shellcode",
+      "validation_status": "validated",
+      "context": "1717-byte plaintext recovered from ciphertext at .text VA 0x402A47 via offline replication of sub_401DF8. Position-independent x86 shellcode embedding 'el32.dll' and resolving HeapAlloc/HeapFree via a GetProcAddress-style stub. Entry: first decrypted byte (0x50 push eax) at dest+0; OEP is the shellcode start. Destination-independent of runtime base."
+    },
+    {
+      "id": "art-ciphertext-region",
+      "path": null,
+      "sha256": null,
+      "type": "ciphertext-region",
+      "validation_status": "not_applicable",
+      "context": "1716-byte ciphertext at VA 0x402A47 (file offset 0x1E47). Left in place in the original sample; its plaintext is the recovered shellcode artifact. No copy retained as a separate artifact (source bytes are the original file)."
+    }
+  ],
+  "investigation_targets": [
+    {
+      "id": "tgt-analyze-shellcode",
+      "priority": 1,
+      "target": "Static pass 2 on the recovered 1717-byte shellcode: map its full API-resolution and capability surface.",
+      "reason": "The shellcode resolves HeapAlloc/HeapFree and embeds 'el32.dll'; its full behavior (allocation, further decode, child/injection, network) is only observable after analysis.",
+      "recommended_action": "Run hyperagent-static on artifacts/decrypted_shellcode_1717.raw; disassemble from offset 0 and from the call-0xf prologue; enumerate resolved API strings.",
+      "success_criteria": "Capability findings with evidence, or explicit indeterminate status for unresolved regions."
+    },
+    {
+      "id": "tgt-confirm-runtime-dest",
+      "priority": 2,
+      "target": "Confirm the runtime destination buffer of sub_401DF8 (LoadLibraryW-return + 0x11C) if a bypass for the early-exit anti-analysis is later available.",
+      "reason": "The destination address remains unresolved (pass 1 tgt-resolve-dest). It is not needed for the recovered content but may matter for full process-level reconstruction.",
+      "recommended_action": "In a future dynamic pass, bypass the early anti-debug check and breakpoint 0x401E42 to record [eax+0x11C].",
+      "success_criteria": "Concrete destination address recorded and mapped to the shellcode."
+    },
+    {
+      "id": "tgt-identify-early-check",
+      "priority": 3,
+      "target": "Identify the loader-phase anti-debug/anti-VM check that terminates the process before entry.",
+      "reason": "It blocks all free-running dynamic analysis and may itself be an anti-analysis capability worth documenting.",
+      "recommended_action": "Instrument loader-phase ntdll (e.g., LdrpInitializeProcess path) or run under a kernel-level tracer to catch the termination point.",
+      "success_criteria": "Termination site and check identified with evidence."
+    }
+  ],
+  "limitations": [
+    "The runtime destination buffer of the decryptor could not be confirmed live: the sample exits during loader init under free-running execution before entry (0x4018A0) is reached, and step-into terminates before entry around step 790. The early termination is documented as fin-early-exit-antidebug.",
+    "The specific anti-debug/anti-VM mechanism was not identified; no bypass was attempted to avoid consuming effort and to preserve evidence.",
+    "The recovered shellcode's exact OEP byte offset (0 or 1 within the blob, due to the misaligned dest+1+4j writes) should be confirmed by static pass 2; the leading 4 bytes are valid instructions under both interpretations.",
+    "Recovery was performed offline (host-side, non-executing) from file-resident source bytes; no guest execution of the recovered payload occurred."
+  ],
+  "upstream_inputs": [
+    "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/01-prepare-env.json",
+    "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/02-static-pass1.json"
+  ],
+  "recovery_status": "success",
+  "packing": {
+    "detected": true,
+    "type": "in_place_self_decoding",
+    "confidence": 0.9
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "strategy": "in_place_self_decoding",
+      "source": "0x402A47 (file offset 0x1E47), 1716 bytes ciphertext in .text",
+      "destination": "runtime-dependent buffer (LoadLibraryW-return + 0x11C); content-independent",
+      "transform": "429 dwords: out[j] = (key_j XOR src[j]) - 1; key_0=0x9A246A73; key_{j+1} = -key_j mod 2^32; priming byte 0x50 at dest+0; writes at dest+1+4j",
+      "handoff": "recovered shellcode start (first decrypted byte, OEP candidate)",
+      "result": "success"
+    }
+  ],
+  "static_pass2_handoff": {
+    "recommended": true,
+    "artifact_id": "art-recovered-shellcode",
+    "artifact_path": "reports/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/artifacts/decrypted_shellcode_1717.raw",
+    "artifact_sha256": "537c40bc4192ce13b43891f959688f6c712b9d4bf33fb06e6dd5998f51cf32ea",
+    "artifact_type": "x86-shellcode",
+    "candidate_entry": "0x0 (shellcode start; verify offset 0 vs 1)",
+    "runtime_base": null,
+    "image_base": null,
+    "repair_limitations": [
+      "Not a PE image; raw position-independent shellcode, so no imports/relocations to rebuild.",
+      "Destination buffer base and OEP offset not confirmed live due to early-exit anti-analysis.",
+      "Runtime-resolved APIs observed statically: HeapAlloc, HeapFree (via GetProcAddress-style stub); full surface requires pass 2."
+    ],
+    "questions": [
+      "What is the full set of APIs resolved by the shellcode (beyond HeapAlloc/HeapFree)?",
+      "Does the shellcode allocate a buffer and decode a further stage, or act directly?",
+      "How is 'el32.dll' used (LoadLibrary or export resolution)?",
+      "What is the exact execution entry offset and what caller context (registers/stack) does it expect?"
+    ]
+  }
+}

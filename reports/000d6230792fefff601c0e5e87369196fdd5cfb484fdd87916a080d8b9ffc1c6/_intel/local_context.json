@@ -1,0 +1,78 @@
+{
+  "sample_sha256": "000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+  "upstream_inputs": [
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/02-static-pass1.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/03-unpack.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/04-static-pass2.json",
+    "reports/000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6/05-dynamic.json"
+  ],
+  "local_iocs": [
+    {
+      "id": "ioc.orig-sample-sha256",
+      "category": "host",
+      "value": "000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+      "upstream_evidence_ids": ["ev-001", "art-001"],
+      "notes": "Original packed PE32 GUI sample submitted for analysis."
+    },
+    {
+      "id": "ioc.stage1-shellcode-sha256",
+      "category": "host",
+      "value": "9f8e47944d294db5888d3cab9dd35f43f212b8b7dff92ae4439fe5358d7303e3",
+      "upstream_evidence_ids": ["ev-dyn-004", "art-dyn-001", "art-p2-001"],
+      "notes": "Decoded 1728-byte first-stage shellcode (PEB-walking API resolver, embedded second-stage loader)."
+    },
+    {
+      "id": "ioc.stage2-raw-sha256",
+      "category": "host",
+      "value": "0ec0a9464ed57a3b0451b1527006c2177fc183b760049c7a87322d6cca50e012",
+      "upstream_evidence_ids": ["ev-dyn-007", "art-dyn-002"],
+      "notes": "Decoded 335872-byte second-stage raw data containing an embedded PE at offset 0xB30C (header requires reconstruction)."
+    }
+  ],
+  "claims": [
+    {
+      "id": "cc.custom-pack-obfuscation",
+      "claim_text": "The sample is a custom-packed binary with an obfuscated entry gate, self-modifying import table, and a single custom XOR+byteswap decode loop (sub_401B84).",
+      "related_stage": "static-pass1",
+      "related_finding_ids": ["fin-002", "fin-003", "fin-006"],
+      "label_values": ["obfuscator"]
+    },
+    {
+      "id": "cc.stage1-shellcode-loader",
+      "claim_text": "The packer decodes a first-stage x86 shellcode that PEB-walks to kernel32.dll and hash-resolves kernel32 APIs.",
+      "related_stage": "static-pass2",
+      "related_finding_ids": ["fin-p2-001", "fin-p2-003"],
+      "indicator_values": ["9f8e47944d294db5888d3cab9dd35f43f212b8b7dff92ae4439fe5358d7303e3"],
+      "report_use": "caveat_only"
+    },
+    {
+      "id": "cc.stage2-pe-embedded",
+      "claim_text": "The stage-1 shellcode embeds a XOR+bswap-encoded second-stage PE and loads it via a manual PE loader (section mapping, relocation, import resolution).",
+      "related_stage": "static-pass2",
+      "related_finding_ids": ["fin-p2-002", "fin-p2-006"],
+      "indicator_values": ["0ec0a9464ed57a3b0451b1527006c2177fc183b760049c7a87322d6cca50e012"],
+      "report_use": "caveat_only"
+    },
+    {
+      "id": "cc.anti-debug-present",
+      "claim_text": "The original packer stub performs GlobalFlags(NULL) anti-debug checks at multiple sites (sub_401038, sub_401624, sub_40172C, sub_4018E0, sub_401B38, sub_401E38).",
+      "related_stage": "static-pass1",
+      "related_finding_ids": ["fin-005"],
+      "report_use": "caveat_only"
+    },
+    {
+      "id": "cc.unknown-family-config",
+      "claim_text": "No family attribution or embedded configuration (C2, paths) was identified from local static analysis of the packed sample.",
+      "related_stage": "static-pass1",
+      "related_finding_ids": ["fin-008"],
+      "label_values": ["rogue", "fraudtool"]
+    },
+    {
+      "id": "cc.dynamic-c2-persistence-gap",
+      "claim_text": "Local dynamic analysis could not observe C2, persistence, or network IOCs because the second-stage PE never loaded (decode destination in an uncommitted MEM_RESERVE region).",
+      "related_stage": "dynamic",
+      "related_finding_ids": ["fin-dyn-007", "bhv-dyn-007"],
+      "report_use": "caveat_only"
+    }
+  ]
+}

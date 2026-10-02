@@ -1,0 +1,8 @@
+{
+ "error": {
+  "code": -32010,
+  "message": "Memory not writable at address: 0x00000000773434A0"
+ },
+ "id": 9,
+ "jsonrpc": "2.0"
+}

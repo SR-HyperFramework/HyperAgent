@@ -1,6 +1,0 @@
-mcp
-pyyaml
-python-dotenv
-fastapi
-uvicorn[standard]
-python-multipart

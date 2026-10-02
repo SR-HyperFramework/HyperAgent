@@ -1,0 +1,271 @@
+"""VMware Workstation tool wrappers.
+
+Each vmrun command is exposed as a ``ToolDefinition`` so the LLM can
+orchestrate the guest VM lifecycle during prepare-env, unpack, and dynamic
+stages.
+"""
+from __future__ import annotations
+
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+from ..config import VMwareConfig
+from .base import ToolDefinition, ToolResult
+from .path_scope import PathScope, PathScopeError
+
+
+def _run_vmrun(args: list[str], timeout: int = 30) -> ToolResult:
+    """Execute a vmrun command and return the result."""
+    cmd = ["vmrun"] + args
+    try:
+        completed = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            shell=False,
+        )
+        if completed.returncode != 0:
+            return ToolResult(
+                content=f"vmrun failed (exit {completed.returncode}): {completed.stderr.strip()}",
+                is_error=True,
+            )
+        return ToolResult(content=completed.stdout.strip() or "OK")
+    except subprocess.TimeoutExpired:
+        return ToolResult(content=f"vmrun timed out after {timeout}s", is_error=True)
+    except FileNotFoundError:
+        return ToolResult(content="vmrun executable not found on PATH", is_error=True)
+
+
+def vm_check_vmrun(**_kw) -> ToolResult:
+    """Resolve ``vmrun`` via PATH instead of guessing install directories.
+
+    ``_run_vmrun`` already invokes the bare ``vmrun`` command and relies on
+    PATH resolution, so probing hardcoded ``Program Files`` locations with
+    ``file_exists`` is both unnecessary and unreliable (VMware Workstation is
+    not always installed under ``Program Files``, e.g. custom drive/paths).
+    """
+    found = shutil.which("vmrun")
+    if found:
+        return ToolResult(content=f"vmrun found on PATH: {found}")
+    return ToolResult(content="vmrun not found on PATH", is_error=True)
+
+
+def vm_auto_revert_after_dynamic(config: VMwareConfig) -> ToolResult:
+    """Revert the VM to the clean snapshot after the dynamic stage finishes.
+
+    This is a host-side safety hook for the launcher, not an LLM-callable tool.
+    """
+    return _run_vmrun(
+        ["-T", "ws", "revertToSnapshot", config.vmx_path, config.snapshot_name],
+        timeout=config.command_timeout,
+    )
+
+
+def vm_auto_recover_dynamic_env(
+    config: VMwareConfig, sample_path: Path, scope: PathScope
+) -> ToolResult:
+    """Re-establish a VM-dependent stage's guest debugger session from scratch.
+
+    Host-side safety hook for the launcher, not an LLM-callable tool. Mirrors
+    01-prepare-env's own "Dynamic Analysis Readiness" recovery order (see
+    skill/hyperagent-prepare-env/SKILL.md) step for step: revert, boot, wait
+    for the guest, copy the sample in, launch the debugger with it.
+
+    Needed because 01-prepare-env's readiness check only ever runs once per
+    sample and is then marked "completed" in STATE.json -- but the guest
+    session it establishes is not durable (another sample's post-dynamic
+    revert, a host reboot, or a manual VM stop all invalidate it). When a
+    later VM-dependent stage (03-unpack/05-dynamic) then finds x64dbg
+    unreachable, nothing else in a resumed run would otherwise notice or
+    recover, since 01-prepare-env itself is skipped as already-done.
+    """
+    for label, args, timeout in (
+        ("revertToSnapshot", ["-T", "ws", "revertToSnapshot", config.vmx_path, config.snapshot_name], config.command_timeout),
+        ("start", ["-T", "ws", "start", config.vmx_path, "nogui"], config.startup_timeout),
+        ("getGuestIPAddress", ["-T", "ws", "getGuestIPAddress", config.vmx_path, "-wait"], config.startup_timeout),
+    ):
+        result = _run_vmrun(args, timeout=timeout)
+        if result.is_error:
+            return ToolResult(content=f"vm auto-recovery: {label} failed: {result.content}", is_error=True)
+
+    try:
+        scoped_host_path = scope.check_read(str(sample_path))
+    except PathScopeError as exc:
+        return ToolResult(content=f"vm auto-recovery: {exc}", is_error=True)
+
+    guest_filename = scoped_host_path.name
+    guest_path = f"{config.guest_desktop}\\{guest_filename}"
+    try:
+        file_size = scoped_host_path.stat().st_size
+    except OSError:
+        file_size = 0
+    copy_timeout = max(config.command_timeout, config.startup_timeout, int(file_size / (1024 * 1024)) * 5)
+
+    copy_result = _run_vmrun(
+        ["-T", "ws", "-gu", config.guest_user, "-gp", config.guest_password,
+         "CopyFileFromHostToGuest", config.vmx_path, str(scoped_host_path), guest_path],
+        timeout=copy_timeout,
+    )
+    if copy_result.is_error:
+        return ToolResult(content=f"vm auto-recovery: copy to guest failed: {copy_result.content}", is_error=True)
+
+    launch_result = _run_vmrun(
+        ["-T", "ws", "-gu", config.guest_user, "-gp", config.guest_password,
+         "runProgramInGuest", config.vmx_path, "-noWait", config.guest_debugger, guest_path],
+        timeout=config.command_timeout,
+    )
+    if launch_result.is_error:
+        return ToolResult(content=f"vm auto-recovery: debugger launch failed: {launch_result.content}", is_error=True)
+
+    # x64dbg's MCP listener isn't up the instant runProgramInGuest returns --
+    # the process still has to start and bind its port. Without this wait, the
+    # very next attempt's MCP discovery hits it mid-startup and gets a bare
+    # connection refusal, burning an entire guarded-stage attempt on nothing.
+    # Mirrors the 30s wait skill/hyperagent-prepare-env/SKILL.md already
+    # mandates before probing x64dbg-mcp after a fresh launch.
+    time.sleep(30)
+
+    return ToolResult(content=f"vm auto-recovery: VM booted and x64dbg launched with {guest_filename}")
+
+
+def create_vmware_tools(config: VMwareConfig, scope: PathScope) -> list[ToolDefinition]:
+    """Build VMware tool definitions from the current config."""
+    vmx = config.vmx_path
+    snap = config.snapshot_name
+    user = config.guest_user
+    pwd = config.guest_password
+    desktop = config.guest_desktop
+    debugger = config.guest_debugger
+    startup_timeout = config.startup_timeout
+    command_timeout = config.command_timeout
+
+    def revert_snapshot(**_kw) -> ToolResult:
+        return _run_vmrun(["-T", "ws", "revertToSnapshot", vmx, snap], timeout=command_timeout)
+
+    def start_vm(**_kw) -> ToolResult:
+        return _run_vmrun(["-T", "ws", "start", vmx, "nogui"], timeout=startup_timeout)
+
+    def get_guest_ip(**_kw) -> ToolResult:
+        return _run_vmrun(
+            ["-T", "ws", "getGuestIPAddress", vmx, "-wait"],
+            timeout=startup_timeout,
+        )
+
+    def copy_to_guest(host_path: str = "", guest_filename: str = "", **_kw) -> ToolResult:
+        if not host_path or not guest_filename:
+            return ToolResult(content="host_path and guest_filename are required", is_error=True)
+        try:
+            scoped_host_path = scope.check_read(host_path)
+        except PathScopeError as exc:
+            return ToolResult(content=str(exc), is_error=True)
+        guest_path = f"{desktop}\\{guest_filename}"
+        # Large samples (100+ MB) routinely exceed the base command_timeout over
+        # CopyFileFromHostToGuest, so this scales the budget with file size instead
+        # of hardcoding a bigger constant that would still be wrong for some sample.
+        try:
+            file_size = scoped_host_path.stat().st_size
+        except OSError:
+            file_size = 0
+        copy_timeout = max(command_timeout, startup_timeout, int(file_size / (1024 * 1024)) * 5)
+        return _run_vmrun(
+            ["-T", "ws", "-gu", user, "-gp", pwd,
+             "CopyFileFromHostToGuest", vmx, str(scoped_host_path), guest_path],
+            timeout=copy_timeout,
+        )
+
+    def run_program_in_guest(guest_program: str = "", guest_args: str = "", **_kw) -> ToolResult:
+        program = guest_program or debugger
+        args_parts = ["-T", "ws", "-gu", user, "-gp", pwd,
+                      "runProgramInGuest", vmx, "-noWait", program]
+        if guest_args:
+            args_parts.append(guest_args)
+        return _run_vmrun(args_parts, timeout=command_timeout)
+
+    def run_debugger_with_sample(sample_filename: str = "", **_kw) -> ToolResult:
+        if not sample_filename:
+            return ToolResult(content="sample_filename is required", is_error=True)
+        guest_sample = f"{desktop}\\{sample_filename}"
+        return _run_vmrun(
+            ["-T", "ws", "-gu", user, "-gp", pwd,
+             "runProgramInGuest", vmx, "-noWait", debugger, guest_sample],
+            timeout=command_timeout,
+        )
+
+    return [
+        ToolDefinition(
+            name="vm_check_vmrun",
+            description=(
+                "Resolve the vmrun executable via PATH. Call this first to confirm "
+                "VMware tooling is accessible instead of guessing install paths."
+            ),
+            parameters={"type": "object", "properties": {}},
+            handler=vm_check_vmrun,
+            source="vm",
+        ),
+        ToolDefinition(
+            name="vm_revert_snapshot",
+            description="Revert the analysis VM to the clean snapshot.",
+            parameters={"type": "object", "properties": {}},
+            handler=revert_snapshot,
+            source="vm",
+        ),
+        ToolDefinition(
+            name="vm_start",
+            description="Start the analysis VM (headless).",
+            parameters={"type": "object", "properties": {}},
+            handler=start_vm,
+            source="vm",
+        ),
+        ToolDefinition(
+            name="vm_get_guest_ip",
+            description="Wait for the guest OS to be ready and return its IP address.",
+            parameters={"type": "object", "properties": {}},
+            handler=get_guest_ip,
+            source="vm",
+        ),
+        ToolDefinition(
+            name="vm_copy_to_guest",
+            description="Copy a file from the host into the guest VM desktop.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "host_path": {"type": "string", "description": "Absolute host path to the file"},
+                    "guest_filename": {"type": "string", "description": "Filename on the guest desktop"},
+                },
+                "required": ["host_path", "guest_filename"],
+            },
+            handler=copy_to_guest,
+            source="vm",
+        ),
+        ToolDefinition(
+            name="vm_run_program",
+            description="Run an arbitrary program inside the guest VM (non-blocking).",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "guest_program": {"type": "string", "description": "Full guest path to the program"},
+                    "guest_args": {"type": "string", "description": "Command-line arguments"},
+                },
+                "required": ["guest_program"],
+            },
+            handler=run_program_in_guest,
+            source="vm",
+        ),
+        ToolDefinition(
+            name="vm_run_debugger_with_sample",
+            description="Launch x64dbg in the guest with the sample as its argument.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "sample_filename": {"type": "string", "description": "Sample filename on the guest desktop"},
+                },
+                "required": ["sample_filename"],
+            },
+            handler=run_debugger_with_sample,
+            source="vm",
+        ),
+    ]

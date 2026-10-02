@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hyperagent"
+version = "4.0.0-dev"
+description = "Multi-stage malware analysis orchestrator — SDK edition"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "GPL-3.0-or-later"}
+authors = [
+    {name = "HyperAgent Team"},
+]
+
+dependencies = [
+    # LLM SDKs.
+    # The floor is the version this was verified against, not the earliest that
+    # happens to import. AnthropicProvider.max_context_tokens() reads
+    # models.retrieve(...).max_input_tokens, and on an SDK without that field
+    # the call raises, gets caught, and silently falls back to a 200k guess —
+    # so an older resolve degrades the context window with no visible error.
+    "anthropic>=0.120.0",
+    "openai>=1.82.0",
+    # API server
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    # Schema validation
+    "jsonschema>=4.23.0",
+    # Existing dependency
+    "flask>=3.0.0",
+    # Full-screen run console (--mdebug); verified against rich 14.
+    "rich>=13.7.0",
+    # Utilities
+    "pydantic>=2.10.0",
+    "httpx>=0.28.0",
+    "pyyaml>=6.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.8.0",
+]
+
+[project.scripts]
+hyperagent = "hyperagent.cli:main"
+hyperagent-server = "hyperagent.api.server:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["hyperagent*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]

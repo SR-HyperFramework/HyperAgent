@@ -1,0 +1,117 @@
+{
+  "schema_version": "1.0",
+  "stage": "prepare-env",
+  "sample": {
+    "file_name": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+    "absolute_path": "H:/Dataset/files/malware/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+    "sha256": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423"
+  },
+  "workspace": {
+    "report_directory": "reports/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+    "artifact_directory": "reports/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423/artifacts"
+  },
+  "static_environment": {
+    "status": "ready",
+    "components": [
+      {
+        "name": "sample_path",
+        "status": "available",
+        "detail": "H:\\Dataset\\files\\malware\\000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423 is accessible on the host; its SHA256 matches the file name and it is a PE32 DLL (GUI, Intel 80386, 5 sections)."
+      },
+      {
+        "name": "/ida-pro:idapython",
+        "status": "available",
+        "detail": "Claude plugin /ida-pro:idapython is available for the static workflow; idalib is enabled in the current toolset."
+      },
+      {
+        "name": "plugin:ida-pro:idalib",
+        "status": "available",
+        "detail": "ida-pro idalib MCP tools are present in the active toolset, including survey_binary, decompile, and disasm used by the static workflow."
+      },
+      {
+        "name": "supporting_tooling",
+        "status": "available",
+        "detail": "Supporting host-side tooling is present in the workspace, including C:/Users/ADMIN/HyperAgent/pycdc and C:/Users/ADMIN/HyperAgent/claude_spawn.py."
+      }
+    ]
+  },
+  "dynamic_environment": {
+    "status": "ready",
+    "components": [
+      {
+        "name": "vmrun",
+        "status": "available",
+        "detail": "vmrun is accessible at E:/Program/VMware Workstation 17/vmrun."
+      },
+      {
+        "name": "vmx",
+        "status": "available",
+        "detail": "The VMware guest definition is accessible at H:/VMware/WinVM/Windows 10 - RunSmt.vmx; it was reverted to snapshot VMRunV4, started nogui, and the guest reached IP 192.168.248.169."
+      },
+      {
+        "name": "guest_credentials",
+        "status": "available",
+        "detail": "Guest file-copy and process-launch operations succeeded with the configured account h26v using the approved vmrun workflow."
+      },
+      {
+        "name": "guest_execution_path",
+        "status": "available",
+        "detail": "The sample was copied from the host to C:\\Users\\h26v\\Desktop\\000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423 inside the guest."
+      },
+      {
+        "name": "guest_debugger_path",
+        "status": "available",
+        "detail": "x64dbg was launched in the guest at C:\\Users\\h26v\\Downloads\\x64dbg\\release\\x96dbg.exe with the copied sample as its argument."
+      },
+      {
+        "name": "x64dbg-mcp",
+        "status": "available",
+        "detail": "After the required 30-second post-launch wait, curl -Ss http://192.168.248.169:3000 returned {\"status\":\"ok\",\"service\":\"x64dbg-mcp\"}."
+      }
+    ]
+  },
+  "readiness": {
+    "static": "ready",
+    "dynamic": "ready",
+    "overall": "ready"
+  },
+  "blockers": [],
+  "provenance": [
+    {
+      "type": "file",
+      "location": "H:/Dataset/files/malware/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423"
+    },
+    {
+      "type": "command",
+      "location": "file and sha256sum check for H:\\Dataset\\files\\malware\\000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423"
+    },
+    {
+      "type": "tool",
+      "location": "plugin:ida-pro:idalib MCP tools available in active toolset"
+    },
+    {
+      "type": "command",
+      "location": "vmrun -T ws revertToSnapshot H:\\VMware\\WinVM\\Windows 10 - RunSmt.vmx VMRunV4"
+    },
+    {
+      "type": "command",
+      "location": "vmrun -T ws start H:\\VMware\\WinVM\\Windows 10 - RunSmt.vmx nogui"
+    },
+    {
+      "type": "command",
+      "location": "vmrun -T ws getGuestIPAddress H:\\VMware\\WinVM\\Windows 10 - RunSmt.vmx -wait"
+    },
+    {
+      "type": "command",
+      "location": "vmrun -T ws -gu h26v -gp 123456 CopyFileFromHostToGuest H:\\VMware\\WinVM\\Windows 10 - RunSmt.vmx H:\\Dataset\\files\\malware\\000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423 C:\\Users\\h26v\\Desktop\\000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423"
+    },
+    {
+      "type": "command",
+      "location": "vmrun -T ws -gu h26v -gp 123456 runProgramInGuest H:\\VMware\\WinVM\\Windows 10 - RunSmt.vmx -noWait C:\\Users\\h26v\\Downloads\\x64dbg\\release\\x96dbg.exe C:\\Users\\h26v\\Desktop\\000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423"
+    },
+    {
+      "type": "command",
+      "location": "sleep 30 && curl -Ss http://192.168.248.169:3000"
+    }
+  ]
+}

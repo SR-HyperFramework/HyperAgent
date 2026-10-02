@@ -1,0 +1,180 @@
+{# The live page's regions. live.html renders this once; app.js re-fetches it
+   with ?fragment=1 and swaps in each [data-live-region] whose markup changed,
+   so the page and its updates come from one template. #}
+{% set snap = snapshot %}
+{% set verdict_class = snap.verdict.value if snap.verdict and snap.verdict.value in verdicts else 'unknown' %}
+<span id="live-state" data-live-region data-live-state="{{ state }}" hidden></span>
+
+<header class="card live-hero sev-{{ verdict_class }}" id="live-hero" data-live-region>
+  <div class="live-hero-main">
+    <p class="eyebrow">Live analysis</p>
+    <div class="live-status-line">
+      <span class="live-pill live-{{ state }}"><span class="live-dot" aria-hidden="true"></span>{{ state_label }}</span>
+      {% if live and live.stage_id and state == 'running' %}
+      <span class="live-stage">Stage {{ "%02d"|format(live.stage_index) }}/{{ "%02d"|format(live.stage_total) }}
+        <code translate="no">{{ live.stage_id }}</code>{% if live.attempt > 1 %} <span class="live-attempt">attempt {{ live.attempt }}</span>{% endif %}</span>
+      <span class="live-activity">{{ live.activity }}</span>
+      {% endif %}
+    </div>
+    <p class="hero-sha">
+      <code translate="no">{{ sha256 }}</code>
+      <button class="copy" type="button" data-copy="{{ sha256 }}" aria-label="Copy SHA256 to clipboard">Copy</button>
+    </p>
+    {% if snap.last_error %}<p class="live-error">{{ snap.last_error }}</p>{% endif %}
+    {% if report_url %}<p class="live-hero-action"><a class="banner-action" href="{{ report_url }}">Open full report &rarr;</a></p>{% endif %}
+  </div>
+  <dl class="live-facts">
+    <div><dt>Elapsed</dt><dd>{{ live.elapsed if live else '—' }}</dd></div>
+    <div><dt>Stages</dt><dd>{{ snap.completed_count }}/{{ snap.stages|length }}</dd></div>
+    <div><dt>IoCs</dt><dd>{{ snap.indicators|length }}</dd></div>
+    <div><dt>Evidence</dt><dd>{{ snap.evidence_total }}</dd></div>
+    <div>
+      <dt>Verdict</dt>
+      <dd>{% if snap.verdict %}<span class="hue live-verdict">{{ snap.verdict.value }}</span>{% if snap.verdict.confidence is not none %} <span class="live-sub">{{ "%.2f"|format(snap.verdict.confidence) }}</span>{% endif %}{% else %}—{% endif %}</dd>
+    </div>
+    <div>
+      <dt>Context</dt>
+      <dd>{% if live and live.context_cap %}{{ live.context_percent }}%{% if live.max_turns %} <span class="live-sub">turn {{ live.turn }}/{{ live.max_turns }}</span>{% endif %}{% else %}—{% endif %}</dd>
+    </div>
+  </dl>
+</header>
+
+<div class="live-grid">
+  <section class="card section-card live-trace" id="live-trace" data-live-region>
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">Console</p>
+        <h2>Agent trace</h2>
+      </div>
+      <span class="pip">{{ events|length }}</span>
+    </div>
+    {% if saved_console %}
+    <p class="live-trace-meta">
+      Saved console output
+      {%- if saved_console.truncated %} &middot; newest {{ events|length }} events{% endif %}
+      {%- if saved_console.sessions > 1 %} &middot; {{ saved_console.sessions }} sessions{% endif %}
+      {%- if console_text_url %} &middot; <a href="{{ console_text_url }}" target="_blank" rel="noopener">Open as text</a>{% endif %}
+    </p>
+    {% elif live and console_text_url %}
+    <p class="live-trace-meta">Streaming from the run console &middot; saved to <code>console.jsonl</code>
+      &middot; <a href="{{ console_text_url }}" target="_blank" rel="noopener">Open as text</a></p>
+    {% endif %}
+    {% if events %}
+    <ol class="live-feed" id="live-feed" data-live-scroll>
+      {% for event in trace %}
+      {% if event.actions is defined %}
+      {% set pending = event.pending if loop.last and state == 'running' else none %}
+      <li class="ev ev-actions">
+        <time>{{ event.clock }}</time>
+        <details class="actions" data-key="act-{{ event.seq }}">
+          <summary>
+            <span class="act-summary">{{ event.summary }}</span>
+            {%- if event.failed %} <span class="act-failed">&middot; {{ event.failed }} failed</span>{% endif %}
+            {%- if pending %} <span class="act-pending">&middot; {{ pending.label }} &hellip;</span>{% endif %}
+          </summary>
+          <ol class="act-list">
+            {% for action in event.actions %}
+            <li class="act act-{{ action.status }}">
+              <span class="act-label">{{ action.label }}</span>
+              {% if action.call %}<code class="act-call">{{ action.call }}</code>{% endif %}
+              {% if action.result %}<span class="act-result">{{ action.result }}</span>{% endif %}
+            </li>
+            {% endfor %}
+          </ol>
+        </details>
+      </li>
+      {% elif event.kind == 'session' %}
+      <li class="ev ev-session"><time>{{ event.clock }}</time><span class="ev-text">{{ event.text }}{% if event.ts %} &middot; {{ event.ts }}{% endif %}</span></li>
+      {% else %}
+      <li class="ev ev-{{ event.kind }}"><time>{{ event.clock }}</time><span class="ev-text">{{ event.text }}</span></li>
+      {% endif %}
+      {% endfor %}
+    </ol>
+    {% elif live %}
+    <p class="dim">Waiting for the first stage to start&hellip;</p>
+    {% else %}
+    <p class="dim">No console output was saved for this run, so only its pipeline artifacts are shown.
+      Runs started with <code>hyperagent analyze &lt;sample&gt; --mdebug</code> record their agent trace to
+      <code>console.jsonl</code> in the report directory.</p>
+    {% endif %}
+  </section>
+
+  <aside class="live-side" aria-label="Run progress">
+    <section class="card side-card" id="live-stages" data-live-region>
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Pipeline</p>
+          <h2>Stages</h2>
+        </div>
+        <span class="pip">{{ snap.completed_count }}/{{ snap.stages|length }}</span>
+      </div>
+      <ol class="live-stages">
+        {% for stage in snap.stages %}
+        <li class="live-stage-row stage-{{ stage.status }}">
+          <span class="stage-mark" aria-hidden="true">{{ {'completed': '✓', 'running': '●', 'checkpointed': '◔', 'failed': '✗'}.get(stage.status, '○') }}</span>
+          <code translate="no">{{ stage.stage_id }}</code>
+          <span class="stage-detail">
+            {%- if stage.status == 'completed' -%}
+              {%- if stage.artifact_status and stage.artifact_status not in ('completed', 'not_needed') -%}<span class="stage-flag">{{ stage.artifact_status }}</span>
+              {%- elif stage.evidence -%}{{ stage.evidence }} ev{%- endif -%}
+            {%- elif stage.status == 'running' and live and live.stage_id == stage.stage_id and live.attempt > 1 -%}attempt {{ live.attempt }}
+            {%- elif stage.status == 'checkpointed' -%}resumable
+            {%- elif stage.status != 'pending' -%}{{ stage.status }}
+            {%- endif -%}
+          </span>
+        </li>
+        {% else %}
+        <li class="dim">STATE.json lists no stages yet.</li>
+        {% endfor %}
+      </ol>
+    </section>
+
+    <section class="card side-card" id="live-iocs" data-live-region>
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Indicators</p>
+          <h2>IoCs</h2>
+        </div>
+        <span class="pip">{{ snap.indicators|length }}</span>
+      </div>
+      {% if snap.indicators %}
+      <ul class="live-iocs">
+        {% for item in snap.indicators %}
+        <li>
+          <span class="ioc-group ioc-{{ item.group }}">{{ item.group }}</span>
+          <code translate="no">{{ item.value }}</code>
+          <button class="copy" type="button" data-copy="{{ item.value }}" aria-label="Copy indicator to clipboard">Copy</button>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="dim">None yet. Indicators appear once <code>05-dynamic</code> or <code>09-summary</code> records them.</p>
+      {% endif %}
+    </section>
+
+    <section class="card side-card" id="live-evidence" data-live-region>
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Evidence</p>
+          <h2>Findings</h2>
+        </div>
+        <span class="pip">{{ snap.evidence_total }}</span>
+      </div>
+      {% if findings %}
+      <ul class="live-findings">
+        {% for item in findings %}
+        <li class="lf lf-{{ item.status }}">
+          <span class="lf-mark" aria-hidden="true"></span>
+          <div>
+            <p class="lf-title">{{ item.title }}</p>
+            <p class="lf-meta"><code translate="no">{{ item.stage_id }}</code> &middot; {{ item.status }}{% if item.confidence is not none %} &middot; {{ "%.2f"|format(item.confidence) }}{% endif %} &middot; {{ item.evidence }} ev</p>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="dim">No findings yet.</p>
+      {% endif %}
+    </section>
+  </aside>
+</div>

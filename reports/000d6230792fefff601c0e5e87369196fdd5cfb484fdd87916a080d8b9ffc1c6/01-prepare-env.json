@@ -1,0 +1,113 @@
+{
+  "schema_version": "1.0",
+  "stage": "prepare-env",
+  "sample": {
+    "file_name": "000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+    "absolute_path": "H:\\Dataset\\files\\malware\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+    "sha256": "000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6"
+  },
+  "workspace": {
+    "report_directory": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6",
+    "artifact_directory": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6"
+  },
+  "static_environment": {
+    "status": "ready",
+    "components": [
+      {
+        "name": "ida_pro",
+        "status": "available",
+        "detail": "IDA Professional 9.0 installed at C:\\Program Files\\IDA Professional 9.0\\ida.exe"
+      },
+      {
+        "name": "idalib_mcp",
+        "status": "available",
+        "detail": "IDALib MCP server responsive at stdio:default context"
+      },
+      {
+        "name": "sample_path",
+        "status": "available",
+        "detail": "Sample accessible at H:\\Dataset\\files\\malware\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6, size 390144 bytes, PE32 GUI Intel 80386"
+      }
+    ]
+  },
+  "dynamic_environment": {
+    "status": "ready",
+    "components": [
+      {
+        "name": "vmware_workstation",
+        "status": "available",
+        "detail": "VMware Workstation 17 with vmrun at /e/Program/VMware Workstation 17/vmrun"
+      },
+      {
+        "name": "vmx_path",
+        "status": "available",
+        "detail": "VMX accessible at H:\\VMware\\WinVM\\Windows 10 - RunSmt.vmx"
+      },
+      {
+        "name": "vm_revert",
+        "status": "available",
+        "detail": "Snapshot VMRunV4 reverted successfully"
+      },
+      {
+        "name": "vm_guest_os",
+        "status": "available",
+        "detail": "Guest VM started and IP obtained: 192.168.248.169"
+      },
+      {
+        "name": "sample_copy",
+        "status": "available",
+        "detail": "Sample copied to guest at C:\\Users\\h26v\\Desktop\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6"
+      },
+      {
+        "name": "x64dbg",
+        "status": "available",
+        "detail": "x64dbg launched in guest via x96dbg.exe with sample loaded"
+      },
+      {
+        "name": "x64dbg_mcp",
+        "status": "available",
+        "detail": "x64dbg-mcp reachable at http://192.168.248.169:3000, returned {\"status\":\"ok\",\"service\":\"x64dbg-mcp\"}"
+      }
+    ]
+  },
+  "readiness": {
+    "static": "ready",
+    "dynamic": "ready",
+    "overall": "ready"
+  },
+  "blockers": [],
+  "provenance": [
+    {
+      "type": "file",
+      "location": "H:\\Dataset\\files\\malware\\000d6230792fefff601c0e5e87369196fdd5cfb484fdd87916a080d8b9ffc1c6"
+    },
+    {
+      "type": "command",
+      "location": "vmrun -T ws revertToSnapshot <vmx> <snapshot>"
+    },
+    {
+      "type": "command",
+      "location": "vmrun -T ws start <vmx> nogui"
+    },
+    {
+      "type": "command",
+      "location": "vmrun -T ws getGuestIPAddress <vmx> -wait"
+    },
+    {
+      "type": "command",
+      "location": "CopyFileFromHostToGuest via vmrun"
+    },
+    {
+      "type": "command",
+      "location": "runProgramInGuest x64dbg launch"
+    },
+    {
+      "type": "command",
+      "location": "curl http://192.168.248.169:3000"
+    },
+    {
+      "type": "tool",
+      "location": "idalib MCP server_health"
+    }
+  ]
+}

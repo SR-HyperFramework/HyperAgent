@@ -1,0 +1,453 @@
+{
+  "schema_version": "1.0",
+  "stage": "static-pass1",
+  "sample": {
+    "original_sha256": "00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963",
+    "target_path": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+    "target_sha256": "00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963"
+  },
+  "status": "completed",
+  "summary": "This binary is GNU Octave 4.2.1 octave-config, a legitimate configuration utility built with MinGW/GCC via the MXE cross-compile system. It prints Octave installation paths and configuration values (BINDIR, DATADIR, LIBDIR, VERSION, etc.) when invoked with -p <key>. No packing, obfuscation, anti-analysis, or malware indicators were found. The binary is a clean standard C++ console application with 150 functions, all statically linked CRT and libstdc++ routines, no network imports, no crypto imports, and no suspicious strings.",
+  "findings": [
+    {
+      "id": "sample-identity.octave-config",
+      "title": "Binary identified as GNU Octave octave-config utility",
+      "category": "sample_identity",
+      "status": "confirmed",
+      "confidence": 1.0,
+      "description": "The binary is GNU Octave 4.2.1 octave-config.exe, a command-line tool that prints Octave installation configuration paths. Built with MinGW/GCC via the MXE cross-compile system.",
+      "reasoning": "The binary contains 30+ Octave path strings referencing /scratch/jwe/mxe-octave/4.2.1/w64-32/usr/x86_64-w64-mingw32, environment variable names like OCTAVE_HOME, VERSION=4.2.1, usage text for octave-config CLI, and the main function implements a config-key query parser with -p, -v, --help options.",
+      "sources": [
+        {
+          "stage": "02-static-pass1",
+          "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+          "location": "survey_binary / IDA Pro analysis"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-strings-octave-paths",
+          "kind": "static",
+          "source": {
+            "stage": "02-static-pass1",
+            "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+            "location": "Binary string extraction"
+          },
+          "observation": "30+ hardcoded paths under /scratch/jwe/mxe-octave/4.2.1/w64-32/usr/x86_64-w64-mingw32",
+          "address": "0x407018",
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-strings-usage-text",
+          "kind": "static",
+          "source": {
+            "stage": "02-static-pass1",
+            "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+            "location": "Binary string extraction"
+          },
+          "observation": "Usage text: \"octave-config: unrecognized argument\", \"usage: octave-config [options]\", -v, --version, --m-site-dir, --oct-site-dir help text",
+          "address": "0x407000",
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-main-function",
+          "kind": "static",
+          "source": {
+            "stage": "02-static-pass1",
+            "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+            "location": "IDA Pro decompile main @ 0x404ec0"
+          },
+          "observation": "main() implements argument parsing for -p, -h, -v, --m-site-dir, --oct-site-dir, queries std::map config and prints to stdout/cerr",
+          "address": "0x404ec0",
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-config-init",
+          "kind": "static",
+          "source": {
+            "stage": "02-static-pass1",
+            "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+            "location": "IDA Pro decompile sub_401AD0 @ 0x401AD0"
+          },
+          "observation": "sub_401AD0 populates ~30 config keys (OCTAVE_HOME, PREFIX, BINDIR, DATADIR, VERSION=4.2.1, etc.) into std::map",
+          "address": "0x401ad0",
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-octave-home-resolver",
+          "kind": "static",
+          "source": {
+            "stage": "02-static-pass1",
+            "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+            "location": "IDA Pro decompile sub_401530 @ 0x401530"
+          },
+          "observation": "OCTAVE_HOME resolver reads env var or derives from GetModuleFileNameA, strips \\bin\\ suffix",
+          "address": "0x401530",
+          "confidence": 1.0
+        }
+      ],
+      "limitations": [
+        "Dynamic confirmation would verify OCTAVE_HOME resolution and output format"
+      ]
+    },
+    {
+      "id": "packing.not-packed",
+      "title": "No packing or obfuscation detected",
+      "category": "packing",
+      "status": "not_observed",
+      "confidence": 1.0,
+      "description": "The binary is a standard MinGW-compiled executable with no packing, encryption, compression, or obfuscation of code or data sections.",
+      "reasoning": "Standard section layout (.text, .data, .rdata, .pdata, .xdata, .bss, .idata, .edata, .CRT, .tls, .reloc) with normal sizes and characteristics. .text section has low byte diversity. No section entropy anomalies. All 150 functions are recognized by IDA Pro with standard MinGW CRT/C++ signatures. No decode/decrypt loops, no suspicious GetProcAddress patterns, no runtime unpacking stubs.",
+      "sources": [
+        {
+          "stage": "02-static-pass1",
+          "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+          "location": "IDA Pro survey_binary, PE header analysis, function analysis"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-section-layout",
+          "kind": "static",
+          "source": {
+            "stage": "02-static-pass1",
+            "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+            "location": "PE header section table"
+          },
+          "observation": "11 standard sections with normal sizes and characteristics. No packed-section anomalies.",
+          "address": "0x400000",
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-ida-function-recognition",
+          "kind": "tool_output",
+          "source": {
+            "stage": "02-static-pass1",
+            "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+            "location": "IDA Pro survey_binary"
+          },
+          "observation": "150 functions recognized, 99 named, 1 library function, 50 unnamed (all standard MinGW CRT helpers)",
+          "address": null,
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-no-decrypt-loops",
+          "kind": "static",
+          "source": {
+            "stage": "02-static-pass1",
+            "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+            "location": "IDA Pro decompile analysis of all functions"
+          },
+          "observation": "No XOR loops, decryption routines, base64 decoding, or compression stubs found in any function",
+          "address": null,
+          "confidence": 1.0
+        }
+      ],
+      "limitations": []
+    },
+    {
+      "id": "anti-analysis.none",
+      "title": "No anti-analysis mechanisms detected",
+      "category": "anti_analysis",
+      "status": "not_observed",
+      "confidence": 1.0,
+      "description": "The binary contains no anti-debugging, anti-VM, sandbox evasion, or integrity-checking mechanisms.",
+      "reasoning": "No anti-debug import (IsDebuggerPresent, NtQueryInformationProcess, CheckRemoteDebuggerPresent, PEB walking). No anti-VM strings or hardware detection. GetTickCount and QueryPerformanceCounter are used only for random seed generation. SetUnhandledExceptionFilter is standard MinGW crash reporting, not obfuscated control flow. No integrity checks, timing checks, or exception-driven obfuscation.",
+      "sources": [
+        {
+          "stage": "02-static-pass1",
+          "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+          "location": "IDA Pro imports analysis, function decompile"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-imports-no-antidebug",
+          "kind": "static",
+          "source": {
+            "stage": "02-static-pass1",
+            "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+            "location": "IDA Pro imports_query"
+          },
+          "observation": "Imports only KERNEL32 (basic process/thread/time/critical section), msvcrt, libstdc++-6, libgcc_s_seh-1. No anti-debug APIs.",
+          "address": null,
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-seed-generation",
+          "kind": "static",
+          "source": {
+            "stage": "02-static-pass1",
+            "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+            "location": "IDA Pro decompile sub_403040 @ 0x403040"
+          },
+          "observation": "GetTickCount and QueryPerformanceCounter used exclusively for seed generation, XORed with time/PID/TID",
+          "address": "0x403040",
+          "confidence": 1.0
+        }
+      ],
+      "limitations": []
+    },
+    {
+      "id": "execution.standard-crt-entry",
+      "title": "Standard MinGW CRT execution path",
+      "category": "execution",
+      "status": "confirmed",
+      "confidence": 1.0,
+      "description": "The binary follows the standard MinGW CRT entry path: start -> CRT init -> main() -> octave-config logic -> exit. No alternative entry points, no early injection, no unusual startup sequences.",
+      "reasoning": "Entry point at 0x1500 (RVA) maps to start @ 0x401500. The CRT startup initializes the SEH filter, C++ runtime, pseudo-relocations, exception table, and FPU, then calls main(). The main() function at 0x404ec0 is a straightforward octave-config CLI parser. TLS callbacks manage standard MinGW TLS cleanup.",
+      "sources": [
+        {
+          "stage": "02-static-pass1",
+          "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+          "location": "IDA Pro survey_binary / decompile"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-start-function",
+          "kind": "static",
+          "source": {
+            "stage": "02-static-pass1",
+            "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+            "location": "IDA Pro decompile start @ 0x401500"
+          },
+          "observation": "start() calls sub_403040 (seed) then sub_4011B0 (CRT startup)",
+          "address": "0x401500",
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-crt-startup",
+          "kind": "static",
+          "source": {
+            "stage": "02-static-pass1",
+            "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+            "location": "IDA Pro decompile sub_4011B0 @ 0x4011B0"
+          },
+          "observation": "CRT startup: initterm, SEH filter, pseudo-reloc, SEH tables, FPU init, then calls main()",
+          "address": "0x4011b0",
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-tls-callbacks",
+          "kind": "static",
+          "source": {
+            "stage": "02-static-pass1",
+            "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+            "location": "IDA Pro decompile TlsCallback_0/1"
+          },
+          "observation": "TlsCallback_0 (0x403250) and TlsCallback_1 (0x403220) call sub_403F30 for standard TLS cleanup",
+          "address": "0x403250",
+          "confidence": 1.0
+        }
+      ],
+      "limitations": []
+    },
+    {
+      "id": "network.no-network",
+      "title": "No network capabilities detected",
+      "category": "network",
+      "status": "not_observed",
+      "confidence": 1.0,
+      "description": "The binary has zero network imports (no Winsock, WinHTTP, WinINet, or URL-related functions). No network-related strings found.",
+      "reasoning": "Import analysis shows only KERNEL32, msvcrt, libstdc++-6, and libgcc_s_seh-1. No ws2_32, winhttp, wininet, urlmon, or any socket-related DLL. No URLs, IP addresses, or domain names in strings.",
+      "sources": [
+        {
+          "stage": "02-static-pass1",
+          "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+          "location": "IDA Pro imports_query"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-imports-no-network",
+          "kind": "static",
+          "source": {
+            "stage": "02-static-pass1",
+            "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+            "location": "IDA Pro imports_query"
+          },
+          "observation": "No network DLLs imported. Only KERNEL32, msvcrt, libstdc++-6, libgcc_s_seh-1.",
+          "address": null,
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-strings-no-network",
+          "kind": "static",
+          "source": {
+            "stage": "02-static-pass1",
+            "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+            "location": "Binary string extraction"
+          },
+          "observation": "No URLs, IP addresses, or domain names in the binary string table",
+          "address": null,
+          "confidence": 1.0
+        }
+      ],
+      "limitations": []
+    },
+    {
+      "id": "config.octave-path-database",
+      "title": "Embedded Octave compile-time configuration",
+      "category": "configuration",
+      "status": "confirmed",
+      "confidence": 1.0,
+      "description": "The binary embeds a compile-time configuration database of ~30 Octave install paths and the OCTAVE_HOME resolution logic. This is the expected configuration data for octave-config and is not suspicious.",
+      "reasoning": "sub_401AD0 populates a std::map<string,string> with hardcoded paths from the MXE build environment. The OCTAVE_HOME resolver at sub_401530 reads the environment variable or derives the install prefix from the executable path. All paths are consistent with Octave 4.2.1 for x86_64-w64-mingw32.",
+      "sources": [
+        {
+          "stage": "02-static-pass1",
+          "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+          "location": "IDA Pro decompile sub_401AD0, sub_401530"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-config-map",
+          "kind": "static",
+          "source": {
+            "stage": "02-static-pass1",
+            "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+            "location": "IDA Pro decompile sub_401AD0 @ 0x401AD0"
+          },
+          "observation": "~30 config keys populated into std::map: OCTAVE_HOME, PREFIX, BINDIR, DATADIR, LIBDIR, VERSION=4.2.1, etc.",
+          "address": "0x401ad0",
+          "confidence": 1.0
+        },
+        {
+          "id": "ev-octave-home",
+          "kind": "static",
+          "source": {
+            "stage": "02-static-pass1",
+            "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+            "location": "IDA Pro decompile sub_401530"
+          },
+          "observation": "OCTAVE_HOME resolver: reads env var, if not set uses GetModuleFileNameA and strips \\bin\\ suffix",
+          "address": "0x401530",
+          "confidence": 1.0
+        }
+      ],
+      "limitations": []
+    },
+    {
+      "id": "persistence.no-persistence",
+      "title": "No persistence mechanisms detected",
+      "category": "persistence",
+      "status": "not_observed",
+      "confidence": 1.0,
+      "description": "The binary contains no registry, filesystem, or service persistence mechanisms.",
+      "reasoning": "No registry API imports (RegOpenKeyEx, RegSetValueEx, etc.). No service manager imports. No scheduled task, startup folder, or run key strings. No file write operations beyond fwrite from C runtime.",
+      "sources": [
+        {
+          "stage": "02-static-pass1",
+          "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+          "location": "IDA Pro imports_query, string analysis"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-imports-no-registry",
+          "kind": "static",
+          "source": {
+            "stage": "02-static-pass1",
+            "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+            "location": "IDA Pro imports_query"
+          },
+          "observation": "No registry API imports, no service manager imports, no persistence-related function calls",
+          "address": null,
+          "confidence": 1.0
+        }
+      ],
+      "limitations": []
+    },
+    {
+      "id": "injection.no-injection",
+      "title": "No process injection capabilities detected",
+      "category": "injection",
+      "status": "not_observed",
+      "confidence": 1.0,
+      "description": "The binary contains no process injection, API hooking, or code injection capabilities.",
+      "reasoning": "No VirtualAllocEx, WriteProcessMemory, CreateRemoteThread, SetWindowsHookEx, or any process manipulation APIs. The VirtualProtect import is used by the standard MinGW pseudo-relocation handler for DLL base relocation fixups.",
+      "sources": [
+        {
+          "stage": "02-static-pass1",
+          "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+          "location": "IDA Pro imports_query, function analysis"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "ev-imports-no-injection",
+          "kind": "static",
+          "source": {
+            "stage": "02-static-pass1",
+            "artifact": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+            "location": "IDA Pro imports_query"
+          },
+          "observation": "No injection-related APIs. VirtualProtect is used by pseudo-reloc handler (standard MinGW).",
+          "address": null,
+          "confidence": 1.0
+        }
+      ],
+      "limitations": []
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "original-sample",
+      "path": "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+      "sha256": "00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963",
+      "type": "pe64-console",
+      "validation_status": "validated",
+      "context": "Original sample identified as GNU Octave 4.2.1 octave-config utility. No unpacking required."
+    }
+  ],
+  "investigation_targets": [
+    {
+      "id": "target-octave-home-resolver",
+      "priority": 3,
+      "target": "sub_401530 (OCTAVE_HOME resolver)",
+      "reason": "Verify OCTAVE_HOME resolution from environment variable and GetModuleFileNameA",
+      "recommended_action": "Breakpoint at 0x401530, observe GetModuleFileNameA return value",
+      "success_criteria": "Returns correct install prefix path"
+    },
+    {
+      "id": "target-config-output",
+      "priority": 4,
+      "target": "main at 0x404ec0",
+      "reason": "Verify octave-config output format for -p, -v, --help options",
+      "recommended_action": "Run octave-config.exe -p VERSION and -p BINDIR in guest",
+      "success_criteria": "Prints \"4.2.1\" for -p VERSION and expected path for -p BINDIR"
+    }
+  ],
+  "limitations": [
+    "Dynamic analysis was not performed; static analysis alone cannot confirm runtime behavior",
+    "Cannot verify OCTAVE_HOME resolution without the environment variable being set",
+    "No VT report consulted for community detection statistics"
+  ],
+  "upstream_inputs": [
+    "H:/Dataset/files/benign/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963.exe",
+    "reports/00eea85752664955047caad7d6280bc7bf1ab91c61eb9a2542c26b747a12e963/01-prepare-env.json"
+  ],
+  "binary_profile": {
+    "format": "pe64-console",
+    "architecture": "x86_64",
+    "entry_point": "0x401500",
+    "image_base": "0x400000",
+    "packer": null,
+    "packed_confidence": 0.0
+  },
+  "unpack_decision": {
+    "required": false,
+    "confidence": 1.0,
+    "reasons": [
+      "No packing or obfuscation detected",
+      "Standard MinGW section layout with normal characteristics",
+      "All 150 functions recognized by IDA Pro",
+      "No decode/decrypt loops or runtime unpacking stubs",
+      "Binary identified as legitimate GNU Octave octave-config utility"
+    ],
+    "strategy": "none",
+    "breakpoint_plan": []
+  }
+}

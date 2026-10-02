@@ -1,0 +1,841 @@
+{
+  "provider": "virustotal",
+  "resource": "behaviour_summary",
+  "docs_url": "https://docs.virustotal.com/reference/file-all-behaviours-summary",
+  "endpoint": "https://www.virustotal.com/api/v3/files/000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423/behaviour_summary",
+  "query": {
+    "id": "000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423",
+    "hash_type": "sha256"
+  },
+  "response": {
+    "data": {
+      "registry_keys_set": [
+        {
+          "key": "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\Windows Error Reporting\\Debug\\StoreLocation",
+          "value": "%LOCALAPPDATA%\\Microsoft\\Windows\\WER\\ReportArchive\\AppCrash_c2ae_uiproxy32.e_ba49a14cb864aee51224311b5f966e20b8e4e4d9_0a49512b"
+        },
+        {
+          "key": "HKEY_USERS\\S-1-5-21-575823232-3065301323-1442773979-1000\\Software\\Microsoft\\SystemCertificates\\Root\\Certificates\\0174E68C97DDF1E0EEEA415EA336A163D2B61AFD\\Blob",
+          "value": "5C 00 00 00 01 00 00 00 04 00 00 00 00 10 00 00 04 00 00 00 01 00 00 00 10 00 00 00 0D BE 92 DE FF 7D 36 BB 48 C4 A6 B1 15 24 95 38 0F 00 00 00 01 00 00 00 20 00 00 00 53 FE B9 19 2E D4 80 F2 09 12 4A 2C 57 D7 E8 97 7A 2E 9F 39 46 1D BF 21 4D F1 12 CB 16 02 4F A2 14 00 00 00 01 00 00 00 14 00 00 00 78 B8 30 FD 63 AC 7B 89 4A 07 3B ED F6 8A 83 9C C3 52 02 65 19 00 00 00 01 00 00 00 10 00 00 00 B5 74 AF 30 C5 C1 BA 3A 69 A7 10 02 00 82 4D D0 03 00 00 00 01 00 00 00 14 00 00 00 01 74 E6 8C 97 DD F1 E0 EE EA 41 5E A3 36 A1 63 D2 B6 1A FD 20 00 00 00 01 00 00 00 F8 05 00 00 30 82 05 F4 30 82 03 DC A0 03 02 01 02 02 09 00 E0 EA 61 4C 28 56 32 64 30 0D 06 09 2A 86 48 86 F7 0D 01 01 0B 05 00 30 81 8E 31 0B 30 09 06 03 55 04 06 13 02 49 4C 31 0F 30 0D 06 03 55 04 08 0C 06 43 65 6E 74 65 72 31 0C 30 0A 06 03 55 04 07 0C 03 4C 6F 64 31 10 30 0E 06 03 55 04 0A 0C 07 47 6F 50 72 6F 78 79 31 10 30 0E 06 03 55 04 0B 0C 07 47 6F 50 72 6F 78 79 31 1A 30 18 06 03 55 04 03 0C 11 67 6F 70 72 6F 78 79 2E 67 69 74 68 75 62 2E 69 6"
+        },
+        {
+          "key": "HKEY_USERS\\S-1-5-21-575823232-3065301323-1442773979-1000\\Software\\Microsoft\\Windows\\Windows Error Reporting\\Debug\\StoreLocation",
+          "value": "%LOCALAPPDATA%\\Microsoft\\Windows\\WER\\ReportArchive\\AppCrash_c2ae_uiproxy32.e_ba49a14cb864aee51224311b5f966e20b8e4e4d9_0a49512b"
+        }
+      ],
+      "verdicts": [
+        "UNKNOWN_VERDICT"
+      ],
+      "processes_tree": [
+        {
+          "process_id": "2832",
+          "name": "wmiadap.exe /F /T /R"
+        },
+        {
+          "process_id": "2876",
+          "name": "%windir%\\system32\\wbem\\wmiprvse.exe"
+        },
+        {
+          "process_id": "2208",
+          "name": "%windir%\\System32\\svchost.exe -k WerSvcGroup",
+          "children": [
+            {
+              "process_id": "2632",
+              "name": "%windir%\\SysWOW64\\WerFault.exe -u -p 2548 -s 120"
+            }
+          ]
+        },
+        {
+          "process_id": "2548",
+          "name": "%SANDBOX_DLL_LOADER_X86% %TEMP%\\000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423.dll %WORKDIR% 483",
+          "children": [
+            {
+              "process_id": "2616",
+              "name": "rundll32.exe %TEMP%\\000d1bab5fa789f2d3b120bccb5452c7c3fe52073bd88d7d651b27dc68eb5423.dll,SvchostPushServiceGlobals"
+            }
+          ]
+        }
+      ],
+      "mitre_attack_techniques": [
+        {
+          "id": "T1027",
+          "severity": "IMPACT_SEVERITY_INFO",
+          "signature_description": "encode data using XOR",
+          "refs": [
+            {
+              "ref": "#signature_matches",
+              "value": "encode data using XOR"
+            }
+          ]
+        },
+        {
+          "id": "T1082",
+          "severity": "IMPACT_SEVERITY_INFO",
+          "signature_description": "query environment variable",
+          "refs": [
+            {
+              "ref": "#signature_matches",
+              "value": "query environment variable"
+            }
+          ]
+        },
+        {
+          "id": "T1012",
+          "severity": "IMPACT_SEVERITY_INFO",
+          "signature_description": "query or enumerate registry value",
+          "refs": [
+            {
+              "ref": "#signature_matches",
+              "value": "query or enumerate registry value"
+            }
+          ]
+        },
+        {
+          "id": "T1007",
+          "severity": "IMPACT_SEVERITY_INFO",
+          "signature_description": "enumerate services",
+          "refs": [
+            {
+              "ref": "#signature_matches",
+              "value": "enumerate services"
+            }
+          ]
+        },
+        {
+          "id": "T1129",
+          "severity": "IMPACT_SEVERITY_INFO",
+          "signature_description": "link function at runtime on Windows",
+          "refs": [
+            {
+              "ref": "#signature_matches",
+              "value": "link function at runtime on Windows"
+            }
+          ]
+        },
+        {
+          "id": "T1047",
+          "severity": "IMPACT_SEVERITY_INFO",
+          "signature_description": "connect to WMI namespace via WbemLocator",
+          "refs": [
+            {
+              "ref": "#signature_matches",
+              "value": "connect to WMI namespace via WbemLocator"
+            }
+          ]
+        },
+        {
+          "id": "T1027",
+          "severity": "IMPACT_SEVERITY_INFO",
+          "signature_description": "manually build AES constants",
+          "refs": [
+            {
+              "ref": "#signature_matches",
+              "value": "manually build AES constants"
+            }
+          ]
+        },
+        {
+          "id": "T1027",
+          "severity": "IMPACT_SEVERITY_INFO",
+          "signature_description": "encrypt data using RC4 KSA",
+          "refs": [
+            {
+              "ref": "#signature_matches",
+              "value": "encrypt data using RC4 KSA"
+            }
+          ]
+        },
+        {
+          "id": "T1082",
+          "severity": "IMPACT_SEVERITY_INFO",
+          "signature_description": "get system information on Windows",
+          "refs": [
+            {
+              "ref": "#signature_matches",
+              "value": "get system information on Windows"
+            }
+          ]
+        },
+        {
+          "id": "T1129",
+          "severity": "IMPACT_SEVERITY_INFO",
+          "signature_description": "link many functions at runtime",
+          "refs": [
+            {
+              "ref": "#signature_matches",
+              "value": "link many functions at runtime"
+            }
+          ]
+        },
+        {
+          "id": "T1027",
+          "severity": "IMPACT_SEVERITY_INFO",
+          "signature_description": "encrypt data using RC4 PRGA",
+          "refs": [
+            {
+              "ref": "#signature_matches",
+              "value": "encrypt data using RC4 PRGA"
+            }
+          ]
+        }
+      ],
+      "signature_matches": [
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "calculate modulo 256 via x86 assembly",
+          "authors": [
+            "moritz.raabe@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: calculate modulo 256 via x86 assembly\n    authors:\n      - moritz.raabe@mandiant.com\n    lib: true\n    scope: instruction\n    mbc:\n      - Data::Modulo [C0058]\n    examples:\n      - 9324D1A8AE37A36AE560C37448C9705A:0x4049A9\n  features:\n    #  and ecx, 800000FFh\n    #  and ecx, 0FFh\n    - and:\n      - mnemonic: and\n      - or:\n        - number: 0x800000FF\n        - number: 0xFF\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "delay execution",
+          "authors": [
+            "michael.hunhoff@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: delay execution\n    authors:\n      - michael.hunhoff@mandiant.com\n    lib: true\n    scope: basic block\n    mbc:\n      - Anti-Behavioral Analysis::Dynamic Analysis Evasion::Delayed Execution [B0003.003]\n    references:\n      - https://docs.microsoft.com/en-us/windows/win32/sync/wait-functions\n      - https://github.com/LordNoteworthy/al-khaser/blob/master/al-khaser/TimingAttacks/timing.cpp\n    examples:\n      - al-khaser_x86.exe_:0x449770\n      - B5F85C26D7AA5A1FB4AF5821B6B5AB9B:0x402FA6\n  features:\n    - or:\n      - api: kernel32.Sleep\n      - api: kernel32.SleepEx\n      - api: kernel32.WaitForSingleObject\n      - api: kernel32.SignalObjectAndWait\n      - api: kernel32.WaitForSingleObjectEx\n      - api: kernel32.WaitForMultipleObjects\n      - api: kernel32.WaitForMultipleObjectsEx\n      - api: kernel32.RegisterWaitForSingleObject\n      - api: WaitOnAddress\n      - api: user32.MsgWaitForMultipleObjects\n      - api: user32.MsgWaitForMultipleObjectsEx\n      - api: NtDelayExecution\n      - api: KeWaitForSingleObject\n      - api: KeDelayExecutionThread\n",
+          "refs": [
+            {
+              "ref": "https://docs.microsoft.com/en-us/windows/win32/sync/wait-functions"
+            },
+            {
+              "ref": "https://github.com/LordNoteworthy/al-khaser/blob/master/al-khaser/TimingAttacks/timing.cpp"
+            }
+          ]
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "create thread",
+          "description": "host-interaction/thread/create",
+          "authors": [
+            "moritz.raabe@mandiant.com",
+            "michael.hunhoff@mandiant.com",
+            "joakim@intezer.com",
+            "anushka.virgaonkar@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: create thread\n    namespace: host-interaction/thread/create\n    authors:\n      - moritz.raabe@mandiant.com\n      - michael.hunhoff@mandiant.com\n      - joakim@intezer.com\n      - anushka.virgaonkar@mandiant.com\n    scope: basic block\n    mbc:\n      - Process::Create Thread [C0038]\n    examples:\n      - 946A99F36A46D335DEC080D9A4371940:0x10001DA0\n      - B5F85C26D7AA5A1FB4AF5821B6B5AB9B:0x408020\n  features:\n    - or:\n      - and:\n        - os: windows\n        - or:\n          - api: kernel32.CreateThread\n          - api: _beginthread\n          - api: _beginthreadex\n          - api: PsCreateSystemThread\n          - api: SHCreateThread\n          - api: SHCreateThreadWithHandle\n          - api: kernel32.CreateRemoteThread\n          - api: kernel32.CreateRemoteThreadEx\n          - api: RtlCreateUserThread\n          - api: ntdll.NtCreateThread\n          - api: ntdll.NtCreateThreadEx\n          - api: ntdll.ZwCreateThread\n          - api: ntdll.ZwCreateThreadEx\n      - and:\n        - os: linux\n        - api: pthread_create\n      - api: System.Threading.Thread::Start\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "create or open registry key",
+          "description": "host-interaction/registry",
+          "authors": [
+            "michael.hunhoff@mandiant.com",
+            "anushka.virgaonkar@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: create or open registry key\n    namespace: host-interaction/registry\n    authors:\n      - michael.hunhoff@mandiant.com\n      - anushka.virgaonkar@mandiant.com\n    scope: basic block\n    mbc:\n      - Operating System::Registry::Create Registry Key [C0036.004]\n      - Operating System::Registry::Open Registry Key [C0036.003]\n    examples:\n      - Practical Malware Analysis Lab 03-02.dll_:0x10004706\n      - Practical Malware Analysis Lab 11-01.exe_:0x401000\n      - 493167E85E45363D09495D0841C30648:0x404D60\n      - B5F85C26D7AA5A1FB4AF5821B6B5AB9B:0x4045F2\n      - B5F85C26D7AA5A1FB4AF5821B6B5AB9B:0x40433E\n      - 692f7fd6d198e804d6af98eb9e390d61:0x6000003\n  features:\n    - or:\n      - api: advapi32.RegOpenKey\n      - api: advapi32.RegOpenKeyEx\n      - api: advapi32.RegCreateKey\n      - api: advapi32.RegCreateKeyEx\n      - api: advapi32.RegOpenCurrentUser\n      - api: advapi32.RegOpenKeyTransacted\n      - api: advapi32.RegOpenUserClassesRoot\n      - api: advapi32.RegCreateKeyTransacted\n      - api: ZwOpenKey\n      - api: ZwOpenKeyEx\n      - api: ZwCreateKey\n      - api: ZwOpenKeyTransacted\n      - api: ZwOpenKeyTransactedEx\n      - api: ZwCreateKeyTransacted\n      - api: NtOpenKey\n      - api: NtCreateKey\n      - api: SHRegOpenUSKey\n      - api: SHRegCreateUSKey\n      - api: RtlCreateRegistryKey\n      - api: Microsoft.Win32.RegistryKey::OpenSubKey\n      - api: Microsoft.Win32.RegistryKey::OpenBaseKey\n      - api: Microsoft.Win32.RegistryKey::OpenRemoteBaseKey\n      - api: Microsoft.Win32.RegistryKey::CreateSubKey\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "PEB access",
+          "authors": [
+            "michael.hunhoff@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: PEB access\n    authors:\n      - michael.hunhoff@mandiant.com\n    lib: true\n    scope: basic block\n    mbc:\n      - Anti-Behavioral Analysis::Debugger Detection::Process Environment Block [B0001.019]\n    references:\n      - https://github.com/LordNoteworthy/al-khaser/blob/master/al-khaser/AntiDebug/NtGlobalFlag.cpp\n    examples:\n      - al-khaser_x86.exe_:0x420D20\n  features:\n    - or:\n      - characteristic: peb access\n      - and:\n        # https://github.com/LordNoteworthy/al-khaser/blob/master/al-khaser/AntiDebug/NtGlobalFlag.cpp#L41\n        - arch: i386\n        - characteristic: fs access\n        - or:\n          # in 0f5d5d07c6533bc6d991836ce79daaa1\n          # then we have:\n          #\n          #     xor edx, edx\n          #     mov edx, fs:[edx+30h]\n          - offset: 0x30\n          - instruction:\n            # in the case of CallObfuscator, gs:[rax]\n            - mnemonic: add\n            - number: 0x30\n      - and:\n        - arch: amd64\n        - characteristic: gs access\n        - or:\n          - offset: 0x60\n          - instruction:\n            - mnemonic: add\n            - number: 0x60\n      - and:\n        # WoW64 PEB address is fetched via the WoW64 Thread Environment Block (TEB) at FS:[0x18]-0x2000\n        # https://github.com/LordNoteworthy/al-khaser/blob/master/al-khaser/AntiDebug/NtGlobalFlag.cpp#L45\n        - characteristic: fs access\n        - instruction:\n          - mnemonic: sub\n          - number: 0x2000\n",
+          "refs": [
+            {
+              "ref": "https://github.com/LordNoteworthy/al-khaser/blob/master/al-khaser/AntiDebug/NtGlobalFlag.cpp"
+            }
+          ]
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "encode data using XOR",
+          "description": "data-manipulation/encoding/xor",
+          "authors": [
+            "moritz.raabe@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: encode data using XOR\n    namespace: data-manipulation/encoding/xor\n    authors:\n      - moritz.raabe@mandiant.com\n    scope: basic block\n    att&ck:\n      - Defense Evasion::Obfuscated Files or Information [T1027]\n    mbc:\n      - Defense Evasion::Obfuscated Files or Information::Encoding-Standard Algorithm [E1027.m02]\n      - Data::Encode Data::XOR [C0026.002]\n    examples:\n      - 2D3EDC218A90F03089CC01715A9F047F:0x403D7E\n  features:\n    - and:\n      - characteristic: tight loop\n      - characteristic: nzxor\n      - not:\n        - description: filter for potential false positives\n        - or:\n          - or:\n            - description: unsigned bitwise negation operation (~i)\n            - number: 0xFFFFFFFF = bitwise negation for unsigned 32 bits\n            - number: 0xFFFFFFFFFFFFFFFF = bitwise negation for unsigned 64 bits\n          - or:\n            - description: signed bitwise negation operation (~i)\n            - number: 0x0FFFFFFF = bitwise negation for signed 32 bits\n            - number: 0x0FFFFFFFFFFFFFFF = bitwise negation for signed 64 bits\n          - or:\n            - description: Magic constants used in the implementation of strings functions.\n            # such as `strlen` and `strcat` in the Windows standard library:\n            # (((i - 0x81010101) ^ ~i) & 0x81010100)\n            ## 32 bits\n            - number: 0x7EFEFEFF = optimized string constant for 32 bits\n            - number: 0x81010101 = -0x81010101 = 0x7EFEFEFF\n            - number: 0x81010100 = 0x81010100 = ~0x7EFEFEFF\n            ## 64 bits\n            - number: 0x7EFEFEFEFEFEFEFF = optimized string constant for 64 bits\n            - number: 0x8101010101010101 = -0x8101010101010101 = 0x7EFEFEFEFEFEFEFF\n            - number: 0x8101010101010100 = 0x8101010101010100 = ~0x7EFEFEFEFEFEFEFF\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "create or open file",
+          "authors": [
+            "michael.hunhoff@mandiant.com",
+            "joakim@intezer.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: create or open file\n    authors:\n      - michael.hunhoff@mandiant.com\n      - joakim@intezer.com\n    lib: true\n    scope: basic block\n    mbc:\n      - File System::Create File [C0016]\n    examples:\n      - B5F85C26D7AA5A1FB4AF5821B6B5AB9B:0x401D7E\n  features:\n    - or:\n      - api: CreateFile\n      - api: CreateFileEx\n      - api: IoCreateFile\n      - api: IoCreateFileEx\n      - api: ZwOpenFile\n      - api: ZwCreateFile\n      - api: NtOpenFile\n      - api: NtCreateFile\n      - api: fopen\n      - api: fopen64\n      - api: fdopen\n      - api: freopen\n      - api: open\n      - api: openat\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "contain loop",
+          "authors": [
+            "moritz.raabe@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: contain loop\n    authors:\n      - moritz.raabe@mandiant.com\n    lib: true\n    scope: function\n    examples:\n      - 08AC667C65D36D6542917655571E61C8:0x406EAA\n  features:\n    - or:\n      - characteristic: loop\n      - characteristic: tight loop\n      - characteristic: recursive call\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "write file on Windows",
+          "description": "host-interaction/file-system/write",
+          "authors": [
+            "william.ballenthin@mandiant.com",
+            "anushka.virgaonkar@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: write file on Windows\n    namespace: host-interaction/file-system/write\n    authors:\n      - william.ballenthin@mandiant.com\n      - anushka.virgaonkar@mandiant.com\n    scope: function\n    mbc:\n      - File System::Writes File [C0052]\n    examples:\n      - Practical Malware Analysis Lab 01-04.exe_:0x4011FC\n      # ntdll\n      - 563653399B82CD443F120ECEFF836EA3678D4CF11D9B351BB737573C2D856299:0x1400025C4\n  features:\n    - or:\n      - and:\n        - os: windows\n        - optional:\n          - or:\n            - and:\n              - number: 0x40000000 = GENERIC_WRITE\n              - api: kernel32.CreateFile\n            - and:\n              - number: 0x2 = FILE_WRITE_DATA\n              - or:\n                - api: NtCreateFile\n                - api: ZwCreateFile\n        - or:\n          - api: kernel32.WriteFile\n          - api: kernel32.WriteFileEx\n          - api: NtWriteFile\n          - api: ZwWriteFile\n          - api: _fwrite\n          - api: fwrite\n      - api: System.IO.File::WriteAllBytes\n      - api: System.IO.File::WriteAllBytesAsync\n      - api: System.IO.File::WriteAllLines\n      - api: System.IO.File::WriteAllLinesAsync\n      - api: System.IO.File::WriteAllText\n      - api: System.IO.File::WriteAllTextAsync\n      - api: System.IO.File::AppendAllLines\n      - api: System.IO.File::AppendAllLinesAsync\n      - api: System.IO.File::AppendAllText\n      - api: System.IO.File::AppendAllTextAsync\n      - api: System.IO.File::AppendText\n      - api: System.IO.FileInfo::AppendText\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "read file on Windows",
+          "description": "host-interaction/file-system/read",
+          "authors": [
+            "moritz.raabe@mandiant.com",
+            "anushka.virgaonkar@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: read file on Windows\n    namespace: host-interaction/file-system/read\n    authors:\n      - moritz.raabe@mandiant.com\n      - anushka.virgaonkar@mandiant.com\n    scope: function\n    mbc:\n      - File System::Read File [C0051]\n    examples:\n      - BFB9B5391A13D0AFD787E87AB90F14F5:0x1314567B\n  features:\n    - or:\n      - and:\n        - os: windows\n        - optional:\n          - and:\n            - number: 0x80000000 = GENERIC_READ\n            - api: kernel32.CreateFile\n        - or:\n          - api: kernel32.ReadFile\n          - api: ReadFileEx\n          - api: NtReadFile\n          - api: ZwReadFile\n          - api: _read\n          - api: fread\n      - api: System.IO.File::ReadAllBytes\n      - api: System.IO.File::ReadAllBytesAsync\n      - api: System.IO.File::ReadAllLines\n      - api: System.IO.File::ReadAllLinesAsync\n      - api: System.IO.File::ReadAllText\n      - api: System.IO.File::ReadAllTextAsync\n      - api: System.IO.File::ReadLines\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "query environment variable",
+          "description": "host-interaction/environment-variable",
+          "authors": [
+            "michael.hunhoff@mandiant.com",
+            "@_re_fox"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: query environment variable\n    namespace: host-interaction/environment-variable\n    authors:\n      - michael.hunhoff@mandiant.com\n      - \"@_re_fox\"\n    scope: function\n    att&ck:\n      - Discovery::System Information Discovery [T1082]\n    examples:\n      - Practical Malware Analysis Lab 14-02.exe_:0x401880\n      - 0761142efbda6c4b1e801223de723578:0x65483490\n  features:\n    - or:\n      - api: kernel32.GetEnvironmentVariable\n      - api: kernel32.GetEnvironmentStrings\n      - api: kernel32.ExpandEnvironmentStrings\n      - api: msvcr90.getenv\n      - api: msvcrt.getenv\n      - api: System.Environment::GetEnvironmentVariable\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "create two anonymous pipes",
+          "description": "communication/named-pipe/create",
+          "authors": [
+            "matthew.williams@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: create two anonymous pipes\n    namespace: communication/named-pipe/create\n    authors:\n      - matthew.williams@mandiant.com\n    scope: function\n    mbc:\n      - Communication::Interprocess Communication::Create Pipe [C0003.001]\n    examples:\n      - Practical Malware Analysis Lab 14-02.exe_:0x4011C0\n  features:\n    - and:\n      - count(api(CreatePipe)): 2\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "create pipe",
+          "description": "communication/named-pipe/create",
+          "authors": [
+            "moritz.raabe@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: create pipe\n    namespace: communication/named-pipe/create\n    authors:\n      - moritz.raabe@mandiant.com\n    scope: function\n    mbc:\n      - Communication::Interprocess Communication::Create Pipe [C0003.001]\n    examples:\n      - Practical Malware Analysis Lab 03-02.dll_:0x10003a13\n  features:\n    - or:\n      - api: kernel32.CreatePipe\n      - api: kernel32.CreateNamedPipe\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "extract resource via kernel32 functions",
+          "description": "executable/resource",
+          "authors": [
+            "william.ballenthin@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: extract resource via kernel32 functions\n    namespace: executable/resource\n    authors:\n      - william.ballenthin@mandiant.com\n    scope: function\n    examples:\n      - BF88E1BD4A3BDE10B419A622278F1FF7:0x401000\n      - Practical Malware Analysis Lab 01-04.exe_:0x4011FC\n      # ntdll\n      - 563653399B82CD443F120ECEFF836EA3678D4CF11D9B351BB737573C2D856299:0x140001ABA\n  features:\n    - or:\n      - and:\n        - or:\n          - api: kernel32.LoadResource\n          - api: kernel32.LockResource\n          - api: LdrAccessResource\n        - optional:\n          - match: contain a resource (.rsrc) section\n          - api: kernel32.GetModuleHandle\n          # may occur in parent function, see 0664B09A86EC2DF7DFE01A93E184A1FA23DF66EA82CAB39000944E418EC1F7B2\n          - or:\n            - api: kernel32.FindResource\n            - api: kernel32.FindResourceEx\n            - api: LdrFindResource_U\n            - api: LdrFindResourceEx_U\n          - api: kernel32.SizeofResource\n          - api: kernel32.FreeResource\n      - api: user32.LoadString\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "query or enumerate registry value",
+          "description": "host-interaction/registry",
+          "authors": [
+            "william.ballenthin@mandiant.com",
+            "michael.hunhoff@mandiant.com",
+            "anushka.virgaonkar@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: query or enumerate registry value\n    namespace: host-interaction/registry\n    authors:\n      - william.ballenthin@mandiant.com\n      - michael.hunhoff@mandiant.com\n      - anushka.virgaonkar@mandiant.com\n    scope: function\n    att&ck:\n      - Discovery::Query Registry [T1012]\n    mbc:\n      - Operating System::Registry::Query Registry Value [C0036.006]\n    examples:\n      - BFB9B5391A13D0AFD787E87AB90F14F5:0x13145B5A\n      - Practical Malware Analysis Lab 03-02.dll_:0x100047AD\n  features:\n    - and:\n      - optional:\n        - match: create or open registry key\n      - or:\n        - api: advapi32.RegGetValue\n        - api: advapi32.RegEnumValue\n        - api: advapi32.RegQueryValue\n        - api: advapi32.RegQueryValueEx\n        - api: advapi32.RegQueryMultipleValues\n        - api: ZwQueryValueKey\n        - api: ZwEnumerateValueKey\n        - api: NtQueryValueKey\n        - api: NtEnumerateValueKey\n        - api: RtlQueryRegistryValues\n        - api: SHGetValue\n        - api: SHEnumValue\n        - api: SHRegGetInt\n        - api: SHRegGetPath\n        - api: SHRegGetValue\n        - api: SHQueryValueEx\n        - api: SHRegGetUSValue\n        - api: SHOpenRegStream\n        - api: SHRegEnumUSValue\n        - api: SHOpenRegStream2\n        - api: SHRegQueryUSValue\n        - api: SHRegGetBoolUSValue\n        - api: SHRegGetValueFromHKCUHKLM\n        - api: SHRegGetBoolValueFromHKCUHKLM\n        - api: Microsoft.Win32.RegistryKey::GetValue\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "enumerate services",
+          "description": "host-interaction/service/list",
+          "authors": [
+            "moritz.raabe@mandiant.com",
+            "michael.hunhoff@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: enumerate services\n    namespace: host-interaction/service/list\n    authors:\n      - moritz.raabe@mandiant.com\n      - michael.hunhoff@mandiant.com\n    scope: function\n    att&ck:\n      - Discovery::System Service Discovery [T1007]\n    examples:\n      - Practical Malware Analysis Lab 05-01.dll_:0x1000B823\n  features:\n    - or:\n      - api: advapi32.EnumServicesStatus\n      - api: advapi32.EnumServicesStatusEx\n      - api: advapi32.EnumDependentServices\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "create mutex",
+          "description": "host-interaction/mutex",
+          "authors": [
+            "moritz.raabe@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: create mutex\n    namespace: host-interaction/mutex\n    authors:\n      - moritz.raabe@mandiant.com\n    scope: function\n    mbc:\n      - Process::Create Mutex [C0042]\n    examples:\n      - Practical Malware Analysis Lab 01-01.dll_:0x10001010\n  features:\n    - or:\n      - api: kernel32.CreateMutex\n      - api: kernel32.CreateMutexEx\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "link function at runtime on Windows",
+          "description": "linking/runtime-linking",
+          "authors": [
+            "moritz.raabe@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: link function at runtime on Windows\n    namespace: linking/runtime-linking\n    authors:\n      - moritz.raabe@mandiant.com\n    scope: function\n    att&ck:\n      - Execution::Shared Modules [T1129]\n    examples:\n      - 9324D1A8AE37A36AE560C37448C9705A:0x404130\n      - Practical Malware Analysis Lab 01-04.exe_:0x401350\n  features:\n    - and:\n      - os: windows\n      - or:\n        - api: kernel32.LoadLibrary\n        - api: kernel32.GetModuleHandle\n        - api: kernel32.GetModuleHandleEx\n        - api: ntdll.LdrLoadDll\n      - or:\n        - api: kernel32.GetProcAddress\n        - api: ntdll.LdrGetProcedureAddress\n      - optional:\n        - characteristic: indirect call\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "check mutex and exit",
+          "description": "host-interaction/mutex",
+          "authors": [
+            "@_re_fox",
+            "moritz.raabe@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: check mutex and exit\n    namespace: host-interaction/mutex\n    authors:\n      - \"@_re_fox\"\n      - moritz.raabe@mandiant.com\n    scope: function\n    mbc:\n      - Process::Check Mutex [C0043]\n      - Process::Terminate Process [C0018]\n    examples:\n      - 1d8fd13c890060464019c0f07b928b1a:0x402eb0\n      - Practical Malware Analysis Lab 11-03.dll_:0x10001410\n  features:\n    - and:\n      - match: create mutex\n      - or:\n        - api: ExitProcess\n        - api: exit\n        - api: _Exit\n        - api: _exit\n        - or:\n          - api: WaitForSingleObject\n          - and:\n            - api: GetLastError\n            - or:\n              - number: 2 = ERROR_FILE_NOT_FOUND\n              - number: 0xB7 = ERROR_ALREADY_EXISTS\n              - number: 5 = ERROR_ACCESS_DENIED\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "resolve function by parsing PE exports",
+          "description": "load-code/pe",
+          "authors": [
+            "sara-rn"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: resolve function by parsing PE exports\n    namespace: load-code/pe\n    authors:\n      - sara-rn\n    scope: function\n    examples:\n      - 73CE04892E5F39EC82B00C02FC04C70F:0x406BA1\n  features:\n    - and:\n      - os: windows\n      - or:\n        - characteristic: loop\n        - mnemonic: movzx\n      - and:\n        - offset: 0x3C = IMAGE_DOS_HEADER.PE.e_lfanew\n        - or:\n          - and:\n            - arch: i386\n            - offset: 0x78 = offset to IMAGE_DATA_DIRECTORY[IMAGE_DIRECTORY_ENTRY_EXPORT]\n          - and:\n            - arch: amd64\n            - offset: 0x88 = offset to IMAGE_DATA_DIRECTORY[IMAGE_DIRECTORY_ENTRY_EXPORT]\n        - 3 or more:\n          - offset: 0x14 = IMAGE_EXPORT_DIRECTORY.NumberOfFunctions\n          - offset: 0x24 = IMAGE_EXPORT_DIRECTORY.AddressOfNameOrdinals\n          - offset: 0x20 = IMAGE_EXPORT_DIRECTORY.AddressOfNames\n          - offset: 0x18 = IMAGE_EXPORT_DIRECTORY.NumberOfNames\n          - offset: 0x1C = IMAGE_EXPORT_DIRECTORY.AddressOfFunctions\n      - optional:\n        - or:\n          - api: LoadLibrary\n          - api: strcmp\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "check for time delay via GetTickCount",
+          "description": "anti-analysis/anti-debugging/debugger-detection",
+          "authors": [
+            "michael.hunhoff@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: check for time delay via GetTickCount\n    namespace: anti-analysis/anti-debugging/debugger-detection\n    authors:\n      - michael.hunhoff@mandiant.com\n    scope: function\n    mbc:\n      - Anti-Behavioral Analysis::Debugger Detection::Timing/Delay Check GetTickCount [B0001.032]\n    examples:\n      - Practical Malware Analysis Lab 16-03.exe_:0x4013d0\n  features:\n    - and:\n      - count(api(kernel32.GetTickCount)): 2 or more\n      - basic block:\n        - and:\n          - mnemonic: sub\n          - mnemonic: cmp\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "connect to WMI namespace via WbemLocator",
+          "description": "host-interaction/wmi",
+          "authors": [
+            "michael.hunhoff@mandiant.com"
+          ],
+          "rule_src": "# generated using capa explorer for IDA Pro\nrule:\n  meta:\n    name: connect to WMI namespace via WbemLocator\n    namespace: host-interaction/wmi\n    authors:\n      - michael.hunhoff@mandiant.com\n    scope: function\n    att&ck:\n      - Execution::Windows Management Instrumentation [T1047]\n    examples:\n      - al-khaser_x64.exe_:0x14001956E\n  features:\n    - and:\n      - basic block:\n        - and:\n          - api: ole32.CoCreateInstance\n          - bytes: 11 F8 90 45 3A 1D D0 11 89 1F 00 AA 00 4B 2E 24 = CLSID_WbemLocator\n          - bytes: 87 A6 12 DC 7F 73 CF 11 88 4D 00 AA 00 4B 2E 24 = IID_IWbemLocator\n      - offset: 0x18 = ppv->ConnectServer\n      - optional:\n        - string: /ROOT\\\\CIMV2/i\n        - string: /ROOT\\\\DEFAULT/i\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "manually build AES constants",
+          "description": "data-manipulation/encryption/aes",
+          "authors": [
+            "huynh.t.nhan@gmail.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: manually build AES constants\n    namespace: data-manipulation/encryption/aes\n    authors:\n      - huynh.t.nhan@gmail.com\n    scope: function\n    att&ck:\n      - Defense Evasion::Obfuscated Files or Information [T1027]\n    mbc:\n      - Defense Evasion::Obfuscated Files or Information::Encryption-Standard Algorithm [E1027.m05]\n      - Cryptography::Encrypt Data::AES [C0027.001]\n    examples:\n      - 8333822ed41d9f2b302cf8e21b126efc:0x40646a\n      - 5553bbc23dea546192d07f268c4764a9:0x1149\n      - 316aad44bb75e0c7676e173bcb56413e:0x11CD\n      - 142300d78d9fb083122332235d93d3ae:0x1210\n      - e735a3df2b9ac89ca35ae643d3e73cf9:0x1240\n      - fbddca0225a3b806d4b4c933c1c4a636:0x140001000\n      - 84b777dc2d7083fd983d946f9fe2bf00:0x401000\n  features:\n    - and:\n      - or:\n        - count(mnemonic(rol)): 4 or more\n        - count(mnemonic(shl)): 4 or more\n      - count(number(0x63)): 2\n      - number: 0x1B\n      - basic block:\n        - and:\n          - number: 0x63\n          - count(characteristic(nzxor)): 5 or more\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "encrypt data using RC4 KSA",
+          "description": "data-manipulation/encryption/rc4",
+          "authors": [
+            "moritz.raabe@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: encrypt data using RC4 KSA\n    namespace: data-manipulation/encryption/rc4\n    authors:\n      - moritz.raabe@mandiant.com\n    scope: function\n    att&ck:\n      - Defense Evasion::Obfuscated Files or Information [T1027]\n    mbc:\n      - Cryptography::Encrypt Data::RC4 [C0027.009]\n      - Cryptography::Encryption Key::RC4 KSA [C0028.002]\n    examples:\n      - 34404A3FB9804977C6AB86CB991FB130:0x403D40\n      - C805528F6844D7CAF5793C025B56F67D:0x4067AE\n      - 9324D1A8AE37A36AE560C37448C9705A:0x404950\n      - 782A48821D88060ADF0F7EF3E8759FEE3DDAD49E942DAAD18C5AF8AE0E9EB51E:0x405C42\n      - 73CE04892E5F39EC82B00C02FC04C70F:0x40646E\n  features:\n    - or:\n      - and:\n        - basic block:\n          - and:\n            - description: initialize S\n            # misses if regular loop is used,\n            # however we cannot model that a loop contains a certain number\n            - characteristic: tight loop\n            - or:\n              - number: 0xFF\n              - number: 0x100\n        - or:\n          - match: calculate modulo 256 via x86 assembly\n          # compiler may do this via zero-extended mov from 8-bit register\n          - count(mnemonic(movzx)): 2 or more\n        - or:\n          - description: modulo key length\n          - mnemonic: div\n          - mnemonic: idiv\n      - and:\n        - description: optimized, writes DWORDs instead of bytes\n        - instruction:\n          - mnemonic: sub\n          - number: 0xFFFEFDFC\n        - instruction:\n          - mnemonic: add\n          - number: 0x03020100\n        - number: 0x4040404\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "enumerate PE sections",
+          "description": "load-code/pe",
+          "authors": [
+            "@Ana06"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: enumerate PE sections\n    namespace: load-code/pe\n    authors:\n      - \"@Ana06\"\n    scope: function\n    mbc:\n      - Discovery::Code Discovery::Enumerate PE Sections [B0046.001]\n    references:\n      - https://0x00sec.org/t/reflective-dll-injection/3080\n      - https://www.ired.team/offensive-security/code-injection-process-injection/reflective-dll-injection\n    examples:\n      - E4C33AC3638EEF68311F8AC0D72483C7:0x401510\n  features:\n    - and:\n      - os: windows\n      - offset: 0x6 = IMAGE_NT_HEADERS.FileHeader.NumberOfSections\n      - basic block:\n        - or:\n          - and:\n            - description: IMAGE_FIRST_SECTION(nt_header)\n            - offset: 0x14 = IMAGE_NT_HEADERS.FileHeader.SizeOfOptionalHeader\n            - offset: 0x18 = FileHeader.SizeOfOptionalHeader\n          - and:\n            - description: (DWORD)dll_raw + dos_header->e_lfanew + sizeof(IMAGE_NT_HEADERS) + sizeof(IMAGE_SECTION_HEADER) * i\n            - number: 0x28 = sizeof(IMAGE_SECTION_HEADER)\n            - or:\n              - and:\n                - arch: i386\n                - offset: 0xF8 = sizeof(IMAGE_NT_HEADERS32)\n              - and:\n                - arch: amd64\n                - offset: 0x108 = sizeof(IMAGE_NT_HEADERS64)\n      - basic block:\n        - and:\n          - offset: 0xC = IMAGE_SECTION_HEADER.VirtualAddress\n          - offset: 0x14 = IMAGE_SECTION_HEADER.PointerToRawData\n          - offset: 0x10 = IMAGE_SECTION_HEADER.SizeOfRawData\n",
+          "refs": [
+            {
+              "ref": "https://0x00sec.org/t/reflective-dll-injection/3080"
+            },
+            {
+              "ref": "https://www.ired.team/offensive-security/code-injection-process-injection/reflective-dll-injection"
+            }
+          ]
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "get system information on Windows",
+          "description": "host-interaction/os/info",
+          "authors": [
+            "moritz.raabe@mandiant.com",
+            "joakim@intezer.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: get system information on Windows\n    namespace: host-interaction/os/info\n    authors:\n      - moritz.raabe@mandiant.com\n      - joakim@intezer.com\n    scope: function\n    att&ck:\n      - Discovery::System Information Discovery [T1082]\n    examples:\n      - 563653399B82CD443F120ECEFF836EA3678D4CF11D9B351BB737573C2D856299:0x140002280\n  features:\n    - and:\n      - os: windows\n      - or:\n        - api: kernel32.GetSystemInfo\n        - api: kernel32.GetNativeSystemInfo\n        - api: NtQuerySystemInformation\n        - api: NtQuerySystemInformationEx\n        - api: ntdll.RtlGetNativeSystemInformation\n        - api: ZwQuerySystemInformation\n        - api: ZwQuerySystemInformationEx\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "terminate process",
+          "description": "host-interaction/process/terminate",
+          "authors": [
+            "moritz.raabe@mandiant.com",
+            "michael.hunhoff@mandiant.com",
+            "anushka.virgaonkar@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: terminate process\n    namespace: host-interaction/process/terminate\n    authors:\n      - moritz.raabe@mandiant.com\n      - michael.hunhoff@mandiant.com\n      - anushka.virgaonkar@mandiant.com\n    scope: function\n    mbc:\n      - Process::Terminate Process [C0018]\n    examples:\n      - C91887D861D9BD4A5872249B641BC9F9:0x401A77\n      - 9B7CCAA2AE6A5B96E3110EBCBC4311F6:0x10010307\n  features:\n    - or:\n      - api: System.Diagnostics.Process::Kill\n      - api: System.Diagnostics.Process::WaitForExit\n      - api: System.Diagnostics.Process::WaitForExitAsync\n      - and:\n        - optional:\n          - match: open process\n        - or:\n          - api: kernel32.TerminateProcess\n          - api: ntdll.NtTerminateProcess\n          - api: kernel32.ExitProcess\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "allocate thread local storage",
+          "description": "host-interaction/process",
+          "authors": [
+            "michael.hunhoff@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: allocate thread local storage\n    namespace: host-interaction/process\n    authors:\n      - michael.hunhoff@mandiant.com\n    scope: function\n    mbc:\n      - Process::Allocate Thread Local Storage [C0040]\n    examples:\n      - 03B236B23B1EC37C663527C1F53AF3FE:0x18000ADF6\n  features:\n    - or:\n      - api: kernel32.TlsAlloc\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "get thread local storage value",
+          "description": "host-interaction/process",
+          "authors": [
+            "michael.hunhoff@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: get thread local storage value\n    namespace: host-interaction/process\n    authors:\n      - michael.hunhoff@mandiant.com\n    scope: function\n  features:\n    - and:\n      - api: kernel32.TlsGetValue\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "set thread local storage value",
+          "description": "host-interaction/process",
+          "authors": [
+            "michael.hunhoff@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: set thread local storage value\n    namespace: host-interaction/process\n    authors:\n      - michael.hunhoff@mandiant.com\n    scope: function\n    mbc:\n      - Process::Set Thread Local Storage Value [C0041]\n    examples:\n      - 03B236B23B1EC37C663527C1F53AF3FE:0x18000AE21\n  features:\n    - and:\n      - api: kernel32.TlsSetValue\n      - optional:\n        - match: allocate thread local storage\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "link many functions at runtime",
+          "description": "linking/runtime-linking",
+          "authors": [
+            "moritz.raabe@mandiant.com",
+            "joakim@intezer.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: link many functions at runtime\n    namespace: linking/runtime-linking\n    authors:\n      - moritz.raabe@mandiant.com\n      - joakim@intezer.com\n    scope: function\n    att&ck:\n      - Execution::Shared Modules [T1129]\n    examples:\n      - b7b5e1253710d8927cbe07d52d2d2e10:0x401000\n  features:\n    - or:\n      - and:\n        - os: windows\n        - match: link function at runtime on Windows\n        - or:\n          - count(api(kernel32.GetProcAddress)): 5 or more\n          - count(api(ntdll.LdrGetProcedureAddress)): 5 or more\n      - and:\n        - os: linux\n        - match: link function at runtime on Linux\n        - or:\n          - count(api(dlsym)): 5 or more\n          - count(api(dlvsym)): 5 or more\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "encrypt data using RC4 PRGA",
+          "description": "data-manipulation/encryption/rc4",
+          "authors": [
+            "moritz.raabe@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: encrypt data using RC4 PRGA\n    namespace: data-manipulation/encryption/rc4\n    authors:\n      - moritz.raabe@mandiant.com\n    scope: function\n    att&ck:\n      - Defense Evasion::Obfuscated Files or Information [T1027]\n    mbc:\n      - Cryptography::Encrypt Data::RC4 [C0027.009]\n      - Cryptography::Generate Pseudo-random Sequence::RC4 PRGA [C0021.004]\n    examples:\n      - 34404A3FB9804977C6AB86CB991FB130:0x403DB0\n      - 34404A3FB9804977C6AB86CB991FB130:0x403E50\n      - 9324D1A8AE37A36AE560C37448C9705A:0x4049F0\n      - 73CE04892E5F39EC82B00C02FC04C70F:0x4064C6\n  features:\n    - and:\n      # TODO: maybe add characteristic for nzxor reg size\n      - count(characteristic(nzxor)): 1\n      - or:\n        - match: calculate modulo 256 via x86 assembly\n        # compiler may do this via zero-extended mov from 8-bit register\n        - count(mnemonic(movzx)): 4 or more\n      # should not call (many) functions\n      - count(characteristic(calls from)): (0, 4)\n      # should not be too simple\n      - count(basic blocks): 4 or more\n      - match: contain loop\n      - optional:\n        - or:\n          - number: 0xFF\n          - number: 0x100\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "contain a resource (.rsrc) section",
+          "description": "executable/pe/section/rsrc",
+          "authors": [
+            "moritz.raabe@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: contain a resource (.rsrc) section\n    namespace: executable/pe/section/rsrc\n    authors:\n      - moritz.raabe@mandiant.com\n    scope: file\n    examples:\n      - A933A1A402775CFA94B6BEE0963F4B46:0x41fd25\n  features:\n    - section: .rsrc\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "run as service",
+          "description": "host-interaction/service",
+          "authors": [
+            "moritz.raabe@mandiant.com",
+            "michael.hunhoff@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: run as service\n    namespace: host-interaction/service\n    authors:\n      - moritz.raabe@mandiant.com\n      - michael.hunhoff@mandiant.com\n    scope: file\n    mbc:\n      - Anti-Behavioral Analysis::Conditional Execution::Runs as Service [B0025.007]\n    examples:\n      - Practical Malware Analysis Lab 03-02.dll_\n  features:\n    - or:\n      - export: ServiceMain\n      - function:\n        - or:\n          - api: RegisterServiceCtrlHandler\n          - api: RegisterServiceCtrlHandlerEx\n          - api: StartServiceCtrlDispatcher\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "delay execution",
+          "authors": [
+            "michael.hunhoff@mandiant.com",
+            "@ramen0x3f"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: delay execution\n    authors:\n      - michael.hunhoff@mandiant.com\n      - \"@ramen0x3f\"\n    lib: true\n    scope: basic block\n    mbc:\n      - Anti-Behavioral Analysis::Dynamic Analysis Evasion::Delayed Execution [B0003.003]\n    references:\n      - https://docs.microsoft.com/en-us/windows/win32/sync/wait-functions\n      - https://github.com/LordNoteworthy/al-khaser/blob/master/al-khaser/TimingAttacks/timing.cpp\n    examples:\n      - al-khaser_x86.exe_:0x449770\n      - B5F85C26D7AA5A1FB4AF5821B6B5AB9B:0x402FA6\n  features:\n    - or:\n      - and:\n        - os: windows\n        - or:\n          - api: kernel32.Sleep\n          - api: kernel32.SleepEx\n          - api: kernel32.WaitForSingleObject\n          - api: kernel32.SignalObjectAndWait\n          - api: kernel32.WaitForSingleObjectEx\n          - api: kernel32.WaitForMultipleObjects\n          - api: kernel32.WaitForMultipleObjectsEx\n          - api: kernel32.RegisterWaitForSingleObject\n          - api: WaitOnAddress\n          - api: user32.MsgWaitForMultipleObjects\n          - api: user32.MsgWaitForMultipleObjectsEx\n          - api: NtDelayExecution\n          - api: KeWaitForSingleObject\n          - api: KeDelayExecutionThread\n      - and:\n        - os: linux\n        - or:\n          - api: sleep\n          - api: usleep\n",
+          "refs": [
+            {
+              "ref": "https://docs.microsoft.com/en-us/windows/win32/sync/wait-functions"
+            },
+            {
+              "ref": "https://github.com/LordNoteworthy/al-khaser/blob/master/al-khaser/TimingAttacks/timing.cpp"
+            }
+          ]
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "create thread",
+          "description": "host-interaction/thread/create",
+          "authors": [
+            "moritz.raabe@mandiant.com",
+            "michael.hunhoff@mandiant.com",
+            "joakim@intezer.com",
+            "anushka.virgaonkar@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: create thread\n    namespace: host-interaction/thread/create\n    authors:\n      - moritz.raabe@mandiant.com\n      - michael.hunhoff@mandiant.com\n      - joakim@intezer.com\n      - anushka.virgaonkar@mandiant.com\n    scope: basic block\n    mbc:\n      - Process::Create Thread [C0038]\n    examples:\n      - 946A99F36A46D335DEC080D9A4371940:0x10001DA0\n      - B5F85C26D7AA5A1FB4AF5821B6B5AB9B:0x408020\n  features:\n    - or:\n      - and:\n        - os: windows\n        - or:\n          - api: kernel32.CreateThread\n          - api: _beginthread\n          - api: _beginthreadex\n          - api: PsCreateSystemThread\n          - api: SHCreateThread\n          - api: SHCreateThreadWithHandle\n          - api: kernel32.CreateRemoteThread\n          - api: kernel32.CreateRemoteThreadEx\n          - api: RtlCreateUserThread\n          - api: ntdll.NtCreateThread\n          - api: ntdll.NtCreateThreadEx\n          - api: ntdll.ZwCreateThread\n          - api: ntdll.ZwCreateThreadEx\n      - and:\n        - os: linux\n        - api: pthread_create\n      - and:\n        - api: System.Threading.Thread::Start\n        - optional:\n          - api: System.Threading.Thread::ctor\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "create or open registry key",
+          "authors": [
+            "michael.hunhoff@mandiant.com",
+            "anushka.virgaonkar@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: create or open registry key\n    authors:\n      - michael.hunhoff@mandiant.com\n      - anushka.virgaonkar@mandiant.com\n    lib: true\n    scope: basic block\n    mbc:\n      - Operating System::Registry::Create Registry Key [C0036.004]\n      - Operating System::Registry::Open Registry Key [C0036.003]\n    examples:\n      - Practical Malware Analysis Lab 03-02.dll_:0x10004706\n      - Practical Malware Analysis Lab 11-01.exe_:0x401000\n      - 493167E85E45363D09495D0841C30648:0x404D60\n      - B5F85C26D7AA5A1FB4AF5821B6B5AB9B:0x4045F2\n      - B5F85C26D7AA5A1FB4AF5821B6B5AB9B:0x40433E\n      - 692f7fd6d198e804d6af98eb9e390d61:0x6000003\n  features:\n    - or:\n      - api: advapi32.RegOpenKey\n      - api: advapi32.RegOpenKeyEx\n      - api: advapi32.RegCreateKey\n      - api: advapi32.RegCreateKeyEx\n      - api: advapi32.RegOpenCurrentUser\n      - api: advapi32.RegOpenKeyTransacted\n      - api: advapi32.RegOpenUserClassesRoot\n      - api: advapi32.RegCreateKeyTransacted\n      - api: ZwOpenKey\n      - api: ZwOpenKeyEx\n      - api: ZwCreateKey\n      - api: ZwOpenKeyTransacted\n      - api: ZwOpenKeyTransactedEx\n      - api: ZwCreateKeyTransacted\n      - api: NtOpenKey\n      - api: NtCreateKey\n      - api: SHRegOpenUSKey\n      - api: SHRegCreateUSKey\n      - api: RtlCreateRegistryKey\n      - api: Microsoft.Win32.RegistryKey::OpenSubKey\n      - api: Microsoft.Win32.RegistryKey::OpenBaseKey\n      - api: Microsoft.Win32.RegistryKey::OpenRemoteBaseKey\n      - api: Microsoft.Win32.RegistryKey::CreateSubKey\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "create or open file",
+          "authors": [
+            "michael.hunhoff@mandiant.com",
+            "joakim@intezer.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: create or open file\n    authors:\n      - michael.hunhoff@mandiant.com\n      - joakim@intezer.com\n    lib: true\n    scope: basic block\n    mbc:\n      - File System::Create File [C0016]\n    examples:\n      - B5F85C26D7AA5A1FB4AF5821B6B5AB9B:0x401D7E\n  features:\n    - or:\n      - api: CreateFile\n      - api: CreateFileEx\n      - api: IoCreateFile\n      - api: IoCreateFileEx\n      - api: ZwOpenFile\n      - api: ZwCreateFile\n      - api: NtOpenFile\n      - api: NtCreateFile\n      - api: LZCreateFile\n      - api: LZOpenFile\n      - api: fopen\n      - api: fopen64\n      - api: fdopen\n      - api: freopen\n      - api: open\n      - api: openat\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "write file on Windows",
+          "description": "host-interaction/file-system/write",
+          "authors": [
+            "william.ballenthin@mandiant.com",
+            "anushka.virgaonkar@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: write file on Windows\n    namespace: host-interaction/file-system/write\n    authors:\n      - william.ballenthin@mandiant.com\n      - anushka.virgaonkar@mandiant.com\n    scope: function\n    mbc:\n      - File System::Writes File [C0052]\n    examples:\n      - Practical Malware Analysis Lab 01-04.exe_:0x4011FC\n      # ntdll\n      - 563653399B82CD443F120ECEFF836EA3678D4CF11D9B351BB737573C2D856299:0x1400025C4\n  features:\n    - or:\n      - and:\n        - os: windows\n        - optional:\n          - basic block:\n            - or:\n              - number: 0x40000000 = GENERIC_WRITE\n              - number: 0x2 = FILE_WRITE_DATA\n              - match: create or open file\n        - or:\n          - api: kernel32.WriteFile\n          - api: kernel32.WriteFileEx\n          - api: NtWriteFile\n          - api: ZwWriteFile\n          - api: _fwrite\n          - api: fwrite\n      - api: System.IO.File::WriteAllBytes\n      - api: System.IO.File::WriteAllBytesAsync\n      - api: System.IO.File::WriteAllLines\n      - api: System.IO.File::WriteAllLinesAsync\n      - api: System.IO.File::WriteAllText\n      - api: System.IO.File::WriteAllTextAsync\n      - api: System.IO.File::AppendAllLines\n      - api: System.IO.File::AppendAllLinesAsync\n      - api: System.IO.File::AppendAllText\n      - api: System.IO.File::AppendAllTextAsync\n      - api: System.IO.File::AppendText\n      - api: System.IO.FileInfo::AppendText\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "read file on Windows",
+          "description": "host-interaction/file-system/read",
+          "authors": [
+            "moritz.raabe@mandiant.com",
+            "anushka.virgaonkar@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: read file on Windows\n    namespace: host-interaction/file-system/read\n    authors:\n      - moritz.raabe@mandiant.com\n      - anushka.virgaonkar@mandiant.com\n    scope: function\n    mbc:\n      - File System::Read File [C0051]\n    examples:\n      - BFB9B5391A13D0AFD787E87AB90F14F5:0x1314567B\n  features:\n    - or:\n      - and:\n        - os: windows\n        - optional:\n          - and:\n            - number: 0x80000000 = GENERIC_READ\n            - match: create or open file\n        - or:\n          - api: kernel32.ReadFile\n          - api: ReadFileEx\n          - api: NtReadFile\n          - api: ZwReadFile\n          - api: LZRead\n          - api: _read\n          - api: fread\n      - api: System.IO.File::ReadAllBytes\n      - api: System.IO.File::ReadAllBytesAsync\n      - api: System.IO.File::ReadAllLines\n      - api: System.IO.File::ReadAllLinesAsync\n      - api: System.IO.File::ReadAllText\n      - api: System.IO.File::ReadAllTextAsync\n      - api: System.IO.File::ReadLines\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "query environment variable",
+          "description": "host-interaction/environment-variable",
+          "authors": [
+            "michael.hunhoff@mandiant.com",
+            "@_re_fox"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: query environment variable\n    namespace: host-interaction/environment-variable\n    authors:\n      - michael.hunhoff@mandiant.com\n      - \"@_re_fox\"\n    scope: function\n    att&ck:\n      - Discovery::System Information Discovery [T1082]\n    mbc:\n      - Discovery::System Information Discovery [E1082]\n    examples:\n      - Practical Malware Analysis Lab 14-02.exe_:0x401880\n      - 0761142efbda6c4b1e801223de723578:0x65483490\n  features:\n    - or:\n      - api: kernel32.GetEnvironmentVariable\n      - api: kernel32.GetEnvironmentStrings\n      - api: kernel32.ExpandEnvironmentStrings\n      - api: msvcr90.getenv\n      - api: msvcrt.getenv\n      - api: System.Environment::GetEnvironmentVariable\n      - api: System.Environment::GetEnvironmentVariables\n      - api: System.Environment::ExpandEnvironmentVariables\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "create pipe",
+          "description": "communication/named-pipe/create",
+          "authors": [
+            "moritz.raabe@mandiant.com",
+            "michael.hunhoff@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: create pipe\n    namespace: communication/named-pipe/create\n    authors:\n      - moritz.raabe@mandiant.com\n      - michael.hunhoff@mandiant.com\n    scope: function\n    mbc:\n      - Communication::Interprocess Communication::Create Pipe [C0003.001]\n    examples:\n      - Practical Malware Analysis Lab 03-02.dll_:0x10003a13\n  features:\n    - or:\n      - api: kernel32.CreatePipe\n      - api: kernel32.CreateNamedPipe\n      - api: System.IO.Pipes.AnonymousPipeClientStream::ctor\n      - api: System.IO.Pipes.NamedPipeClientStream::ctor\n      - api: System.IO.Pipes.AnonymousPipeServerStream::ctor\n      - api: System.IO.Pipes.AnonymousPipeServerStreamAcl::Create\n      - api: System.IO.Pipes.NamedPipeServerStream::ctor\n      - api: System.IO.Pipes.NamedPipeServerStreamAcl::Create\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "extract resource via kernel32 functions",
+          "description": "executable/resource",
+          "authors": [
+            "william.ballenthin@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: extract resource via kernel32 functions\n    namespace: executable/resource\n    authors:\n      - william.ballenthin@mandiant.com\n    scope: function\n    examples:\n      - BF88E1BD4A3BDE10B419A622278F1FF7:0x401000\n      - Practical Malware Analysis Lab 01-04.exe_:0x4011FC\n      # ntdll\n      - 563653399B82CD443F120ECEFF836EA3678D4CF11D9B351BB737573C2D856299:0x140001ABA\n  features:\n    - or:\n      - and:\n        - or:\n          - api: kernel32.LoadResource\n          - api: kernel32.LockResource\n          - api: LdrAccessResource\n        - optional:\n          - api: kernel32.GetModuleHandle\n          # may occur in parent function, see 0664B09A86EC2DF7DFE01A93E184A1FA23DF66EA82CAB39000944E418EC1F7B2\n          - or:\n            - api: kernel32.FindResource\n            - api: kernel32.FindResourceEx\n            - api: LdrFindResource_U\n            - api: LdrFindResourceEx_U\n          - api: kernel32.SizeofResource\n          - api: kernel32.FreeResource\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "query or enumerate registry value",
+          "description": "host-interaction/registry",
+          "authors": [
+            "william.ballenthin@mandiant.com",
+            "michael.hunhoff@mandiant.com",
+            "anushka.virgaonkar@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: query or enumerate registry value\n    namespace: host-interaction/registry\n    authors:\n      - william.ballenthin@mandiant.com\n      - michael.hunhoff@mandiant.com\n      - anushka.virgaonkar@mandiant.com\n    scope: function\n    att&ck:\n      - Discovery::Query Registry [T1012]\n    mbc:\n      - Operating System::Registry::Query Registry Value [C0036.006]\n    examples:\n      - BFB9B5391A13D0AFD787E87AB90F14F5:0x13145B5A\n      - Practical Malware Analysis Lab 03-02.dll_:0x100047AD\n  features:\n    - and:\n      - optional:\n        - match: create or open registry key\n      - or:\n        - api: advapi32.RegGetValue\n        - api: advapi32.RegEnumValue\n        - api: advapi32.RegQueryValue\n        - api: advapi32.RegQueryValueEx\n        - api: advapi32.RegQueryMultipleValues\n        - api: ZwQueryValueKey\n        - api: ZwEnumerateValueKey\n        - api: NtQueryValueKey\n        - api: NtEnumerateValueKey\n        - api: RtlQueryRegistryValues\n        - api: SHGetValue\n        - api: SHEnumValue\n        - api: SHRegGetInt\n        - api: SHRegGetPath\n        - api: SHRegGetValue\n        - api: SHQueryValueEx\n        - api: SHRegGetUSValue\n        - api: SHOpenRegStream\n        - api: SHRegEnumUSValue\n        - api: SHOpenRegStream2\n        - api: SHRegQueryUSValue\n        - api: SHRegGetBoolUSValue\n        - api: SHRegGetValueFromHKCUHKLM\n        - api: SHRegGetBoolValueFromHKCUHKLM\n        - api: Microsoft.Win32.RegistryKey::GetValue\n        - api: Microsoft.Win32.RegistryKey::GetValueKind\n        - api: Microsoft.Win32.RegistryKey::GetValueNames\n        - api: Microsoft.Win32.Registry::GetValue\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "get OS version",
+          "authors": [
+            "@mr-tz"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: get OS version\n    authors:\n      - \"@mr-tz\"\n    lib: true\n    scope: function\n    examples:\n      - 493167E85E45363D09495D0841C30648:0x401000\n      - 5f66b82558ca92e54e77f216ef4c066c:0x44580A\n  features:\n    - or:\n      - api: RtlGetVersion\n      - api: ntoskrnl.PsGetVersion\n      - api: GetVersion\n      - api: GetVersionEx\n      - api: VerifyVersionInfo\n      - api: VerSetConditionMask\n      - api: RtlGetNtVersionNumbers\n      - api: GetProductInfo\n      - and:\n        - match: PEB access\n        - or:\n          - and:\n            - arch: i386\n            - or:\n              - offset: 0xA4 = PEB->OSMajorVersion\n              - offset: 0xA8 = PEB->OSMinorVersion\n              - offset: 0xAC = PEB->OSBuildNumber\n          - and:\n            - arch: amd64\n            - or:\n              - offset: 0x118 = PEB->OSMajorVersion\n              - offset: 0x11C = PEB->OSMinorVersion\n              - offset: 0x120 = PEB->OSBuildNumber\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "create mutex",
+          "description": "host-interaction/mutex",
+          "authors": [
+            "moritz.raabe@mandiant.com",
+            "michael.hunhoff@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: create mutex\n    namespace: host-interaction/mutex\n    authors:\n      - moritz.raabe@mandiant.com\n      - michael.hunhoff@mandiant.com\n    scope: function\n    mbc:\n      - Process::Create Mutex [C0042]\n    examples:\n      - Practical Malware Analysis Lab 01-01.dll_:0x10001010\n  features:\n    - or:\n      - api: kernel32.CreateMutex\n      - api: kernel32.CreateMutexEx\n      - api: System.Threading.Mutex::ctor\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "link function at runtime on Windows",
+          "description": "linking/runtime-linking",
+          "authors": [
+            "moritz.raabe@mandiant.com",
+            "michael.hunhoff@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: link function at runtime on Windows\n    namespace: linking/runtime-linking\n    authors:\n      - moritz.raabe@mandiant.com\n      - michael.hunhoff@mandiant.com\n    scope: function\n    att&ck:\n      - Execution::Shared Modules [T1129]\n    examples:\n      - 9324D1A8AE37A36AE560C37448C9705A:0x404130\n      - Practical Malware Analysis Lab 01-04.exe_:0x401350\n  features:\n    - and:\n      - os: windows\n      - or:\n        - api: kernel32.GetProcAddress\n        - api: ntdll.LdrGetProcedureAddress\n      - optional:\n        - characteristic: indirect call\n        - api: kernel32.LoadLibrary\n        - api: kernel32.GetModuleHandle\n        - api: kernel32.GetModuleHandleEx\n        - api: ntdll.LdrLoadDll\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "connect to WMI namespace via WbemLocator",
+          "description": "host-interaction/wmi",
+          "authors": [
+            "michael.hunhoff@mandiant.com"
+          ],
+          "rule_src": "# generated using capa explorer for IDA Pro\nrule:\n  meta:\n    name: connect to WMI namespace via WbemLocator\n    namespace: host-interaction/wmi\n    authors:\n      - michael.hunhoff@mandiant.com\n    scope: function\n    att&ck:\n      - Execution::Windows Management Instrumentation [T1047]\n    examples:\n      - al-khaser_x64.exe_:0x14001956e\n      - al-khaser_x86.exe_:0x00445270\n  features:\n    - and:\n      - basic block:\n        - and:\n          - api: ole32.CoCreateInstance\n          - bytes: 11 F8 90 45 3A 1D D0 11 89 1F 00 AA 00 4B 2E 24 = CLSID_WbemLocator\n          - bytes: 87 A6 12 DC 7F 73 CF 11 88 4D 00 AA 00 4B 2E 24 = IID_IWbemLocator\n      - or:\n        - and:\n          - arch: i386\n          - offset: 0xC = ppv->ConnectServer\n        - and:\n          - arch: amd64\n          - offset: 0x18 = ppv->ConnectServer\n      - optional:\n        - string: /ROOT\\\\CIMV2/i\n        - string: /ROOT\\\\DEFAULT/i\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "encrypt data using RC4 KSA",
+          "description": "data-manipulation/encryption/rc4",
+          "authors": [
+            "moritz.raabe@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: encrypt data using RC4 KSA\n    namespace: data-manipulation/encryption/rc4\n    authors:\n      - moritz.raabe@mandiant.com\n    scope: function\n    att&ck:\n      - Defense Evasion::Obfuscated Files or Information [T1027]\n    mbc:\n      - Cryptography::Encrypt Data::RC4 [C0027.009]\n      - Cryptography::Encryption Key::RC4 KSA [C0028.002]\n    examples:\n      - 34404A3FB9804977C6AB86CB991FB130:0x403D40\n      - 9324D1A8AE37A36AE560C37448C9705A:0x404950\n      - 2B8BEC5BCB1777EAA155D832F7AFC797:0x405C42\n      - 73CE04892E5F39EC82B00C02FC04C70F:0x40646E\n  features:\n    - or:\n      - and:\n        - basic block:\n          - and:\n            - description: initialize S\n            # misses if regular loop is used,\n            # however we cannot model that a loop contains a certain number\n            - characteristic: tight loop\n            - or:\n              - number: 0xFF\n              - number: 0x100\n        - or:\n          - description: modulo 256\n          - match: calculate modulo 256 via x86 assembly\n          - basic block:\n            - and:\n              - description: modulo via zero-extended mov from 8-bit register\n              - count(mnemonic(movzx)): 2 or more\n              # avoid false positives; filter out unexpected instructions\n              - not:\n                - or:\n                  - mnemonic: shl\n                  - mnemonic: rol\n                  - characteristic: nzxor\n        - or:\n          - description: modulo key length\n          - mnemonic: div\n          - mnemonic: idiv\n      - and:\n        - description: write DWORDs instead of bytes\n        - or:\n          - number: 0x03020100\n          - number: 0xFFFEFDFC\n        - instruction:\n          - or:\n            - mnemonic: add\n            - mnemonic: sub\n          - number: 0x04040404\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "enumerate PE sections",
+          "description": "load-code/pe",
+          "authors": [
+            "@Ana06",
+            "@mr-tz"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: enumerate PE sections\n    namespace: load-code/pe\n    authors:\n      - \"@Ana06\"\n      - \"@mr-tz\"\n    scope: function\n    mbc:\n      - Discovery::Code Discovery::Enumerate PE Sections [B0046.001]\n    references:\n      - https://0x00sec.org/t/reflective-dll-injection/3080\n      - https://www.ired.team/offensive-security/code-injection-process-injection/reflective-dll-injection\n    examples:\n      - E4C33AC3638EEF68311F8AC0D72483C7:0x401510\n  features:\n    - and:\n      - os: windows\n      # there should be some complexity to functions like this\n      - count(basic blocks): 3 or more\n      - optional:\n        - offset: 0x3C = IMAGE_DOS_HEADER.e_lfanew\n      - instruction:\n        - or:\n          - mnemonic: mov\n          - mnemonic: movzx\n        - operand[1].offset: 0x6 = IMAGE_NT_HEADERS.FileHeader.NumberOfSections\n      - basic block:\n        - or:\n          - and:\n            - description: IMAGE_FIRST_SECTION(nt_header)\n            - instruction:\n              - or:\n                - mnemonic: add\n                - mnemonic: mov\n                - mnemonic: movzx\n              - operand[1].offset: 0x14 = IMAGE_NT_HEADERS.FileHeader.SizeOfOptionalHeader\n            - operand[1].offset: 0x18 = FileHeader.SizeOfOptionalHeader\n          - and:\n            - description: (DWORD)dll_raw + dos_header->e_lfanew + sizeof(IMAGE_NT_HEADERS) + sizeof(IMAGE_SECTION_HEADER) * i\n            - number: 0x28 = sizeof(IMAGE_SECTION_HEADER)\n            - or:\n              - and:\n                - arch: i386\n                - operand[1].offset: 0xF8 = sizeof(IMAGE_NT_HEADERS32)\n              - and:\n                - arch: amd64\n                - operand[1].offset: 0x108 = sizeof(IMAGE_NT_HEADERS64)\n      - 2 or more:\n        - operand[1].offset: 0xC = IMAGE_SECTION_HEADER.VirtualAddress\n        - operand[1].offset: 0x14 = IMAGE_SECTION_HEADER.PointerToRawData\n        - operand[1].offset: 0x10 = IMAGE_SECTION_HEADER.SizeOfRawData\n        # there's also offset 0x8 = IMAGE_SECTION_HEADER.Misc.PhysicalAddress, but it's likely too common\n      - not:\n        # non-zeroing XOR was observed in FPs\n        - characteristic: nzxor\n",
+          "refs": [
+            {
+              "ref": "https://0x00sec.org/t/reflective-dll-injection/3080"
+            },
+            {
+              "ref": "https://www.ired.team/offensive-security/code-injection-process-injection/reflective-dll-injection"
+            }
+          ]
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "terminate process",
+          "description": "host-interaction/process/terminate",
+          "authors": [
+            "moritz.raabe@mandiant.com",
+            "michael.hunhoff@mandiant.com",
+            "anushka.virgaonkar@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: terminate process\n    namespace: host-interaction/process/terminate\n    authors:\n      - moritz.raabe@mandiant.com\n      - michael.hunhoff@mandiant.com\n      - anushka.virgaonkar@mandiant.com\n    scope: function\n    mbc:\n      - Process::Terminate Process [C0018]\n    examples:\n      - C91887D861D9BD4A5872249B641BC9F9:0x401A77\n      - 9B7CCAA2AE6A5B96E3110EBCBC4311F6:0x10010307\n  features:\n    - or:\n      - api: System.Diagnostics.Process::Kill\n      - api: System.Diagnostics.Process::WaitForExit\n      - api: System.Diagnostics.Process::WaitForExitAsync\n      - api: System.Environment::Exit\n      - api: System.Windows.Forms.Application::Exit\n      - and:\n        - optional:\n          - match: open process\n        - or:\n          - api: kernel32.TerminateProcess\n          - api: ntdll.NtTerminateProcess\n          - api: kernel32.ExitProcess\n"
+        },
+        {
+          "format": "SIG_FORMAT_CAPA",
+          "name": "run as service",
+          "description": "host-interaction/service",
+          "authors": [
+            "moritz.raabe@mandiant.com",
+            "michael.hunhoff@mandiant.com"
+          ],
+          "rule_src": "rule:\n  meta:\n    name: run as service\n    namespace: host-interaction/service\n    authors:\n      - moritz.raabe@mandiant.com\n      - michael.hunhoff@mandiant.com\n    scope: file\n    mbc:\n      - Anti-Behavioral Analysis::Conditional Execution::Runs as Service [B0025.007]\n    examples:\n      - Practical Malware Analysis Lab 03-02.dll_\n  features:\n    - or:\n      - export: ServiceMain\n      - function:\n        - or:\n          - api: RegisterServiceCtrlHandler\n          - api: RegisterServiceCtrlHandlerEx\n          - api: StartServiceCtrlDispatcher\n          - api: System.ServiceProcess.ServiceBase::Run\n"
+        }
+      ],
+      "attack_techniques": {
+        "T1027": [
+          {
+            "severity": "INFO",
+            "description": "encode data using XOR",
+            "refs": [
+              {
+                "ref": "#signature_matches",
+                "value": "encode data using XOR"
+              }
+            ]
+          },
+          {
+            "severity": "INFO",
+            "description": "manually build AES constants",
+            "refs": [
+              {
+                "ref": "#signature_matches",
+                "value": "manually build AES constants"
+              }
+            ]
+          },
+          {
+            "severity": "INFO",
+            "description": "encrypt data using RC4 KSA",
+            "refs": [
+              {
+                "ref": "#signature_matches",
+                "value": "encrypt data using RC4 KSA"
+              }
+            ]
+          },
+          {
+            "severity": "INFO",
+            "description": "encrypt data using RC4 PRGA",
+            "refs": [
+              {
+                "ref": "#signature_matches",
+                "value": "encrypt data using RC4 PRGA"
+              }
+            ]
+          }
+        ],
+        "T1082": [
+          {
+            "severity": "INFO",
+            "description": "query environment variable",
+            "refs": [
+              {
+                "ref": "#signature_matches",
+                "value": "query environment variable"
+              }
+            ]
+          },
+          {
+            "severity": "INFO",
+            "description": "get system information on Windows",
+            "refs": [
+              {
+                "ref": "#signature_matches",
+                "value": "get system information on Windows"
+              }
+            ]
+          }
+        ],
+        "T1012": [
+          {
+            "severity": "INFO",
+            "description": "query or enumerate registry value",
+            "refs": [
+              {
+                "ref": "#signature_matches",
+                "value": "query or enumerate registry value"
+              }
+            ]
+          }
+        ],
+        "T1007": [
+          {
+            "severity": "INFO",
+            "description": "enumerate services",
+            "refs": [
+              {
+                "ref": "#signature_matches",
+                "value": "enumerate services"
+              }
+            ]
+          }
+        ],
+        "T1129": [
+          {
+            "severity": "INFO",
+            "description": "link function at runtime on Windows",
+            "refs": [
+              {
+                "ref": "#signature_matches",
+                "value": "link function at runtime on Windows"
+              }
+            ]
+          },
+          {
+            "severity": "INFO",
+            "description": "link many functions at runtime",
+            "refs": [
+              {
+                "ref": "#signature_matches",
+                "value": "link many functions at runtime"
+              }
+            ]
+          }
+        ],
+        "T1047": [
+          {
+            "severity": "INFO",
+            "description": "connect to WMI namespace via WbemLocator",
+            "refs": [
+              {
+                "ref": "#signature_matches",
+                "value": "connect to WMI namespace via WbemLocator"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

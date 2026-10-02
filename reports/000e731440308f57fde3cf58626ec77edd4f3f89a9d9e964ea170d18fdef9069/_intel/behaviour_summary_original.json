@@ -1,0 +1,174 @@
+{
+  "provider": "virustotal",
+  "resource": "behaviour_summary",
+  "docs_url": "https://docs.virustotal.com/reference/file-all-behaviours-summary",
+  "endpoint": "https://www.virustotal.com/api/v3/files/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069/behaviour_summary",
+  "query": {
+    "id": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+    "hash_type": "sha256"
+  },
+  "response": {
+    "data": {
+      "ip_traffic": [
+        {
+          "destination_ip": "112.121.178.189",
+          "destination_port": 80,
+          "transport_layer_protocol": "TCP"
+        }
+      ],
+      "files_written": [
+        "C:\\Documents and Settings\\All Users\\Application Data\\529C50FF01A6CA1B670EFB3DD151FC4E\\529C50FF01A6CA1B670EFB3DD151FC4E.exe",
+        "C:\\Documents and Settings\\All Users\\Application Data\\529C50FF01A6CA1B670EFB3DD151FC4E\\529C50FF01A6CA1B670EFB3DD151FC4E"
+      ],
+      "modules_loaded": [
+        "devenum.dll",
+        "kernel32.dll",
+        "msimg32.dll",
+        "comdlg32.dll",
+        "kernel32",
+        "user32",
+        "shlwapi.dll",
+        "advapi32.dll",
+        "rpcrt4.dll",
+        "secur32.dll",
+        "userenv.dll",
+        "shell32.dll",
+        "wsock32",
+        "ws2_32",
+        "comctl32.dll",
+        "rasapi32.dll",
+        "rtutils.dll",
+        "sensapi.dll",
+        "ntdll.dll",
+        "netapi32.dll",
+        "urlmon.dll",
+        "wininet.dll",
+        "c:\\windows\\system32\\mswsock.dll",
+        "hnetcfg.dll",
+        "c:\\windows\\system32\\wshtcpip.dll",
+        "ole32.dll",
+        "netapi32",
+        "setupapi.dll",
+        "clbcatq.dll",
+        "ole32",
+        "c:\\windows\\system32\\rpcrt4.dll",
+        "sxs.dll",
+        "oleaut32.dll",
+        "riched20.dll"
+      ],
+      "mutexes_opened": [
+        "539D520002A7CB1C680FFC3ED252FD4F",
+        "RasPbFile",
+        "529C50FF01A6CA1B670EFB3DD151FC4E"
+      ],
+      "files_opened": [
+        "C:\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+        "c:\\autoexec.bat",
+        "C:\\Documents and Settings\\All Users\\Application Data\\529C50FF01A6CA1B670EFB3DD151FC4E\\529C50FF01A6CA1B670EFB3DD151FC4E",
+        "C:\\Documents and Settings\\All Users\\Application Data\\529C50FF01A6CA1B670EFB3DD151FC4E\\529C50FF01A6CA1B670EFB3DD151FC4E.exe",
+        "C:\\WINDOWS\\Registration\\R000000000007.clb",
+        "C:\\WINDOWS\\system32\\shdocvw.dll",
+        "C:\\WINDOWS\\system32\\stdole2.tlb",
+        "\\\\.\\PIPE\\lsarpc",
+        "\\\\.\\PIPE\\wkssvc",
+        "\\\\.\\MountPointManager"
+      ],
+      "http_conversations": [
+        {
+          "url": "http://112.121.178.189/api/urls/?ts=8b58a4b2&affid=59227",
+          "request_method": "GET",
+          "request_headers": {
+            "User-Agent": "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1; GTB0.0; .NET CLR 1.1.4322)"
+          },
+          "response_headers": {
+            "Date": "Wed, 17 Dec 2025 20:34:33 GMT",
+            "Server": "Microsoft-IIS/10.0",
+            "X-Powered-By": "ASP.NET"
+          },
+          "response_status_code": 4
+        },
+        {
+          "url": "http://112.121.178.189/api/stats/install/?ts=8b58a4b2&affid=59227&ver=3050007&group=liv",
+          "request_method": "GET",
+          "request_headers": {
+            "User-Agent": "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1; GTB0.0; .NET CLR 1.1.4322)"
+          }
+        },
+        {
+          "url": "http://112.121.178.189/api/urls/?ts=8b58a4b2&affid=59227",
+          "request_method": "GET",
+          "request_headers": {
+            "User-Agent": "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1; GTB0.0; .NET CLR 1.1.4322)"
+          }
+        }
+      ],
+      "files_deleted": [
+        "C:\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069"
+      ],
+      "windows_searched": [
+        "(null) - Shell_TrayWnd"
+      ],
+      "registry_keys_set": [
+        {
+          "key": "HKEY_USERS\\S-1-5-21-1275210071-920026266-1060284298-1003\\Software\\Microsoft\\windows\\CurrentVersion\\Internet Settings\\MigrateProxy"
+        },
+        {
+          "key": "HKEY_USERS\\S-1-5-21-1275210071-920026266-1060284298-1003\\Software\\Microsoft\\windows\\CurrentVersion\\Internet Settings\\ProxyEnable"
+        },
+        {
+          "key": "HKEY_CURRENT_CONFIG\\Software\\Microsoft\\windows\\CurrentVersion\\Internet Settings\\ProxyEnable"
+        },
+        {
+          "key": "HKEY_USERS\\S-1-5-21-1275210071-920026266-1060284298-1003\\Software\\Microsoft\\windows\\CurrentVersion\\Internet Settings\\Connections\\SavedLegacySettings"
+        },
+        {
+          "key": "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\\\ProxyBypass"
+        },
+        {
+          "key": "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\\\IntranetName"
+        },
+        {
+          "key": "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\ZoneMap\\\\UNCAsIntranet"
+        },
+        {
+          "key": "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MountPoints2\\{a20cd692-8e41-11e1-9999-806d6172696f}\\\\BaseClass"
+        },
+        {
+          "key": "HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce\\529C50FF01A6CA1B670EFB3DD151FC4E"
+        }
+      ],
+      "processes_tree": [
+        {
+          "process_id": "2460",
+          "name": "%TEMP%\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069.exe",
+          "children": [
+            {
+              "process_id": "2552",
+              "name": "\"%ProgramData%\\F4D5619000040A5E002465A6B4EB2331\\F4D5619000040A5E002465A6B4EB2331.exe\" \"%TEMP%\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069.exe\""
+            }
+          ]
+        },
+        {
+          "process_id": "2752",
+          "name": "%ProgramData%\\F4D5619000040A5E002465A6B4EB2331\\F4D5619000040A5E002465A6B4EB2331.exe"
+        }
+      ],
+      "mutexes_created": [
+        "ShimCacheMutex",
+        "RasPbFile"
+      ],
+      "command_executions": [
+        "(open) C:\\DOCUME~1\\<USER>~1\\LOCALS~1\\Temp\\054f739093724be5.exe(null) [(null)]"
+      ],
+      "processes_created": [
+        "C:\\Documents and Settings\\All Users\\Application Data\\529C50FF01A6CA1B670EFB3DD151FC4E\\529C50FF01A6CA1B670EFB3DD151FC4E.exe\" \"C:\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069\"\""
+      ],
+      "verdicts": [
+        "UNKNOWN_VERDICT"
+      ],
+      "services_opened": [
+        "RASMAN"
+      ]
+    }
+  }
+}

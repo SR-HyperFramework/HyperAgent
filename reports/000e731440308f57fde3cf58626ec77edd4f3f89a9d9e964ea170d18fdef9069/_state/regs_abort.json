@@ -1,0 +1,33 @@
+{
+ "count": 4,
+ "registers": [
+  {
+   "name": "esp",
+   "size": 4,
+   "success": true,
+   "value": "0x000000000019FCA8",
+   "value_decimal": 1703080
+  },
+  {
+   "name": "eip",
+   "size": 4,
+   "success": true,
+   "value": "0x00000000773434A0",
+   "value_decimal": 1999910048
+  },
+  {
+   "name": "eax",
+   "size": 4,
+   "success": true,
+   "value": "0x0000000000000000",
+   "value_decimal": 0
+  },
+  {
+   "name": "esi",
+   "size": 4,
+   "success": true,
+   "value": "0x00000000C0000139",
+   "value_decimal": 3221225785
+  }
+ ]
+}

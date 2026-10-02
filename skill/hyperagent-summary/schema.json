@@ -1,0 +1,391 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HyperAgent Summary Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "stage",
+    "sample",
+    "status",
+    "executive_summary",
+    "confirmed_findings",
+    "findings_with_caveats",
+    "not_supported_claims",
+    "classification",
+    "confirmed_iocs",
+    "recommended_actions",
+    "limitations",
+    "upstream_inputs"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "stage": {
+      "const": "summary"
+    },
+    "sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha256",
+        "file_name",
+        "absolute_path",
+        "architecture",
+        "packing_or_protection"
+      ],
+      "properties": {
+        "sha256": {
+          "type": "string",
+          "pattern": "^[A-Fa-f0-9]{64}$"
+        },
+        "file_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "absolute_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "architecture": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "packing_or_protection": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "partial",
+        "blocked",
+        "failed"
+      ]
+    },
+    "executive_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verdict",
+        "confidence",
+        "confidence_label",
+        "risk_level",
+        "one_sentence_summary",
+        "plain_language_assessment",
+        "remaining_decision_point"
+      ],
+      "properties": {
+        "verdict": {
+          "enum": [
+            "malicious",
+            "suspicious",
+            "benign",
+            "inconclusive",
+            "unknown"
+          ]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "confidence_label": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "risk_level": {
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical",
+            "unknown"
+          ]
+        },
+        "one_sentence_summary": {
+          "type": "string"
+        },
+        "plain_language_assessment": {
+          "type": "string"
+        },
+        "remaining_decision_point": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "confirmed_findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    },
+    "findings_with_caveats": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/caveated_finding"
+      }
+    },
+    "not_supported_claims": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/unsupported_claim"
+      }
+    },
+    "classification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "malware_type",
+        "malware_family",
+        "family_status",
+        "overall_assessment"
+      ],
+      "properties": {
+        "malware_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "malware_family": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "family_status": {
+          "enum": [
+            "confirmed",
+            "caveated",
+            "unconfirmed",
+            "not_applicable"
+          ]
+        },
+        "overall_assessment": {
+          "type": "string"
+        }
+      }
+    },
+    "confirmed_iocs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "network",
+        "host",
+        "persistence"
+      ],
+      "properties": {
+        "network": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/indicator"
+          }
+        },
+        "host": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/indicator"
+          }
+        },
+        "persistence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/indicator"
+          }
+        }
+      }
+    },
+    "recommended_actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/action"
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "upstream_inputs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "source_ref_list": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "summary",
+        "source_refs"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "title": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "source_refs": {
+          "$ref": "#/$defs/source_ref_list"
+        }
+      }
+    },
+    "caveated_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "summary",
+        "caveat",
+        "source_refs"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "title": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "caveat": {
+          "type": "string"
+        },
+        "source_refs": {
+          "$ref": "#/$defs/source_ref_list"
+        }
+      }
+    },
+    "unsupported_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "claim",
+        "reason",
+        "source_refs"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "claim": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "source_refs": {
+          "$ref": "#/$defs/source_ref_list"
+        }
+      }
+    },
+    "indicator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "label",
+        "note",
+        "source_refs"
+      ],
+      "properties": {
+        "value": {
+          "type": "string"
+        },
+        "label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "note": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_refs": {
+          "$ref": "#/$defs/source_ref_list"
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "priority",
+        "target",
+        "action",
+        "reason",
+        "source_refs"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "target": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "action": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "source_refs": {
+          "$ref": "#/$defs/source_ref_list"
+        }
+      }
+    }
+  }
+}

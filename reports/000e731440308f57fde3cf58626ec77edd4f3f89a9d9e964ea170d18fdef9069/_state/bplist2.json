@@ -1,0 +1,37 @@
+{
+ "breakpoints": [
+  {
+   "address": "0x00000000004018A0",
+   "enabled": true,
+   "hit_count": 0,
+   "module": "sample.exe",
+   "name": "entry_4018A0",
+   "type": "software"
+  },
+  {
+   "address": "0x0000000000401DF8",
+   "enabled": true,
+   "hit_count": 0,
+   "module": "sample.exe",
+   "name": "decryptor_401DF8",
+   "type": "software"
+  },
+  {
+   "address": "0x0000000075976A20",
+   "enabled": true,
+   "hit_count": 0,
+   "module": "kernel32.dll",
+   "name": "ExitProcess",
+   "type": "software"
+  },
+  {
+   "address": "0x000000007732DB50",
+   "enabled": true,
+   "hit_count": 0,
+   "module": "ntdll.dll",
+   "name": "RtlExitUserProcess",
+   "type": "software"
+  }
+ ],
+ "count": 4
+}

@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.0",
+  "timestamp_utc": "2026-08-06T12:36:11Z",
+  "sample_sha256": "000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+  "input_path": "H:/Dataset/files/malware/000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+  "report_dir": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069",
+  "current_stage_id": "06-intel",
+  "last_error": null,
+  "stages": {
+    "01-prepare-env": {
+      "skill": "hyperagent-prepare-env",
+      "status": "completed",
+      "output_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069\\01-prepare-env.json",
+      "progress_path": null,
+      "updated_at": "2026-08-05T13:35:08Z"
+    },
+    "02-static-pass1": {
+      "skill": "hyperagent-static",
+      "status": "completed",
+      "output_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069\\02-static-pass1.json",
+      "progress_path": null,
+      "updated_at": "2026-08-05T14:12:20Z"
+    },
+    "03-unpack": {
+      "skill": "hyperagent-unpack",
+      "status": "completed",
+      "output_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069\\03-unpack.json",
+      "progress_path": null,
+      "updated_at": "2026-08-05T15:43:38Z"
+    },
+    "04-static-pass2": {
+      "skill": "hyperagent-static",
+      "status": "completed",
+      "output_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069\\04-static-pass2.json",
+      "progress_path": null,
+      "updated_at": "2026-08-06T04:22:10Z"
+    },
+    "05-dynamic": {
+      "skill": "hyperagent-dynamic",
+      "status": "completed",
+      "output_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069\\05-dynamic.json",
+      "progress_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069\\_state\\05-dynamic.progress.md",
+      "updated_at": "2026-08-06T08:36:48Z"
+    },
+    "06-intel": {
+      "skill": "hyperagent-intel",
+      "status": "completed",
+      "output_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069\\06-intel.json",
+      "progress_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069\\_intel\\06-intel.progress.md",
+      "updated_at": "2026-08-06T09:38:58Z"
+    },
+    "07-deepdive": {
+      "skill": "hyperagent-deepdive",
+      "status": "completed",
+      "output_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069\\reports\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069\\07-deepdive.json",
+      "progress_path": null,
+      "updated_at": "2026-08-06T12:19:57Z"
+    },
+    "08-report": {
+      "skill": "hyperagent-report",
+      "status": "completed",
+      "output_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069\\reports\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069\\08-report.md",
+      "progress_path": null,
+      "updated_at": "2026-08-06T12:26:31Z"
+    },
+    "09-summary": {
+      "skill": "hyperagent-summary",
+      "status": "completed",
+      "output_path": "C:\\Users\\ADMIN\\HyperAgent\\reports\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069\\reports\\000e731440308f57fde3cf58626ec77edd4f3f89a9d9e964ea170d18fdef9069\\09-summary.json",
+      "progress_path": null,
+      "updated_at": "2026-08-06T12:36:11Z"
+    }
+  },
+  "recommend_next_stage": {
+    "action": "pipeline_complete",
+    "stage_id": null,
+    "skill": null,
+    "source_stage_id": "09-summary",
+    "reason": "All HyperAgent pipeline stages are complete; no additional stage needs to run.",
+    "progress_path": null
+  }
+}

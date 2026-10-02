@@ -1,0 +1,355 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net">
+  <diagram name="Trang-1" id="ndYQ56GLbVmT9AywGT9b">
+    <mxGraphModel dx="4094" dy="2274" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" edge="1" parent="1" source="3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;curved=0;" target="5">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2240.03" y="295.03" />
+              <mxPoint x="2240.03" y="375.03" />
+            </Array>
+            <mxPoint x="2310" y="380" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="3" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;gradientColor=none;rounded=1;" value="&lt;font face=&quot;Google Sans&quot;&gt;hyperagent-prep-env&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="160" x="2060" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="4" edge="1" parent="1" source="5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;curved=0;" target="7">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2040.03" y="375" />
+              <mxPoint x="2040.03" y="455.14" />
+            </Array>
+            <mxPoint x="2030" y="460" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="5" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;curved=0;" value="&lt;font face=&quot;Google Sans&quot;&gt;hyperagent-static &lt;span style=&quot;color: rgb(255, 0, 0);&quot;&gt;(phase1)&lt;/span&gt;&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="160" x="2060" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="6" edge="1" parent="1" source="7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;curved=0;" target="9">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2240" y="455" />
+              <mxPoint x="2240" y="535.14" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="7" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;curved=0;" value="&lt;font face=&quot;Google Sans&quot;&gt;hyperagent-unpack&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="160" x="2060" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="8" edge="1" parent="1" source="9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;curved=0;" target="11">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2040.03" y="535.03" />
+              <mxPoint x="2040.03" y="615.03" />
+            </Array>
+            <mxPoint x="2040" y="620" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;curved=0;" value="&lt;font face=&quot;Google Sans&quot;&gt;hyperagent-static &lt;span style=&quot;color: rgb(255, 0, 0);&quot;&gt;(phase2)&lt;/span&gt;&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="160" x="2060" y="510" as="geometry" />
+        </mxCell>
+        <mxCell id="10" edge="1" parent="1" source="11" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;curved=0;" target="13">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2240" y="615" />
+              <mxPoint x="2240" y="695.14" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="11" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;curved=0;" value="&lt;font face=&quot;Google Sans&quot;&gt;hyperagent-dynamic&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="160" x="2060" y="590" as="geometry" />
+        </mxCell>
+        <mxCell id="12" edge="1" parent="1" source="13" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;curved=0;" target="15">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2040" y="695" />
+              <mxPoint x="2040" y="774.81" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="13" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;curved=0;" value="&lt;font face=&quot;Google Sans&quot;&gt;hyperagent-intel&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="160" x="2060" y="670" as="geometry" />
+        </mxCell>
+        <mxCell id="14" edge="1" parent="1" source="15" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;curved=0;" target="17">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2240" y="775" />
+              <mxPoint x="2240" y="854.81" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="15" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;curved=0;" value="&lt;font face=&quot;Google Sans&quot;&gt;hyperagent-deepdive&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="160" x="2060" y="750" as="geometry" />
+        </mxCell>
+        <mxCell id="16" edge="1" parent="1" source="17" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;curved=0;" target="25">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2040" y="855" />
+              <mxPoint x="2040" y="935" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="17" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;curved=0;" value="&lt;font face=&quot;Google Sans&quot;&gt;hyperagent-report&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="160" x="2060" y="830" as="geometry" />
+        </mxCell>
+        <mxCell id="18" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="&lt;div style=&quot;&quot;&gt;&lt;span style=&quot;font-family: &amp;quot;Google Sans&amp;quot;; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;Đảm bảo môi trường phân tích được khởi động và có thể thực thi/tương tác&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="220" x="2260" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="19" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;rounded=0;" value="&lt;div style=&quot;&quot;&gt;&lt;span style=&quot;font-family: &amp;quot;Google Sans&amp;quot;; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;Kết quả phân tích bước đầu, entry point, pack or not pack...&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="240" x="1790" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="20" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;rounded=0;" value="&lt;div style=&quot;&quot;&gt;&lt;span style=&quot;font-family: &amp;quot;Google Sans&amp;quot;; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;Kết quả phân tích tĩnh sample lần thứ 2&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="240" x="1790" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="21" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="&lt;div style=&quot;&quot;&gt;&lt;span style=&quot;font-family: &amp;quot;Google Sans&amp;quot;; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;Kết quả đào sâu để tìm thêm thông tin dựa theo các phân tích của static và dynamic&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="240" x="2260" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="22" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="&lt;div style=&quot;&quot;&gt;&lt;font face=&quot;Google Sans&quot;&gt;Sample đã qua bước unpack (nếu bị pack) (Optional)&lt;/font&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="220" x="2260" y="486.25" as="geometry" />
+        </mxCell>
+        <mxCell id="23" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="&lt;div style=&quot;&quot;&gt;&lt;span style=&quot;font-family: &amp;quot;Google Sans&amp;quot;; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;Kết quả phân tích khi chạy sample trong môi trường máy ảo&amp;nbsp;&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="220" x="2260" y="640" as="geometry" />
+        </mxCell>
+        <mxCell id="24" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;rounded=0;" value="&lt;div style=&quot;&quot;&gt;&lt;span style=&quot;font-family: &amp;quot;Google Sans&amp;quot;; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;Report chi tiết toàn bộ các phân tích&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="220" x="1810" y="880" as="geometry" />
+        </mxCell>
+        <mxCell id="25" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;curved=0;" value="&lt;font face=&quot;Google Sans&quot;&gt;hyperagent-summary&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="160" x="2060" y="910" as="geometry" />
+        </mxCell>
+        <mxCell id="26" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;rounded=0;" value="&lt;div style=&quot;&quot;&gt;&lt;font face=&quot;Google Sans&quot;&gt;Dữ liệu rà soát trên Internet liên quan đến sample đang phân tích&lt;/font&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="240" x="1790" y="720" as="geometry" />
+        </mxCell>
+        <mxCell id="27" edge="1" parent="1" source="29" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;curved=0;" target="32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="28" edge="1" parent="1" source="29" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;curved=0;" target="34">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="29" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;" value="&lt;font&gt;hyperagent-prep-env&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="160" x="3040" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="30" edge="1" parent="1" source="32" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;" target="37">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="31" connectable="0" parent="30" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;" value="có khởi động chưa?" vertex="1">
+          <mxGeometry relative="1" x="0.0802" y="1" as="geometry">
+            <mxPoint x="-6" y="-14" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="32" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;" value="vmrun" vertex="1">
+          <mxGeometry height="50" width="120" x="3280" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="33" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;div style=&quot;&quot;&gt;&lt;font face=&quot;Google Sans&quot; style=&quot;font-size: 23px;&quot;&gt;&lt;b style=&quot;&quot;&gt;WORKFLOW TỔNG QUÁT&lt;/b&gt;&lt;/font&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="320" x="1980" y="205" as="geometry" />
+        </mxCell>
+        <mxCell id="34" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;" value="ida-pro-mcp" vertex="1">
+          <mxGeometry height="50" width="120" x="3280" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="35" edge="1" parent="1" source="37" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;" target="47">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="36" connectable="0" parent="35" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;" value="khả dụng?" vertex="1">
+          <mxGeometry relative="1" x="-0.1918" as="geometry">
+            <mxPoint x="11" y="-15" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="37" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;" value="VMware" vertex="1">
+          <mxGeometry height="50" width="120" x="3560" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="38" edge="1" parent="1" source="40" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;" target="44">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="39" connectable="0" parent="38" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;" value="kết quả" vertex="1">
+          <mxGeometry relative="1" x="0.0284" y="-4" as="geometry">
+            <mxPoint x="-2" y="-19" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="40" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;" value="ida-pro-mcp" vertex="1">
+          <mxGeometry height="50" width="120" x="3560" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="41" edge="1" parent="1" source="34" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;" target="40" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="3400" y="340" as="sourcePoint" />
+            <mxPoint x="3560" y="340" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="42" connectable="0" parent="41" style="edgeLabel;resizable=0;html=1;;align=center;verticalAlign=middle;fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;" value="khả dụng?" vertex="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint y="-15" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="43" edge="1" parent="1" source="44" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;curved=0;dashed=1;dashPattern=8 8;" target="51">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="3860" y="480" />
+              <mxPoint x="3000" y="480" />
+              <mxPoint x="3000" y="706.35" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="44" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;" value="JSON" vertex="1">
+          <mxGeometry height="50" width="120" x="3800" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="45" edge="1" parent="1" source="47" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;" target="44">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="46" connectable="0" parent="45" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;" value="kết quả" vertex="1">
+          <mxGeometry relative="1" x="-0.1434" y="2" as="geometry">
+            <mxPoint x="-2" y="8" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="47" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;" value="x64dbg-mcp" vertex="1">
+          <mxGeometry height="50" width="120" x="3800" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="48" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;font style=&quot;font-size: 19px;&quot; face=&quot;Google Sans&quot; data-font-src=&quot;https://fonts.googleapis.com/css?family=Google+Sans&quot;&gt;&lt;b&gt;Stage 1 - Chuẩn bị môi trường&lt;/b&gt;&lt;/font&gt;" vertex="1">
+          <mxGeometry height="30" width="330" x="3370" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="49" edge="1" parent="1" source="51" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Google Sans;fontSource=https://fonts.googleapis.com/css?family=Google+Sans;" target="56">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="3380" y="706.25" />
+              <mxPoint x="3380" y="706.25" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="50" connectable="0" parent="49" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="có unpack không?" vertex="1">
+          <mxGeometry relative="1" x="-0.4527" y="-5" as="geometry">
+            <mxPoint x="2" y="-21" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="51" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;fontFamily=Google Sans;fontSource=https://fonts.googleapis.com/css?family=Google+Sans;" value="&lt;font&gt;hyperagent-static&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="160" x="3040" y="681.25" as="geometry" />
+        </mxCell>
+        <mxCell id="52" edge="1" parent="1" source="56" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;curved=0;" target="61">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="53" connectable="0" parent="52" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="lần 1" vertex="1">
+          <mxGeometry relative="1" x="0.5524" y="-2" as="geometry">
+            <mxPoint x="16" y="-13" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="54" connectable="0" parent="52" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="lần 2" vertex="1">
+          <mxGeometry relative="1" x="0.5524" y="-2" as="geometry">
+            <mxPoint x="15" y="132" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="55" edge="1" parent="1" source="56" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;curved=0;" target="63">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="56" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;fontFamily=Google Sans;fontSource=https://fonts.googleapis.com/css?family=Google+Sans;" value="ida-pro-mcp" vertex="1">
+          <mxGeometry height="50" width="120" x="3320" y="681.25" as="geometry" />
+        </mxCell>
+        <mxCell id="57" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;font style=&quot;font-size: 19px;&quot; face=&quot;Google Sans&quot; data-font-src=&quot;https://fonts.googleapis.com/css?family=Google+Sans&quot;&gt;&lt;b&gt;Stage 2 &amp;amp; 4 - Phân tích tĩnh&amp;nbsp;&lt;/b&gt;&lt;/font&gt;" vertex="1">
+          <mxGeometry height="30" width="330" x="3370" y="531.25" as="geometry" />
+        </mxCell>
+        <mxCell id="58" edge="1" parent="1" source="61" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="65">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="59" connectable="0" parent="58" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="kết quả" vertex="1">
+          <mxGeometry relative="1" x="-0.008" y="2" as="geometry">
+            <mxPoint y="-14" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="60" connectable="0" parent="58" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="kết quả" vertex="1">
+          <mxGeometry relative="1" x="-0.008" y="2" as="geometry">
+            <mxPoint x="2" y="136" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="61" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;fontFamily=Google Sans;fontSource=https://fonts.googleapis.com/css?family=Google+Sans;" value="Phase 1" vertex="1">
+          <mxGeometry height="50" width="120" x="3550" y="601.25" as="geometry" />
+        </mxCell>
+        <mxCell id="62" edge="1" parent="1" source="63" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="66">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="63" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;fontFamily=Google Sans;fontSource=https://fonts.googleapis.com/css?family=Google+Sans;" value="Phase 2" vertex="1">
+          <mxGeometry height="50" width="120" x="3550" y="750" as="geometry" />
+        </mxCell>
+        <mxCell id="64" edge="1" parent="1" source="65" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="70">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="65" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;" value="JSON&amp;nbsp;&lt;div&gt;(part1)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="120" x="3760" y="601.25" as="geometry" />
+        </mxCell>
+        <mxCell id="66" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;" value="JSON&amp;nbsp;&lt;div&gt;(part2)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="120" x="3760" y="750" as="geometry" />
+        </mxCell>
+        <mxCell id="67" edge="1" parent="1" source="70" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="74">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="68" edge="1" parent="1" source="70" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;curved=0;" target="76">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="4240" y="626.3" />
+              <mxPoint x="4240" y="706.3" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="69" edge="1" parent="1" source="70" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;curved=0;" target="78">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="4240" y="626.3" />
+              <mxPoint x="4240" y="786" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="70" parent="1" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;fontFamily=Google Sans;fontSource=https://fonts.googleapis.com/css?family=Google+Sans;" value="&lt;font&gt;hyperagent-unpack&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="160" x="4030" y="601.2500000000001" as="geometry" />
+        </mxCell>
+        <mxCell id="71" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;font style=&quot;font-size: 19px;&quot; face=&quot;Google Sans&quot; data-font-src=&quot;https://fonts.googleapis.com/css?family=Google+Sans&quot;&gt;&lt;b&gt;Stage 3 - Unpack&amp;nbsp;&amp;nbsp;&lt;/b&gt;&lt;/font&gt;" vertex="1">
+          <mxGeometry height="30" width="330" x="4330" y="531.25" as="geometry" />
+        </mxCell>
+        <mxCell id="72" edge="1" parent="1" source="74" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="79">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="4480.03" y="626.31" />
+              <mxPoint x="4480.03" y="665" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="73" edge="1" parent="1" source="74" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="80">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="4480.03" y="626.31" />
+              <mxPoint x="4480.03" y="745" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="74" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;fontFamily=Google Sans;fontSource=https://fonts.googleapis.com/css?family=Google+Sans;" value="x64dbg-mcp" vertex="1">
+          <mxGeometry height="50" width="120" x="4300" y="601.25" as="geometry" />
+        </mxCell>
+        <mxCell id="75" edge="1" parent="1" source="76" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="79">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="4480.03" y="706.03" />
+              <mxPoint x="4480.03" y="665" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="76" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;fontFamily=Google Sans;fontSource=https://fonts.googleapis.com/css?family=Google+Sans;" value="ida-pro-mcp" vertex="1">
+          <mxGeometry height="50" width="120" x="4300" y="681" as="geometry" />
+        </mxCell>
+        <mxCell id="77" edge="1" parent="1" source="78" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="79">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="4480.03" y="786.03" />
+              <mxPoint x="4480.03" y="665" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="78" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;fontFamily=Google Sans;fontSource=https://fonts.googleapis.com/css?family=Google+Sans;" value="python_script" vertex="1">
+          <mxGeometry height="50" width="120" x="4300" y="761" as="geometry" />
+        </mxCell>
+        <mxCell id="79" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;" value="JSON&amp;nbsp;" vertex="1">
+          <mxGeometry height="50" width="120" x="4560" y="640" as="geometry" />
+        </mxCell>
+        <mxCell id="80" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontFamily=Google Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DGoogle%2BSans;" value="Artifact&lt;div&gt;(unpacked sample)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="120" x="4560" y="720" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,5 +1,5 @@
 ---
-okf_version: "0.1"
+okf_version: "0.2"
 ---
 
 # Files
@@ -20,6 +20,8 @@ okf_version: "0.1"
 - [architecture](architecture/)
 - [data](data/)
 - [integration](integration/)
+- [integrations](integrations/)
+- [operations](operations/)
 - [orchestration](orchestration/)
 - [setup](setup/)
 - [skills](skills/)

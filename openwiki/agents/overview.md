@@ -3,6 +3,7 @@ type: reference
 title: Agent System Overview
 description: Agent taxonomy, coarse vs specialist, routing logic, and execution within pipeline.
 tags: [agents, orchestration, routing]
+generated: { by: "openwiki/0.7.2", at: "2026-11-01T10:49:42.750Z" }
 ---
 
 # Agent System Overview
@@ -307,4 +308,3 @@ Agents are invoked **only during stage 02-static-pass1**. Their findings feed in
 - [Coarse Agents](./coarse-agents.md) — Detailed NativeAgent, ScriptAgent, DotNetAgent
 - [Architecture Overview](../architecture/overview.md) — System design
 - [Pipeline Details](../architecture/pipeline.md) — Stage-by-stage execution
-

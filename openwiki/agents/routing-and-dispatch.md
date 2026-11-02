@@ -3,6 +3,7 @@ type: reference
 title: File Type Detection and Agent Routing
 description: DIE integration, file type classification, and dispatch to coarse agents (native/script/.net).
 tags: [agents, routing, detection]
+generated: { by: "openwiki/0.7.2", at: "2026-11-01T10:49:42.750Z" }
 ---
 
 # File Type Detection and Agent Routing
@@ -329,4 +330,3 @@ agents:
 - [Coarse Agents](./coarse-agents.md) — NativeAgent, ScriptAgent, DotNetAgent implementations
 - [Stage 02: Static Pass 1](../skills/stages/02-04-static-analysis.md) — Where routing occurs
 - [Overview](./overview.md) — Agent taxonomy and execution model
-

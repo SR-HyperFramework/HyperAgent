@@ -3,6 +3,7 @@ type: reference
 title: Pipeline Controller (hyperagent-progress)
 description: Operator-facing tool for discovering runs, classifying status, and resuming interrupted analyses.
 tags: [orchestration, operator, pipeline-controller]
+generated: { by: "openwiki/0.7.2", at: "2026-11-01T10:49:42.750Z" }
 ---
 
 # Pipeline Controller (hyperagent-progress)
@@ -327,4 +328,3 @@ If claude_spawn.py fails to resume, the skill:
 - [Launcher (claude_spawn.py)](./launcher.md) — Main orchestrator; receives --resume flag
 - [State Management](./state-management.md) — STATE.json contract and semantics
 - [Architecture Overview](../architecture/overview.md) — System design
-

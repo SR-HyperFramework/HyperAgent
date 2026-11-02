@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "C:\\Users\\ADMIN\\HyperAgent\\.archify\\architecture-hyperagent-20261024-120000\\candidate.json",
+    "sha256": "63ac96bb595654274d95354ffc205612184d27a75a2834e4e3de36f3b32016bc",
+    "bytes": 7171
+  },
+  "artifact": {
+    "path": "C:\\Users\\ADMIN\\HyperAgent\\.archify\\architecture-hyperagent-20261024-120000\\hyperagent-architecture.html",
+    "sha256": "ce296c756e82788eafccac1e4b0183d742454d5318ba1f966aa3c46f4495df0c",
+    "bytes": 844706
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "C:\\Users\\ADMIN\\HyperAgent\\.archify\\architecture-hyperagent-20261024-120000\\hyperagent-architecture.finalize.json",
+    "summaryReceipt": "C:\\Users\\ADMIN\\HyperAgent\\.archify\\architecture-hyperagent-20261024-120000\\hyperagent-architecture.finalize-summary.json",
+    "browserCheckReceipt": "C:\\Users\\ADMIN\\HyperAgent\\.archify\\architecture-hyperagent-20261024-120000\\hyperagent-architecture.browser-check.json"
+  },
+  "visualReview": "not-requested",
+  "durationMs": 4910,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  }
+}

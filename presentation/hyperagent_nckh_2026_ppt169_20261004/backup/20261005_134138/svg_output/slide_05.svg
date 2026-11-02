@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" lang="vi-VN" data-pptx-page-role="content" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <filter id="glowCyan" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#38BDF8" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <!-- Background & Blueprint Grid -->
+  <rect id="page-bg" data-pptx-role="background" x="0" y="0" width="1280" height="720" fill="#0B1220" />
+  <path id="page-grid" data-pptx-role="decoration" d="M80 0V720 M160 0V720 M240 0V720 M320 0V720 M400 0V720 M480 0V720 M560 0V720 M640 0V720 M720 0V720 M800 0V720 M880 0V720 M960 0V720 M1040 0V720 M1120 0V720 M1200 0V720 M0 80H1280 M0 160H1280 M0 240H1280 M0 320H1280 M0 400H1280 M0 480H1280 M0 560H1280 M0 640H1280" fill="none" stroke="#FFFFFF" stroke-opacity="0.04" stroke-width="1" />
+
+  <!-- Running Header -->
+  <g id="page-header" data-pptx-role="header" data-pptx-bounds="60 40 1160 26" font-family="Consolas" font-size="12" fill="#8FA0B8">
+    <text x="60" y="58" letter-spacing="3">04 · SYSTEM ARCHITECTURE &amp; MCP PROTOCOL</text>
+    <text x="1220" y="58" text-anchor="end" letter-spacing="2">05 / 12</text>
+  </g>
+
+  <!-- Slide Title -->
+  <g id="p5-title" data-pptx-bounds="60 84 1160 80">
+    <text x="60" y="122" font-size="34" font-weight="bold" fill="#E6EDF7">
+      Kiến Trúc Tổng Thể &amp; Giao Thức Điều Phối MCP
+    </text>
+    <text x="60" y="154" font-size="16" fill="#8FA0B8">
+      Mô hình 3 tầng: Đầu vào xác thực — Lõi điều phối AgentLoop qua MCP Server — Đầu ra chuẩn hóa có cấu trúc
+    </text>
+  </g>
+
+  <!-- Split Screen: Architecture Diagram (Left) + Detailed Breakdown (Right) -->
+  <g id="p5-content" data-pptx-bounds="60 185 1160 495">
+    <!-- Left Container: Original Architecture Diagram Frame -->
+    <rect x="60" y="185" width="480" height="495" rx="8" fill="#111C30" stroke="#243350" stroke-width="1.5" />
+    <rect x="60" y="185" width="6" height="495" rx="3" fill="#38BDF8" />
+    
+    <!-- Header inside Left Container -->
+    <rect x="75" y="200" width="450" height="28" rx="4" fill="#0F2A44" stroke="#38BDF8" stroke-width="1" />
+    <text x="90" y="218" font-family="Consolas" font-size="11" font-weight="bold" fill="#38BDF8" letter-spacing="1">
+      HÌNH 1. SƠ ĐỒ QUY TRÌNH 9 GIAI ĐOẠN &amp; MCP GIAO TIẾP
+    </text>
+
+    <!-- Embedded Architecture Image -->
+    <image href="images/architecture_diagram.png" x="75" y="240" width="450" height="425" preserveAspectRatio="xMidYMid meet" />
+
+    <!-- Right Container: 3 Architectural Layers Explanation -->
+    <!-- Layer 1: Input & Environment (Cyan) -->
+    <rect x="565" y="185" width="655" height="150" rx="8" fill="#111C30" stroke="#243350" stroke-width="1" />
+    <rect x="565" y="185" width="6" height="150" rx="3" fill="#38BDF8" />
+
+    <rect x="585" y="202" width="115" height="22" rx="4" fill="#0F2A44" stroke="#38BDF8" stroke-width="1" />
+    <text x="597" y="217" font-family="Consolas" font-size="11" font-weight="bold" fill="#38BDF8">TẦNG ĐẦU VÀO</text>
+    
+    <text x="715" y="218" font-size="15" font-weight="bold" fill="#E6EDF7">
+      Mẫu PE &amp; Ràng Buộc Schema Khởi Tạo
+    </text>
+
+    <circle cx="595" cy="248" r="4" fill="#38BDF8" />
+    <text x="610" y="252" font-size="13" font-weight="bold" fill="#E6EDF7">
+      Định danh mẫu duy nhất:
+      <tspan font-weight="normal" fill="#C7D2E3"> Xác thực qua mã băm SHA256 an toàn.</tspan>
+    </text>
+
+    <circle cx="595" cy="280" r="4" fill="#38BDF8" />
+    <text x="610" y="284" font-size="13" font-weight="bold" fill="#E6EDF7">
+      Tập luật Stage Skills &amp; JSON Schema:
+      <tspan font-weight="normal" fill="#C7D2E3"> Mỗi giai đoạn nạp một tập chỉ thị</tspan>
+      <tspan x="610" dy="19" font-family="Consolas" font-size="12" fill="#38BDF8">SKILL.md</tspan>
+      <tspan font-weight="normal" fill="#C7D2E3"> chuyên biệt và cấu hình ràng buộc công cụ được phép gọi.</tspan>
+    </text>
+
+    <!-- Layer 2: Orchestration Engine & MCP (Emerald) -->
+    <rect x="565" y="350" width="655" height="180" rx="8" fill="#111C30" stroke="#243350" stroke-width="1" />
+    <rect x="565" y="350" width="6" height="180" rx="3" fill="#34D399" />
+
+    <rect x="585" y="365" width="130" height="22" rx="4" fill="#0D3326" stroke="#34D399" stroke-width="1" />
+    <text x="597" y="380" font-family="Consolas" font-size="11" font-weight="bold" fill="#34D399">LÕI ĐIỀU PHỐI (AI)</text>
+
+    <text x="730" y="381" font-size="15" font-weight="bold" fill="#E6EDF7">
+      AgentLoop &amp; Giao Thức Model Context Protocol (MCP)
+    </text>
+
+    <circle cx="595" cy="412" r="4" fill="#34D399" />
+    <text x="610" y="416" font-size="13" font-weight="bold" fill="#E6EDF7">
+      Anthropic SDK Native Loop:
+      <tspan font-weight="normal" fill="#C7D2E3"> Vòng lặp ra quyết định gọi công cụ trực tiếp,</tspan>
+      <tspan x="610" dy="19" font-weight="normal" fill="#C7D2E3">quản lý ngữ cảnh và tự động checkpoint khi chạm giới hạn token.</tspan>
+    </text>
+
+    <circle cx="595" cy="460" r="4" fill="#34D399" />
+    <text x="610" y="464" font-size="13" font-weight="bold" fill="#E6EDF7">
+      IDA Pro MCP (Tĩnh):
+      <tspan font-weight="normal" fill="#C7D2E3"> Trích xuất mã máy, đồ thị luồng điều khiển (CFG), hàm API.</tspan>
+    </text>
+
+    <circle cx="595" cy="492" r="4" fill="#34D399" />
+    <text x="610" y="496" font-size="13" font-weight="bold" fill="#E6EDF7">
+      x64dbg MCP (Động):
+      <tspan font-weight="normal" fill="#C7D2E3"> Điều khiển qua RPC vào máy ảo Windows cô lập,</tspan>
+      <tspan x="610" dy="19" font-weight="normal" fill="#C7D2E3">thực thi mẫu an toàn và tự động revert snapshot sạch sau khi xong.</tspan>
+    </text>
+
+    <!-- Layer 3: Structured Outputs (Violet) -->
+    <rect x="565" y="545" width="655" height="135" rx="8" fill="#111C30" stroke="#243350" stroke-width="1" />
+    <rect x="565" y="545" width="6" height="135" rx="3" fill="#A78BFA" />
+
+    <rect x="585" y="560" width="115" height="22" rx="4" fill="#2E1B4E" stroke="#A78BFA" stroke-width="1" />
+    <text x="597" y="575" font-family="Consolas" font-size="11" font-weight="bold" fill="#A78BFA">TẦNG ĐẦU RA</text>
+
+    <text x="715" y="576" font-size="15" font-weight="bold" fill="#E6EDF7">
+      Báo Cáo Minh Bạch &amp; Telemetry Giám Sát
+    </text>
+
+    <circle cx="595" cy="606" r="4" fill="#A78BFA" />
+    <text x="610" y="610" font-size="13" font-weight="bold" fill="#E6EDF7">
+      Artifact JSON theo Schema:
+      <tspan font-weight="normal" fill="#C7D2E3"> Lưu trữ toàn bộ dữ kiện trung gian từng giai đoạn.</tspan>
+    </text>
+
+    <circle cx="595" cy="638" r="4" fill="#A78BFA" />
+    <text x="610" y="642" font-size="13" font-weight="bold" fill="#E6EDF7">
+      Báo cáo Markdown &amp; JSON Summary:
+      <tspan font-weight="normal" fill="#C7D2E3"> Cung cấp bằng chứng chi tiết và phán quyết</tspan>
+      <tspan x="610" dy="19" font-weight="normal" fill="#C7D2E3">cho Dashboard; kèm Telemetry giám sát token, chi phí và thời gian.</tspan>
+    </text>
+  </g>
+</svg>

@@ -3,6 +3,7 @@ type: reference
 title: Public Response Contract
 description: Public response envelope, backward compatibility guarantees, and response structure.
 tags: [data, contract, api]
+generated: { by: "openwiki/0.7.2", at: "2026-11-01T10:49:42.750Z" }
 ---
 
 # Public Response Contract
@@ -300,4 +301,3 @@ Current API version 0.1.0 supports unlimited minor/patch additions without break
 - [REST API](../api/rest-api.md) — API endpoints that return this envelope
 - [Data Models](./artifacts.md) — Artifact and finding details
 - [Architecture](../architecture/overview.md) — System design
-

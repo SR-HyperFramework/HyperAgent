@@ -1,0 +1,165 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" lang="vi-VN" data-pptx-page-role="content">
+  <defs>
+    <linearGradient id="blueGrad6" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1E40AF"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect id="slide6-bg" width="1280" height="720" fill="#F8FAFC" data-pptx-role="background"/>
+  <rect id="slide6-top-bar" x="0" y="0" width="1280" height="6" fill="url(#blueGrad6)" data-pptx-role="decoration"/>
+
+  <!-- Slide Header -->
+  <g id="slide6-header" data-pptx-bounds="80 40 1120 90">
+    <rect x="80" y="40" width="170" height="24" rx="4" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="1"/>
+    <text x="92" y="56" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#1D4ED8" letter-spacing="1">QUY TRÌNH THỰC THI</text>
+    
+    <text x="80" y="92" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="26" font-weight="800" fill="#0F172A">
+      Quy Trình 9 Giai Đoạn Chi Tiết Của HyperAgent
+    </text>
+    <text x="80" y="115" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#64748B">
+      Hai pha kế tiếp: Thu thập bằng chứng đa tầng (01–05) và Đối chiếu lập báo cáo có kiểm chứng (06–09)
+    </text>
+  </g>
+
+  <!-- Phase 1: Evidence Gathering (01 - 05) -->
+  <g id="phase1-group" data-pptx-bounds="80 145 1120 230">
+    <!-- Outer Container -->
+    <rect x="80" y="145" width="1120" height="230" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+    <rect x="80" y="145" width="1120" height="5" rx="2" fill="#2563EB"/>
+
+    <!-- Phase 1 Header Pill -->
+    <rect x="105" y="165" width="460" height="26" rx="13" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="1"/>
+    <text x="120" y="182" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#1E40AF">
+      PHA 1: THU THẬP BẰNG CHỨNG (TĨNH → GIẢI NÉN → TĨNH LẦN 2 → ĐỘNG)
+    </text>
+
+    <!-- 5 Step Boxes in Horizontal Flow -->
+    <!-- Step 01 -->
+    <rect x="105" y="205" width="200" height="150" rx="8" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1"/>
+    <rect x="115" y="215" width="30" height="20" rx="4" fill="#2563EB"/>
+    <text x="122" y="230" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#FFFFFF">01</text>
+    <text x="155" y="230" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#0F172A">Chuẩn Bị</text>
+    <text x="115" y="260" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#475569">
+      Khởi tạo môi trường:
+      <tspan x="115" dy="16" font-weight="400" fill="#64748B">• Kiểm tra health check VM</tspan>
+      <tspan x="115" dy="15" font-weight="400" fill="#64748B">• Snapshot sạch sẵn sàng</tspan>
+      <tspan x="115" dy="15" font-weight="400" fill="#64748B">• Gán ID &amp; hash SHA256</tspan>
+    </text>
+
+    <!-- Step 02 -->
+    <rect x="325" y="205" width="200" height="150" rx="8" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1"/>
+    <rect x="335" y="215" width="30" height="20" rx="4" fill="#2563EB"/>
+    <text x="342" y="230" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#FFFFFF">02</text>
+    <text x="375" y="230" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#0F172A">Tĩnh Lần 1</text>
+    <text x="335" y="260" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#475569">
+      IDA Pro Static Pass:
+      <tspan x="335" dy="16" font-weight="400" fill="#64748B">• PE Header &amp; Sections</tspan>
+      <tspan x="335" dy="15" font-weight="400" fill="#64748B">• Bảng Imports / Exports</tspan>
+      <tspan x="335" dy="15" font-weight="400" fill="#64748B">• Tính entropy nghi ngờ</tspan>
+    </text>
+
+    <!-- Step 03 -->
+    <rect x="545" y="205" width="200" height="150" rx="8" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1"/>
+    <rect x="555" y="215" width="30" height="20" rx="4" fill="#D97706"/>
+    <text x="562" y="230" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#FFFFFF">03</text>
+    <text x="595" y="230" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#0F172A">Giải Nén</text>
+    <text x="555" y="260" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#475569">
+      x64dbg Unpacking:
+      <tspan x="555" dy="16" font-weight="400" fill="#64748B">• Dò Original Entry Point</tspan>
+      <tspan x="555" dy="15" font-weight="400" fill="#64748B">• Chạy qua lớp giải mã</tspan>
+      <tspan x="555" dy="15" font-weight="400" fill="#64748B">• Dump payload sạch ra đĩa</tspan>
+    </text>
+
+    <!-- Step 04 -->
+    <rect x="765" y="205" width="200" height="150" rx="8" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1"/>
+    <rect x="775" y="215" width="30" height="20" rx="4" fill="#2563EB"/>
+    <text x="782" y="230" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#FFFFFF">04</text>
+    <text x="815" y="230" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#0F172A">Tĩnh Lần 2</text>
+    <text x="775" y="260" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#475569">
+      Tái phân tích sau giải nén:
+      <tspan x="775" dy="16" font-weight="400" fill="#64748B">• Quét payload vừa dump</tspan>
+      <tspan x="775" dy="15" font-weight="400" fill="#64748B">• Bóc trần API thật bị giấu</tspan>
+      <tspan x="775" dy="15" font-weight="400" fill="#64748B">• Trích xuất chuỗi C2/IP</tspan>
+    </text>
+
+    <!-- Step 05 -->
+    <rect x="985" y="205" width="195" height="150" rx="8" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1"/>
+    <rect x="995" y="215" width="30" height="20" rx="4" fill="#DC2626"/>
+    <text x="1002" y="230" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#FFFFFF">05</text>
+    <text x="1035" y="230" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#0F172A">Động</text>
+    <text x="995" y="260" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#475569">
+      Thực thi trong Guest VM:
+      <tspan x="995" dy="16" font-weight="400" fill="#64748B">• x64dbg bắt API hook</tspan>
+      <tspan x="995" dy="15" font-weight="400" fill="#64748B">• Ghi nhận Registry/File/Net</tspan>
+      <tspan x="995" dy="15" font-weight="400" fill="#DC2626">• Tự động Revert Snapshot</tspan>
+    </text>
+  </g>
+
+  <!-- Phase 2: Evidence Binding & Reporting (06 - 09) -->
+  <g id="phase2-group" data-pptx-bounds="80 395 1120 255">
+    <!-- Outer Container -->
+    <rect x="80" y="395" width="1120" height="255" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+    <rect x="80" y="395" width="1120" height="5" rx="2" fill="#0D9488"/>
+
+    <!-- Phase 2 Header Pill -->
+    <rect x="105" y="415" width="410" height="26" rx="13" fill="#CCFBF1" stroke="#99F6E4" stroke-width="1"/>
+    <text x="120" y="432" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#0F766E">
+      PHA 2: ĐỐI CHIẾU &amp; LẬP BÁO CÁO CÓ KIỂM CHỨNG BẰNG CHỨNG
+    </text>
+
+    <!-- 4 Step Boxes in Horizontal Flow -->
+    <!-- Step 06 -->
+    <rect x="105" y="455" width="250" height="175" rx="8" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1" stroke-dasharray="4 2"/>
+    <rect x="115" y="465" width="30" height="20" rx="4" fill="#64748B"/>
+    <text x="122" y="480" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#FFFFFF">06</text>
+    <text x="155" y="480" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#0F172A">Tình Báo (Tùy Chọn)</text>
+    <text x="115" y="510" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#475569">
+      VirusTotal Correlation:
+      <tspan x="115" dy="18" font-weight="400" fill="#64748B">• Tra cứu danh tiếng mã băm</tspan>
+      <tspan x="115" dy="16" font-weight="400" fill="#64748B">• Đối chiếu họ mã độc (Malware Family)</tspan>
+      <tspan x="115" dy="16" font-weight="400" fill="#64748B">• Nét đứt: Tùy chọn (cho phép chạy</tspan>
+      <tspan x="115" dy="15" font-weight="400" fill="#64748B">hoàn toàn offline không cần internet)</tspan>
+    </text>
+
+    <!-- Step 07 -->
+    <rect x="380" y="455" width="250" height="175" rx="8" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1"/>
+    <rect x="390" y="465" width="30" height="20" rx="4" fill="#0D9488"/>
+    <text x="397" y="480" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#FFFFFF">07</text>
+    <text x="430" y="480" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#0F172A">Đối Chiếu (Deepdive)</text>
+    <text x="390" y="510" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#475569">
+      Cross-Stage Reasoning:
+      <tspan x="390" dy="18" font-weight="400" fill="#64748B">• Đối chiếu chéo bằng chứng tĩnh &amp; động</tspan>
+      <tspan x="390" dy="16" font-weight="600" fill="#0D9488">• Ràng buộc 3 trạng thái phán quyết:</tspan>
+      <tspan x="390" dy="16" font-weight="600" fill="#0D9488">  Được phép | Có điều kiện | Bị cấm</tspan>
+      <tspan x="390" dy="16" font-weight="400" fill="#64748B">• Loại trừ mọi nhận định không căn cứ</tspan>
+    </text>
+
+    <!-- Step 08 -->
+    <rect x="655" y="455" width="250" height="175" rx="8" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1"/>
+    <rect x="665" y="465" width="30" height="20" rx="4" fill="#0D9488"/>
+    <text x="672" y="480" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#FFFFFF">08</text>
+    <text x="705" y="480" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#0F172A">Báo Cáo (Report.md)</text>
+    <text x="665" y="510" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#475569">
+      Sinh Báo Cáo Kỹ Thuật:
+      <tspan x="665" dy="18" font-weight="400" fill="#64748B">• Cấu trúc Markdown hoàn chỉnh</tspan>
+      <tspan x="665" dy="16" font-weight="400" fill="#64748B">• Gắn mã lệnh ASM, offset, hex bytes</tspan>
+      <tspan x="665" dy="16" font-weight="400" fill="#64748B">• Liệt kê chỉ số nhận diện IoC</tspan>
+      <tspan x="665" dy="16" font-weight="400" fill="#64748B">• Gắn kèm mức độ rủi ro khách quan</tspan>
+    </text>
+
+    <!-- Step 09 -->
+    <rect x="930" y="455" width="250" height="175" rx="8" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1"/>
+    <rect x="940" y="465" width="30" height="20" rx="4" fill="#0D9488"/>
+    <text x="947" y="480" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#FFFFFF">09</text>
+    <text x="980" y="480" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#0F172A">Tóm Tắt (Summary.json)</text>
+    <text x="940" y="510" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#475569">
+      Phán Quyết Có Cấu Trúc:
+      <tspan x="940" dy="18" font-weight="400" fill="#64748B">• JSON Verdict cho Web Dashboard</tspan>
+      <tspan x="940" dy="16" font-weight="400" fill="#64748B">• Phân loại nhị phân (Độc hại / Lành tính)</tspan>
+      <tspan x="940" dy="16" font-weight="400" fill="#64748B">• Trích xuất danh sách IoC tiêu chuẩn</tspan>
+      <tspan x="940" dy="16" font-weight="400" fill="#64748B">• Ghi nhận tổng thời gian và chi phí</tspan>
+    </text>
+  </g>
+</svg>

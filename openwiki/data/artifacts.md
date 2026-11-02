@@ -3,6 +3,7 @@ type: reference
 title: Artifact Model and Lineage
 description: ArtifactNode structure, parent/child relationships, artifact types, and registry indexing.
 tags: [data, artifacts, model]
+generated: { by: "openwiki/0.7.2", at: "2026-11-01T10:49:42.750Z" }
 ---
 
 # Artifact Model and Lineage
@@ -321,4 +322,3 @@ During report generation, findings are grouped by artifact and presented in line
 - [Response Contract](./response-contract.md) — Public artifact envelope
 - [Data Models](../architecture/data-models.md) — Complete model reference
 - [Stage Dependencies](../architecture/stage-dependencies.md) — Lineage across stages
-

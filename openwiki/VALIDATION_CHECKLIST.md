@@ -2,6 +2,7 @@
 type: "Reference"
 title: "Wiki Validation Quick Checklist"
 openwiki_generated: true
+generated: { by: "openwiki/0.7.2", at: "2026-11-01T10:49:42.750Z" }
 ---
 
 # Wiki Validation Quick Checklist

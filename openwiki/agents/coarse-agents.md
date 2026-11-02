@@ -3,6 +3,7 @@ type: reference
 title: Coarse Agents - File Type Analysis
 description: NativeAgent, ScriptAgent, and DotNetAgent implementations for binary routing and initial analysis.
 tags: [agents, coarse, routing]
+generated: { by: "openwiki/0.7.2", at: "2026-11-01T10:49:42.750Z" }
 ---
 
 # Coarse Agents
@@ -309,4 +310,3 @@ Stage 02 (hyperagent-static)
 - [Routing & Dispatch](./routing-and-dispatch.md) — File type detection and agent selection
 - [Stage 02: Static Pass 1](../skills/stages/02-04-static-analysis.md) — Where agents are invoked
 - [Overview](./overview.md) — Agent taxonomy
-

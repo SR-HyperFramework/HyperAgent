@@ -3,6 +3,7 @@ type: reference
 title: Skills System and Orchestration
 description: Claude Code skills architecture, SKILL.md orchestration, compatibility model, and skill tree hierarchy.
 tags: [skills, orchestration, system]
+generated: { by: "openwiki/0.7.2", at: "2026-11-01T10:49:42.750Z" }
 ---
 
 # Skills System and Orchestration
@@ -351,4 +352,3 @@ Discover runs, classify status, resume interrupted analyses.
 - [Stage 08: Report](./stages/08-report.md) — Report synthesis
 <!-- openwiki: broken internal link [./stages/09-summary.md] file "./stages/09-summary.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - [Stage 09: Summary](./stages/09-summary.md) — Verdict assignment
-

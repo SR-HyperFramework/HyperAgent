@@ -3,6 +3,7 @@ type: reference
 title: Pipeline Stages and State Contract
 description: Detailed breakdown of 9 analysis stages, STATE.json contract, context checkpointing, and injection guard mechanism.
 tags: [pipeline, stages, orchestration]
+generated: { by: "openwiki/0.7.2", at: "2026-11-01T10:49:42.750Z" }
 ---
 
 # Pipeline Stages and State Contract
@@ -391,4 +392,3 @@ If any stage remains "running" for MAX_STAGE_ATTEMPTS consecutive orchestrator i
 - Pipeline halts pending manual action
 
 This prevents resource exhaustion from pathological checkpointing behavior.
-

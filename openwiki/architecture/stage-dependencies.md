@@ -3,6 +3,7 @@ type: reference
 title: Stage Dependencies and Handoffs
 description: Cross-stage dependencies, conditional execution, explicit handoff contracts, and artifact lineage.
 tags: [architecture, pipeline, dependencies]
+generated: { by: "openwiki/0.7.2", at: "2026-11-01T10:49:42.750Z" }
 ---
 
 # Stage Dependencies and Handoffs
@@ -359,4 +360,3 @@ The orchestrator detects and reports drifts; hyperagent-progress marks run as "d
 - [Architecture Overview](./overview.md) — System design
 - [Orchestrator](../orchestration/launcher.md) — Stage execution loop
 - [State Management](../orchestration/state-management.md) — STATE.json contract
-

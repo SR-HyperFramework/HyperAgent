@@ -3,6 +3,7 @@ type: reference
 title: Data Models and Entity Definitions
 description: TaskSession, RunContext, ArtifactNode, Finding, AgentResult, and supporting data structures.
 tags: [data, models, entities]
+generated: { by: "openwiki/0.7.2", at: "2026-11-01T10:49:42.750Z" }
 ---
 
 # Data Models and Entity Definitions
@@ -425,4 +426,3 @@ class TaskSnapshot:
 - [Response Contract](../data/response-contract.md) — Public response formats
 - [Artifacts](../data/artifacts.md) — Artifact graph and lineage
 - [Findings](../data/findings.md) — Finding categories and severity
-

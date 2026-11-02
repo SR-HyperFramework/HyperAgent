@@ -1,0 +1,149 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" lang="vi-VN" data-pptx-page-role="content" font-family="Consolas">
+  <defs>
+    <filter id="glowCyan" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#38BDF8" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <!-- Background & Blueprint Grid -->
+  <rect id="page-bg" data-pptx-role="background" x="0" y="0" width="1280" height="720" fill="#0B1220" />
+  <path id="page-grid" data-pptx-role="decoration" d="M80 0V720 M160 0V720 M240 0V720 M320 0V720 M400 0V720 M480 0V720 M560 0V720 M640 0V720 M720 0V720 M800 0V720 M880 0V720 M960 0V720 M1040 0V720 M1120 0V720 M1200 0V720 M0 80H1280 M0 160H1280 M0 240H1280 M0 320H1280 M0 400H1280 M0 480H1280 M0 560H1280 M0 640H1280" fill="none" stroke="#FFFFFF" stroke-opacity="0.04" stroke-width="1" />
+
+  <!-- Running Header -->
+  <g id="page-header" data-pptx-role="header" data-pptx-bounds="60 40 1160 26" font-size="12" fill="#8FA0B8">
+    <text x="60" y="58" letter-spacing="3">08 · ABLATION STUDY &amp; COMPONENT ANALYSIS</text>
+    <text x="1220" y="58" text-anchor="end" letter-spacing="2">09 / 12</text>
+  </g>
+
+  <!-- Slide Title -->
+  <g id="p9-title" data-pptx-bounds="60 84 1160 80" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+    <text x="60" y="122" font-size="34" font-weight="bold" fill="#E6EDF7">
+      Nghiên Cứu Loại Trừ (Ablation Study) &amp; Đóng Góp Thành Phần
+    </text>
+    <text x="60" y="154" font-size="16" fill="#8FA0B8">
+      Đo lường định lượng sự đóng góp độc lập của Phân tích Tĩnh, Phân tích Động và Tĩnh lần 2 sau giải nén
+    </text>
+  </g>
+
+  <!-- Split Screen: Chart Image (Left) + Analytical Insights (Right) -->
+  <g id="p9-content" data-pptx-bounds="60 185 1160 495">
+    <!-- Left Container: Chart Display -->
+    <rect x="60" y="185" width="480" height="495" rx="8" fill="#111C30" stroke="#243350" stroke-width="1.5" />
+    <rect x="60" y="185" width="6" height="495" rx="3" fill="#38BDF8" />
+    
+    <!-- Title inside Chart Container -->
+    <rect x="75" y="200" width="450" height="28" rx="4" fill="#0F2A44" stroke="#38BDF8" stroke-width="1" />
+    <text x="90" y="218" font-size="11" font-weight="bold" fill="#38BDF8" letter-spacing="1">
+      HÌNH 2. PRECISION, RECALL &amp; F1-SCORE (FULL vs A1 vs A2)
+    </text>
+
+    <!-- Embedded Ablation Chart Image -->
+    <image href="images/ablation_chart.png" x="75" y="235" width="450" height="270" preserveAspectRatio="xMidYMid meet" />
+
+    <!-- Data Summary Table below Chart -->
+    <rect x="75" y="515" width="450" height="145" rx="6" fill="#16233B" stroke="#243350" stroke-width="1" />
+    
+    <text x="90" y="540" font-size="11" font-weight="bold" fill="#8FA0B8">CẤU HÌNH</text>
+    <text x="200" y="540" font-size="11" font-weight="bold" fill="#38BDF8">PRECISION</text>
+    <text x="310" y="540" font-size="11" font-weight="bold" fill="#F59E0B">RECALL</text>
+    <text x="415" y="540" font-size="11" font-weight="bold" fill="#34D399">F1-SCORE</text>
+
+    <!-- Row FULL -->
+    <line x1="85" y1="550" x2="515" y2="550" stroke="#243350" stroke-width="1" />
+    <text x="90" y="572" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#E6EDF7">FULL (Đầy đủ)</text>
+    <text x="200" y="572" font-size="12" font-weight="bold" fill="#38BDF8">98,5%</text>
+    <text x="310" y="572" font-size="12" font-weight="bold" fill="#F59E0B">86,2%</text>
+    <text x="415" y="572" font-size="12" font-weight="bold" fill="#34D399">91,9%</text>
+
+    <!-- Row A1 -->
+    <line x1="85" y1="582" x2="515" y2="582" stroke="#243350" stroke-width="1" />
+    <text x="90" y="604" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" fill="#C7D2E3">A1 (Bỏ tĩnh)</text>
+    <text x="200" y="604" font-size="12" fill="#C7D2E3">97,2%</text>
+    <text x="310" y="604" font-size="12" font-weight="bold" fill="#EF4444">79,6% (-6,6%)</text>
+    <text x="415" y="604" font-size="12" fill="#C7D2E3">87,5%</text>
+
+    <!-- Row A2 -->
+    <line x1="85" y1="614" x2="515" y2="614" stroke="#243350" stroke-width="1" />
+    <text x="90" y="636" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" fill="#C7D2E3">A2 (Bỏ động)</text>
+    <text x="200" y="636" font-size="12" fill="#C7D2E3">96,7%</text>
+    <text x="310" y="636" font-size="12" font-weight="bold" fill="#EF4444">75,0% (-11,2%)</text>
+    <text x="415" y="636" font-size="12" fill="#C7D2E3">84,5%</text>
+
+    <!-- Right Container: 3 Deep Insights -->
+    <!-- Insight 1: Dynamic is more critical (Amber) -->
+    <rect x="565" y="185" width="655" height="150" rx="8" fill="#111C30" stroke="#243350" stroke-width="1" />
+    <rect x="565" y="185" width="6" height="150" rx="3" fill="#F59E0B" />
+
+    <rect x="585" y="202" width="145" height="22" rx="4" fill="#3D2800" stroke="#F59E0B" stroke-width="1" />
+    <text x="597" y="217" font-size="11" font-weight="bold" fill="#F59E0B">KẾT QUẢ THEN CHỐT 1</text>
+
+    <text x="745" y="218" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="#E6EDF7">
+      Phân Tích Động Đóng Góp Lớn Hơn Tĩnh
+    </text>
+
+    <circle cx="595" cy="248" r="4" fill="#F59E0B" />
+    <text x="610" y="252" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#E6EDF7">
+      Sụt giảm Recall khi bỏ động (A2):
+      <tspan font-family="Consolas" fill="#EF4444"> Giảm tới 11,2 điểm % </tspan>
+      <tspan font-weight="normal" fill="#C7D2E3">(từ 86,2% xuống 75,0%).</tspan>
+    </text>
+
+    <circle cx="595" cy="285" r="4" fill="#F59E0B" />
+    <text x="610" y="289" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#E6EDF7">
+      Sụt giảm Recall khi bỏ tĩnh (A1):
+      <tspan font-family="Consolas" fill="#F59E0B"> Giảm 6,6 điểm % </tspan>
+      <tspan font-weight="normal" fill="#C7D2E3">(xuống 79,6%).</tspan>
+      <tspan x="610" dy="19" font-size="12" font-weight="normal" fill="#8FA0B8">=&gt; Cả hai đều thiết yếu, nhưng dữ kiện động chi phối lớn hơn.</tspan>
+    </text>
+
+    <!-- Insight 2: Impact of Pass 2 after Unpack (Emerald) -->
+    <rect x="565" y="350" width="655" height="150" rx="8" fill="#111C30" stroke="#243350" stroke-width="1" />
+    <rect x="565" y="350" width="6" height="150" rx="3" fill="#34D399" />
+
+    <rect x="585" y="367" width="145" height="22" rx="4" fill="#0D3326" stroke="#34D399" stroke-width="1" />
+    <text x="597" y="382" font-size="11" font-weight="bold" fill="#34D399">KẾT QUẢ THEN CHỐT 2</text>
+
+    <text x="745" y="383" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="#E6EDF7">
+      Giá Trị Của Lượt Tĩnh Lần 2 Sau Giải Nén
+    </text>
+
+    <circle cx="595" cy="413" r="4" fill="#34D399" />
+    <text x="610" y="417" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#E6EDF7">
+      Bứt phá tỉ lệ phát hiện có căn cứ:
+      <tspan font-family="Consolas" fill="#34D399"> Tăng từ 78,7% lên 84,4% </tspan>
+      <tspan fill="#34D399">(+5,7 điểm %).</tspan>
+    </text>
+
+    <circle cx="595" cy="450" r="4" fill="#34D399" />
+    <text x="610" y="454" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#E6EDF7">
+      Ý nghĩa khoa học:
+      <tspan font-weight="normal" fill="#C7D2E3"> Việc giải mã tệp (Unpacking) rồi đưa lại vào IDA Pro</tspan>
+      <tspan x="610" dy="19" font-weight="normal" fill="#C7D2E3">cho phép AI đọc được cấu trúc nguyên bản, vô hiệu hóa kỹ thuật làm rối.</tspan>
+    </text>
+
+    <!-- Insight 3: Time & Deployment Profile (Cyan) -->
+    <rect x="565" y="515" width="655" height="165" rx="8" fill="#111C30" stroke="#243350" stroke-width="1" />
+    <rect x="565" y="515" width="6" height="165" rx="3" fill="#38BDF8" />
+
+    <rect x="585" y="532" width="145" height="22" rx="4" fill="#0F2A44" stroke="#38BDF8" stroke-width="1" />
+    <text x="597" y="547" font-size="11" font-weight="bold" fill="#38BDF8">KẾT QUẢ THEN CHỐT 3</text>
+
+    <text x="745" y="548" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="#E6EDF7">
+      Thời Gian Xử Lý &amp; Khả Năng Triển Khai
+    </text>
+
+    <circle cx="595" cy="578" r="4" fill="#38BDF8" />
+    <text x="610" y="582" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#E6EDF7">
+      Thời gian xử lý trung vị:
+      <tspan font-family="Consolas" fill="#38BDF8"> 89,4 phút mỗi mẫu.</tspan>
+    </text>
+
+    <circle cx="595" cy="615" r="4" fill="#38BDF8" />
+    <text x="610" y="619" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#E6EDF7">
+      Định hướng áp dụng tối ưu:
+      <tspan font-weight="normal" fill="#C7D2E3"> Do độ sâu phân tích cao, HyperAgent được thiết kế</tspan>
+      <tspan x="610" dy="19">tối ưu cho việc phân tích chuyên sâu (Deep-dive) các mẫu nghi vấn mục tiêu</tspan>
+      <tspan x="610" dy="19" font-weight="normal" fill="#C7D2E3">thay vì dùng để quét hàng loạt theo thời gian thực (real-time stream).</tspan>
+    </text>
+  </g>
+</svg>

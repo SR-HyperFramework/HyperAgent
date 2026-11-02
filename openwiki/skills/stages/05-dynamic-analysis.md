@@ -3,6 +3,7 @@ type: reference
 title: Dynamic Analysis (Stage 05)
 description: Runtime behavior capture via x64dbg debugger integration and VMware guest execution.
 tags: [skills, stages, dynamic]
+generated: { by: "openwiki/0.7.2", at: "2026-11-01T10:49:42.750Z" }
 ---
 
 # Dynamic Analysis (Stage 05)
@@ -290,4 +291,3 @@ stages:
 <!-- openwiki: broken internal link [./06-intel.md] file "./06-intel.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - [Intel Enrichment (Stage 06)](./06-intel.md) — Next stage using IOCs from dynamic
 - [Execution Model](../../orchestration/execution-model.md) — MCP server integration
-

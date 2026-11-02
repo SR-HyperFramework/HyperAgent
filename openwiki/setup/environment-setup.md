@@ -3,6 +3,7 @@ type: guide
 title: Environment Setup and Bootstrap
 description: Complete workflow for bootstrapping HyperAgent development environment, installing prerequisites, configuring tools, and validating readiness.
 tags: [setup, bootstrap, environment]
+generated: { by: "openwiki/0.7.2", at: "2026-11-01T10:49:42.750Z" }
 ---
 
 # Environment Setup and Bootstrap
@@ -436,4 +437,3 @@ After setup validation:
 - [Configuration](./configuration.md) — Detailed config.yaml options
 - [Launcher](../orchestration/launcher.md) — Pipeline orchestrator
 - [Bootstrap Script](../../bootstrap.ps1) — Automated setup script
-

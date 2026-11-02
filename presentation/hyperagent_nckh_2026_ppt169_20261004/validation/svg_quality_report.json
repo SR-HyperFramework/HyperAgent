@@ -1,0 +1,870 @@
+{
+  "schema": "ppt-master.svg-quality-report.v1",
+  "stage": "final",
+  "target": "C:\\Users\\ADMIN\\HyperAgent\\presentation\\hyperagent_nckh_2026_ppt169_20261004",
+  "source_fingerprint": {
+    "algorithm": "sha256",
+    "digest": "a0f08a8f115f5443abd086f77caf611e1c269361979c7c47f5f72dc4d3e5d094",
+    "file_count": 12,
+    "files": [
+      {
+        "file": "slide_01.svg",
+        "sha256": "b6eac93fccd10688c8ce1ab2ffa5e4e57325c332ea57925f8e1b8ac8fd46476a"
+      },
+      {
+        "file": "slide_02.svg",
+        "sha256": "542dd3cffdef63e4c73971f72d73e48ba911b44b772314abcc5448efda0e0c06"
+      },
+      {
+        "file": "slide_03.svg",
+        "sha256": "1c7739e90a45794b57e97a2626b4eb35c8371b63ad7c06a36fc443bc62ce81d0"
+      },
+      {
+        "file": "slide_04.svg",
+        "sha256": "0a4f092d72e5367ee6e9dbbe49117fa225d11d21f62a6e086692dff6b88f33e6"
+      },
+      {
+        "file": "slide_05.svg",
+        "sha256": "9b83a888058e44982862ee6a10906437ddf872f0cf20bad65af075f36ef5063c"
+      },
+      {
+        "file": "slide_06.svg",
+        "sha256": "a6b334a97518a43cfe665e4220089d13aaa8c5f61ca26783d70df56d76767afe"
+      },
+      {
+        "file": "slide_07.svg",
+        "sha256": "35f6a5d603dd9196e6e9e17a653ca7b18044cb44965c55a37a55f46a4d2de025"
+      },
+      {
+        "file": "slide_08.svg",
+        "sha256": "f3fecc6477eb511fa4f5d8339682c7e2737fb834f42813c7a1657b639aee8e25"
+      },
+      {
+        "file": "slide_09.svg",
+        "sha256": "85412743f583573e8916685187579610e524aaa35b73312dc739c97a0f8a41b6"
+      },
+      {
+        "file": "slide_10.svg",
+        "sha256": "aa20a658a330ca82957ec2d7dbbe8cefd4b2080bb6142fe6dcfce355241165cd"
+      },
+      {
+        "file": "slide_11.svg",
+        "sha256": "e14a0e02fa6f5c510f7fcb218764bf9df29c9c9fd4aa6646f42187b30ff4ac0c"
+      },
+      {
+        "file": "slide_12.svg",
+        "sha256": "6c61020064f9e58dfb9d7f33d6d0a21c3b90a116b4726f2e5810ceae26238f66"
+      }
+    ]
+  },
+  "summary": {
+    "total": 12,
+    "passed": 12,
+    "warnings": 0,
+    "errors": 0
+  },
+  "issue_types": {},
+  "categories": {
+    "blocking": {
+      "count": 0,
+      "issues": []
+    },
+    "introduced": {
+      "count": 0,
+      "issues": []
+    },
+    "inherited": {
+      "count": 0,
+      "issues": []
+    },
+    "source-import": {
+      "count": 0,
+      "summary": {
+        "warning_count": 0,
+        "by_code": {}
+      }
+    }
+  },
+  "drift": {
+    "colors": {},
+    "fonts": {},
+    "sizes": {}
+  },
+  "carrier_receipt": {
+    "scope": "informational-not-a-quota",
+    "pages": 12,
+    "totals": {
+      "text_elements": 298,
+      "image_placements": 5,
+      "icons": 0,
+      "svg_geometry_elements": 242,
+      "preset_shapes": 0,
+      "page_frame_elements": 25,
+      "marker_uses": 0,
+      "inline_emphasis_runs": 24,
+      "gradient_uses": 1,
+      "filter_uses": 4,
+      "text_effects": 1
+    },
+    "pages_with": {
+      "images": 4,
+      "icons": 0,
+      "presets": 0,
+      "charts": 0,
+      "tables": 0,
+      "formulas": 0,
+      "inline_emphasis_runs": 3,
+      "gradient_uses": 1,
+      "filter_uses": 4,
+      "text_effects": 1
+    },
+    "relationship_pages": null,
+    "geometry_elements": {
+      "circle": 35,
+      "ellipse": 0,
+      "line": 13,
+      "path": 12,
+      "polygon": 0,
+      "polyline": 0,
+      "rect": 182
+    },
+    "preset_names": {},
+    "native_objects": {
+      "chart": 0,
+      "formula_block": 0,
+      "formula_inline": 0,
+      "other": 0,
+      "table": 0
+    },
+    "image_page_max_frame_share_range": [
+      0.0107,
+      0.2075
+    ]
+  },
+  "project_issues": {
+    "template": [],
+    "animation": [],
+    "illustration": [],
+    "communication_trace": [],
+    "pptx_structure": []
+  },
+  "files": [
+    {
+      "file": "slide_01.svg",
+      "path": "c:\\Users\\ADMIN\\HyperAgent\\presentation\\hyperagent_nckh_2026_ppt169_20261004\\svg_output\\slide_01.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 21,
+          "images": {
+            "placements": 2,
+            "files": [
+              "author_portrait.jpeg",
+              "hcmute_logo.png"
+            ],
+            "max_frame_share": 0.0107
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 0,
+            "gradient_uses": 1,
+            "filter_uses": 1,
+            "text_effects": 1
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 9,
+              "circle": 0,
+              "ellipse": 0,
+              "line": 6,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 1
+            },
+            "preset_shapes": 0,
+            "preset_names": {},
+            "page_frame_elements": 3,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Consolas",
+          "Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+        ],
+        "text_elements": 21,
+        "tspan_elements": 3
+      },
+      "passed": true,
+      "source_sha256": "b6eac93fccd10688c8ce1ab2ffa5e4e57325c332ea57925f8e1b8ac8fd46476a"
+    },
+    {
+      "file": "slide_02.svg",
+      "path": "c:\\Users\\ADMIN\\HyperAgent\\presentation\\hyperagent_nckh_2026_ppt169_20261004\\svg_output\\slide_02.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 24,
+          "images": {
+            "placements": 0,
+            "files": [],
+            "max_frame_share": 0.0
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 0,
+            "gradient_uses": 0,
+            "filter_uses": 1,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 8,
+              "circle": 0,
+              "ellipse": 0,
+              "line": 3,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 1
+            },
+            "preset_shapes": 0,
+            "preset_names": {},
+            "page_frame_elements": 2,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Consolas",
+          "Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+        ],
+        "text_elements": 24,
+        "tspan_elements": 16
+      },
+      "passed": true,
+      "source_sha256": "542dd3cffdef63e4c73971f72d73e48ba911b44b772314abcc5448efda0e0c06"
+    },
+    {
+      "file": "slide_03.svg",
+      "path": "c:\\Users\\ADMIN\\HyperAgent\\presentation\\hyperagent_nckh_2026_ppt169_20261004\\svg_output\\slide_03.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 22,
+          "images": {
+            "placements": 0,
+            "files": [],
+            "max_frame_share": 0.0
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 0,
+            "gradient_uses": 0,
+            "filter_uses": 1,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 18,
+              "circle": 0,
+              "ellipse": 0,
+              "line": 0,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 1
+            },
+            "preset_shapes": 0,
+            "preset_names": {},
+            "page_frame_elements": 2,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Consolas",
+          "Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+        ],
+        "text_elements": 22,
+        "tspan_elements": 12
+      },
+      "passed": true,
+      "source_sha256": "1c7739e90a45794b57e97a2626b4eb35c8371b63ad7c06a36fc443bc62ce81d0"
+    },
+    {
+      "file": "slide_04.svg",
+      "path": "c:\\Users\\ADMIN\\HyperAgent\\presentation\\hyperagent_nckh_2026_ppt169_20261004\\svg_output\\slide_04.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 25,
+          "images": {
+            "placements": 0,
+            "files": [],
+            "max_frame_share": 0.0
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 0,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 13,
+              "circle": 6,
+              "ellipse": 0,
+              "line": 0,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 1
+            },
+            "preset_shapes": 0,
+            "preset_names": {},
+            "page_frame_elements": 2,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Consolas",
+          "Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+        ],
+        "text_elements": 25,
+        "tspan_elements": 24
+      },
+      "passed": true,
+      "source_sha256": "0a4f092d72e5367ee6e9dbbe49117fa225d11d21f62a6e086692dff6b88f33e6"
+    },
+    {
+      "file": "slide_05.svg",
+      "path": "c:\\Users\\ADMIN\\HyperAgent\\presentation\\hyperagent_nckh_2026_ppt169_20261004\\svg_output\\slide_05.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 18,
+          "images": {
+            "placements": 1,
+            "files": [
+              "architecture_diagram.png"
+            ],
+            "max_frame_share": 0.2075
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 8,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 13,
+              "circle": 7,
+              "ellipse": 0,
+              "line": 0,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 1
+            },
+            "preset_shapes": 0,
+            "preset_names": {},
+            "page_frame_elements": 2,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Consolas",
+          "Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+        ],
+        "text_elements": 18,
+        "tspan_elements": 12
+      },
+      "passed": true,
+      "source_sha256": "9b83a888058e44982862ee6a10906437ddf872f0cf20bad65af075f36ef5063c"
+    },
+    {
+      "file": "slide_06.svg",
+      "path": "c:\\Users\\ADMIN\\HyperAgent\\presentation\\hyperagent_nckh_2026_ppt169_20261004\\svg_output\\slide_06.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 33,
+          "images": {
+            "placements": 0,
+            "files": [],
+            "max_frame_share": 0.0
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 0,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 25,
+              "circle": 0,
+              "ellipse": 0,
+              "line": 0,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 1
+            },
+            "preset_shapes": 0,
+            "preset_names": {},
+            "page_frame_elements": 2,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Consolas",
+          "Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+        ],
+        "text_elements": 33,
+        "tspan_elements": 31
+      },
+      "passed": true,
+      "source_sha256": "a6b334a97518a43cfe665e4220089d13aaa8c5f61ca26783d70df56d76767afe"
+    },
+    {
+      "file": "slide_07.svg",
+      "path": "c:\\Users\\ADMIN\\HyperAgent\\presentation\\hyperagent_nckh_2026_ppt169_20261004\\svg_output\\slide_07.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 25,
+          "images": {
+            "placements": 0,
+            "files": [],
+            "max_frame_share": 0.0
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 0,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 20,
+              "circle": 2,
+              "ellipse": 0,
+              "line": 0,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 1
+            },
+            "preset_shapes": 0,
+            "preset_names": {},
+            "page_frame_elements": 2,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Consolas",
+          "Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+        ],
+        "text_elements": 25,
+        "tspan_elements": 23
+      },
+      "passed": true,
+      "source_sha256": "35f6a5d603dd9196e6e9e17a653ca7b18044cb44965c55a37a55f46a4d2de025"
+    },
+    {
+      "file": "slide_08.svg",
+      "path": "c:\\Users\\ADMIN\\HyperAgent\\presentation\\hyperagent_nckh_2026_ppt169_20261004\\svg_output\\slide_08.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 37,
+          "images": {
+            "placements": 0,
+            "files": [],
+            "max_frame_share": 0.0
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 0,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 22,
+              "circle": 0,
+              "ellipse": 0,
+              "line": 0,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 1
+            },
+            "preset_shapes": 0,
+            "preset_names": {},
+            "page_frame_elements": 2,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Consolas",
+          "Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+        ],
+        "text_elements": 37,
+        "tspan_elements": 13
+      },
+      "passed": true,
+      "source_sha256": "f3fecc6477eb511fa4f5d8339682c7e2737fb834f42813c7a1657b639aee8e25"
+    },
+    {
+      "file": "slide_09.svg",
+      "path": "c:\\Users\\ADMIN\\HyperAgent\\presentation\\hyperagent_nckh_2026_ppt169_20261004\\svg_output\\slide_09.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 33,
+          "images": {
+            "placements": 1,
+            "files": [
+              "ablation_chart.png"
+            ],
+            "max_frame_share": 0.1318
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 9,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 14,
+              "circle": 6,
+              "ellipse": 0,
+              "line": 3,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 1
+            },
+            "preset_shapes": 0,
+            "preset_names": {},
+            "page_frame_elements": 2,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Consolas",
+          "Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+        ],
+        "text_elements": 33,
+        "tspan_elements": 13
+      },
+      "passed": true,
+      "source_sha256": "85412743f583573e8916685187579610e524aaa35b73312dc739c97a0f8a41b6"
+    },
+    {
+      "file": "slide_10.svg",
+      "path": "c:\\Users\\ADMIN\\HyperAgent\\presentation\\hyperagent_nckh_2026_ppt169_20261004\\svg_output\\slide_10.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 19,
+          "images": {
+            "placements": 0,
+            "files": [],
+            "max_frame_share": 0.0
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 0,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 10,
+              "circle": 9,
+              "ellipse": 0,
+              "line": 0,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 1
+            },
+            "preset_shapes": 0,
+            "preset_names": {},
+            "page_frame_elements": 2,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Consolas",
+          "Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+        ],
+        "text_elements": 19,
+        "tspan_elements": 30
+      },
+      "passed": true,
+      "source_sha256": "aa20a658a330ca82957ec2d7dbbe8cefd4b2080bb6142fe6dcfce355241165cd"
+    },
+    {
+      "file": "slide_11.svg",
+      "path": "c:\\Users\\ADMIN\\HyperAgent\\presentation\\hyperagent_nckh_2026_ppt169_20261004\\svg_output\\slide_11.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 23,
+          "images": {
+            "placements": 0,
+            "files": [],
+            "max_frame_share": 0.0
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 0,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 17,
+              "circle": 4,
+              "ellipse": 0,
+              "line": 0,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 1
+            },
+            "preset_shapes": 0,
+            "preset_names": {},
+            "page_frame_elements": 2,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Consolas",
+          "Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+        ],
+        "text_elements": 23,
+        "tspan_elements": 7
+      },
+      "passed": true,
+      "source_sha256": "e14a0e02fa6f5c510f7fcb218764bf9df29c9c9fd4aa6646f42187b30ff4ac0c"
+    },
+    {
+      "file": "slide_12.svg",
+      "path": "c:\\Users\\ADMIN\\HyperAgent\\presentation\\hyperagent_nckh_2026_ppt169_20261004\\svg_output\\slide_12.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 18,
+          "images": {
+            "placements": 1,
+            "files": [
+              "hcmute_logo.png"
+            ],
+            "max_frame_share": 0.0115
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 7,
+            "gradient_uses": 0,
+            "filter_uses": 1,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 13,
+              "circle": 1,
+              "ellipse": 0,
+              "line": 1,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 1
+            },
+            "preset_shapes": 0,
+            "preset_names": {},
+            "page_frame_elements": 2,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Consolas",
+          "Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+        ],
+        "text_elements": 18,
+        "tspan_elements": 8
+      },
+      "passed": true,
+      "source_sha256": "6c61020064f9e58dfb9d7f33d6d0a21c3b90a116b4726f2e5810ceae26238f66"
+    }
+  ]
+}

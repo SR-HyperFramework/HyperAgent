@@ -3,6 +3,7 @@ type: reference
 title: REST API Endpoints
 description: HTTP API for file analysis via POST /analyze/path and POST /analyze/upload.
 tags: [api, rest, integration]
+generated: { by: "openwiki/0.7.2", at: "2026-11-01T10:49:42.750Z" }
 ---
 
 # REST API Endpoints
@@ -271,4 +272,3 @@ Common status codes:
 - [Orchestrator](../orchestration/launcher.md) — How analysis pipeline works
 - [Architecture Overview](../architecture/overview.md) — System design
 - [Response Contract](../data/response-contract.md) — Full response envelope schema
-

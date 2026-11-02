@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" lang="vi-VN" data-pptx-page-role="content" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <filter id="glowCyan" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#38BDF8" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <!-- Background & Blueprint Grid -->
+  <rect id="page-bg" data-pptx-role="background" x="0" y="0" width="1280" height="720" fill="#0B1220" />
+  <path id="page-grid" data-pptx-role="decoration" d="M80 0V720 M160 0V720 M240 0V720 M320 0V720 M400 0V720 M480 0V720 M560 0V720 M640 0V720 M720 0V720 M800 0V720 M880 0V720 M960 0V720 M1040 0V720 M1120 0V720 M1200 0V720 M0 80H1280 M0 160H1280 M0 240H1280 M0 320H1280 M0 400H1280 M0 480H1280 M0 560H1280 M0 640H1280" fill="none" stroke="#FFFFFF" stroke-opacity="0.04" stroke-width="1" />
+
+  <!-- Running Header -->
+  <g id="page-header" data-pptx-role="header" data-pptx-bounds="60 40 1160 26" font-family="Consolas" font-size="12" fill="#8FA0B8">
+    <text x="60" y="58" letter-spacing="3">05 · EXECUTION WORKFLOW &amp; 9 STAGES</text>
+    <text x="1220" y="58" text-anchor="end" letter-spacing="2">06 / 12</text>
+  </g>
+
+  <!-- Slide Title -->
+  <g id="p6-title" data-pptx-bounds="60 84 1160 80">
+    <text x="60" y="122" font-size="34" font-weight="bold" fill="#E6EDF7">
+      Quy Trình 9 Giai Đoạn Chi Tiết Của HyperAgent
+    </text>
+    <text x="60" y="154" font-size="16" fill="#8FA0B8">
+      Hai pha kế tiếp: Thu thập bằng chứng đa tầng (01–05) và Đối chiếu lập báo cáo có kiểm chứng (06–09)
+    </text>
+  </g>
+
+  <!-- Phase 1: Evidence Gathering (01 - 05) -->
+  <g id="phase1-group" data-pptx-bounds="60 185 1160 230">
+    <!-- Outer Container -->
+    <rect x="60" y="185" width="1160" height="230" rx="8" fill="#111C30" stroke="#243350" stroke-width="1.5" />
+    <rect x="60" y="185" width="1160" height="4" rx="2" fill="#38BDF8" />
+
+    <!-- Phase 1 Header Pill -->
+    <rect x="80" y="200" width="480" height="26" rx="4" fill="#0F2A44" stroke="#38BDF8" stroke-width="1" />
+    <text x="95" y="217" font-family="Consolas" font-size="11" font-weight="bold" fill="#38BDF8" letter-spacing="1">
+      PHA 1: THU THẬP BẰNG CHỨNG (TĨNH → GIẢI NÉN → TĨNH LẦN 2 → ĐỘNG)
+    </text>
+
+    <!-- 5 Step Boxes in Horizontal Flow -->
+    <!-- Step 01 -->
+    <rect x="80" y="238" width="215" height="162" rx="6" fill="#16233B" stroke="#243350" stroke-width="1" />
+    <rect x="92" y="248" width="28" height="20" rx="3" fill="#0F2A44" stroke="#38BDF8" stroke-width="1" />
+    <text x="98" y="262" font-family="Consolas" font-size="11" font-weight="bold" fill="#38BDF8">01</text>
+    <text x="128" y="263" font-size="13" font-weight="bold" fill="#E6EDF7">Chuẩn Bị</text>
+    <text x="92" y="290" font-size="11" font-weight="bold" fill="#8FA0B8">
+      Khởi tạo môi trường:
+      <tspan x="92" dy="17" font-weight="normal" fill="#C7D2E3">• Kiểm tra health check VM</tspan>
+      <tspan x="92" dy="16" font-weight="normal" fill="#C7D2E3">• Snapshot sạch sẵn sàng</tspan>
+      <tspan x="92" dy="16" font-weight="normal" fill="#C7D2E3">• Gán ID &amp; hash SHA256</tspan>
+    </text>
+
+    <!-- Step 02 -->
+    <rect x="310" y="238" width="215" height="162" rx="6" fill="#16233B" stroke="#243350" stroke-width="1" />
+    <rect x="322" y="248" width="28" height="20" rx="3" fill="#0F2A44" stroke="#38BDF8" stroke-width="1" />
+    <text x="328" y="262" font-family="Consolas" font-size="11" font-weight="bold" fill="#38BDF8">02</text>
+    <text x="358" y="263" font-size="13" font-weight="bold" fill="#E6EDF7">Tĩnh Lần 1</text>
+    <text x="322" y="290" font-size="11" font-weight="bold" fill="#8FA0B8">
+      IDA Pro Static Pass:
+      <tspan x="322" dy="17" font-weight="normal" fill="#C7D2E3">• PE Header &amp; Sections</tspan>
+      <tspan x="322" dy="16" font-weight="normal" fill="#C7D2E3">• Bảng Imports / Exports</tspan>
+      <tspan x="322" dy="16" font-weight="normal" fill="#C7D2E3">• Tính entropy nghi ngờ</tspan>
+    </text>
+
+    <!-- Step 03 -->
+    <rect x="540" y="238" width="215" height="162" rx="6" fill="#16233B" stroke="#243350" stroke-width="1" />
+    <rect x="552" y="248" width="28" height="20" rx="3" fill="#3D2800" stroke="#F59E0B" stroke-width="1" />
+    <text x="558" y="262" font-family="Consolas" font-size="11" font-weight="bold" fill="#F59E0B">03</text>
+    <text x="588" y="263" font-size="13" font-weight="bold" fill="#E6EDF7">Giải Nén</text>
+    <text x="552" y="290" font-size="11" font-weight="bold" fill="#F59E0B">
+      x64dbg Unpacking:
+      <tspan x="552" dy="17" font-weight="normal" fill="#C7D2E3">• Dò Original Entry Point</tspan>
+      <tspan x="552" dy="16" font-weight="normal" fill="#C7D2E3">• Chạy qua lớp giải mã</tspan>
+      <tspan x="552" dy="16" font-weight="normal" fill="#C7D2E3">• Dump payload sạch ra đĩa</tspan>
+    </text>
+
+    <!-- Step 04 -->
+    <rect x="770" y="238" width="215" height="162" rx="6" fill="#16233B" stroke="#243350" stroke-width="1" />
+    <rect x="782" y="248" width="28" height="20" rx="3" fill="#0F2A44" stroke="#38BDF8" stroke-width="1" />
+    <text x="788" y="262" font-family="Consolas" font-size="11" font-weight="bold" fill="#38BDF8">04</text>
+    <text x="818" y="263" font-size="13" font-weight="bold" fill="#E6EDF7">Tĩnh Lần 2</text>
+    <text x="782" y="290" font-size="11" font-weight="bold" fill="#8FA0B8">
+      Tái phân tích sau giải nén:
+      <tspan x="782" dy="17" font-weight="normal" fill="#C7D2E3">• Quét payload vừa dump</tspan>
+      <tspan x="782" dy="16" font-weight="normal" fill="#C7D2E3">• Bóc trần API thật bị giấu</tspan>
+      <tspan x="782" dy="16" font-weight="normal" fill="#C7D2E3">• Trích xuất chuỗi C2/IP</tspan>
+    </text>
+
+    <!-- Step 05 -->
+    <rect x="1000" y="238" width="200" height="162" rx="6" fill="#16233B" stroke="#243350" stroke-width="1" />
+    <rect x="1012" y="248" width="28" height="20" rx="3" fill="#3D1212" stroke="#EF4444" stroke-width="1" />
+    <text x="1018" y="262" font-family="Consolas" font-size="11" font-weight="bold" fill="#EF4444">05</text>
+    <text x="1048" y="263" font-size="13" font-weight="bold" fill="#E6EDF7">Động</text>
+    <text x="1012" y="290" font-size="11" font-weight="bold" fill="#EF4444">
+      Thực thi trong Guest VM:
+      <tspan x="1012" dy="17" font-weight="normal" fill="#C7D2E3">• x64dbg bắt API hook</tspan>
+      <tspan x="1012" dy="16" font-weight="normal" fill="#C7D2E3">• Ghi nhận Registry/File/Net</tspan>
+      <tspan x="1012" dy="16">• Tự động Revert Snapshot</tspan>
+    </text>
+  </g>
+
+  <!-- Phase 2: Evidence Binding & Reporting (06 - 09) -->
+  <g id="phase2-group" data-pptx-bounds="60 435 1160 245">
+    <!-- Outer Container -->
+    <rect x="60" y="435" width="1160" height="245" rx="8" fill="#111C30" stroke="#243350" stroke-width="1.5" />
+    <rect x="60" y="435" width="1160" height="4" rx="2" fill="#34D399" />
+
+    <!-- Phase 2 Header Pill -->
+    <rect x="80" y="450" width="480" height="26" rx="4" fill="#0D3326" stroke="#34D399" stroke-width="1" />
+    <text x="95" y="467" font-family="Consolas" font-size="11" font-weight="bold" fill="#34D399" letter-spacing="1">
+      PHA 2: ĐỐI CHIẾU &amp; LẬP BÁO CÁO CÓ KIỂM CHỨNG BẰNG CHỨNG
+    </text>
+
+    <!-- 4 Step Boxes in Horizontal Flow -->
+    <!-- Step 06 -->
+    <rect x="80" y="488" width="265" height="177" rx="6" fill="#16233B" stroke="#64748B" stroke-width="1" stroke-dasharray="4 2" />
+    <rect x="92" y="498" width="28" height="20" rx="3" fill="#243350" stroke="#8FA0B8" stroke-width="1" />
+    <text x="98" y="512" font-family="Consolas" font-size="11" font-weight="bold" fill="#8FA0B8">06</text>
+    <text x="128" y="513" font-size="13" font-weight="bold" fill="#E6EDF7">Tình Báo (Tùy Chọn)</text>
+    <text x="92" y="540" font-size="11" font-weight="bold" fill="#8FA0B8">
+      VirusTotal Correlation:
+      <tspan x="92" dy="17" font-weight="normal" fill="#C7D2E3">• Tra cứu danh tiếng mã băm</tspan>
+      <tspan x="92" dy="16" font-weight="normal" fill="#C7D2E3">• Đối chiếu họ mã độc (Malware Family)</tspan>
+      <tspan x="92" dy="16" font-weight="normal" fill="#C7D2E3">• Nét đứt: Tùy chọn (cho phép chạy</tspan>
+      <tspan x="92" dy="15" font-weight="normal" fill="#C7D2E3">  hoàn toàn offline không cần internet)</tspan>
+    </text>
+
+    <!-- Step 07 -->
+    <rect x="360" y="488" width="265" height="177" rx="6" fill="#16233B" stroke="#243350" stroke-width="1" />
+    <rect x="372" y="498" width="28" height="20" rx="3" fill="#0D3326" stroke="#34D399" stroke-width="1" />
+    <text x="378" y="512" font-family="Consolas" font-size="11" font-weight="bold" fill="#34D399">07</text>
+    <text x="408" y="513" font-size="13" font-weight="bold" fill="#E6EDF7">Đối Chiếu (Deepdive)</text>
+    <text x="372" y="540" font-size="11" font-weight="bold" fill="#34D399">
+      Cross-Stage Reasoning:
+      <tspan x="372" dy="17" font-weight="normal" fill="#C7D2E3">• Đối chiếu chéo bằng chứng tĩnh &amp; động</tspan>
+      <tspan x="372" dy="16">• Ràng buộc 3 trạng thái phán quyết:</tspan>
+      <tspan x="372" dy="16">  Được phép | Có điều kiện | Bị cấm</tspan>
+      <tspan x="372" dy="16" font-weight="normal" fill="#C7D2E3">• Loại trừ mọi nhận định không căn cứ</tspan>
+    </text>
+
+    <!-- Step 08 -->
+    <rect x="640" y="488" width="265" height="177" rx="6" fill="#16233B" stroke="#243350" stroke-width="1" />
+    <rect x="652" y="498" width="28" height="20" rx="3" fill="#0D3326" stroke="#34D399" stroke-width="1" />
+    <text x="658" y="512" font-family="Consolas" font-size="11" font-weight="bold" fill="#34D399">08</text>
+    <text x="688" y="513" font-size="13" font-weight="bold" fill="#E6EDF7">Báo Cáo (Report.md)</text>
+    <text x="652" y="540" font-size="11" font-weight="bold" fill="#34D399">
+      Sinh Báo Cáo Kỹ Thuật:
+      <tspan x="652" dy="17" font-weight="normal" fill="#C7D2E3">• Cấu trúc Markdown hoàn chỉnh</tspan>
+      <tspan x="652" dy="16" font-weight="normal" fill="#C7D2E3">• Gắn mã lệnh ASM, offset, hex bytes</tspan>
+      <tspan x="652" dy="16" font-weight="normal" fill="#C7D2E3">• Liệt kê chỉ số nhận diện IoC</tspan>
+      <tspan x="652" dy="16" font-weight="normal" fill="#C7D2E3">• Gắn kèm mức độ rủi ro khách quan</tspan>
+    </text>
+
+    <!-- Step 09 -->
+    <rect x="920" y="488" width="280" height="177" rx="6" fill="#16233B" stroke="#243350" stroke-width="1" />
+    <rect x="932" y="498" width="28" height="20" rx="3" fill="#0F2A44" stroke="#38BDF8" stroke-width="1" />
+    <text x="938" y="512" font-family="Consolas" font-size="11" font-weight="bold" fill="#38BDF8">09</text>
+    <text x="968" y="513" font-size="13" font-weight="bold" fill="#E6EDF7">Tóm Tắt (Summary.json)</text>
+    <text x="932" y="540" font-size="11" font-weight="bold" fill="#38BDF8">
+      Phán Quyết Có Cấu Trúc:
+      <tspan x="932" dy="17" font-weight="normal" fill="#C7D2E3">• JSON Verdict cho Web Dashboard</tspan>
+      <tspan x="932" dy="16" font-weight="normal" fill="#C7D2E3">• Phân loại nhị phân (Độc hại / Lành tính)</tspan>
+      <tspan x="932" dy="16" font-weight="normal" fill="#C7D2E3">• Trích xuất danh sách IoC tiêu chuẩn</tspan>
+      <tspan x="932" dy="16" font-weight="normal" fill="#C7D2E3">• Ghi nhận tổng thời gian và chi phí</tspan>
+    </text>
+  </g>
+</svg>

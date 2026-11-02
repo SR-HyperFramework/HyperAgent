@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" lang="vi-VN" data-pptx-page-role="content" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <filter id="glowCyan" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#38BDF8" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <!-- Background & Blueprint Grid -->
+  <rect id="page-bg" data-pptx-role="background" x="0" y="0" width="1280" height="720" fill="#0B1220" />
+  <path id="page-grid" data-pptx-role="decoration" d="M80 0V720 M160 0V720 M240 0V720 M320 0V720 M400 0V720 M480 0V720 M560 0V720 M640 0V720 M720 0V720 M800 0V720 M880 0V720 M960 0V720 M1040 0V720 M1120 0V720 M1200 0V720 M0 80H1280 M0 160H1280 M0 240H1280 M0 320H1280 M0 400H1280 M0 480H1280 M0 560H1280 M0 640H1280" fill="none" stroke="#FFFFFF" stroke-opacity="0.04" stroke-width="1" />
+
+  <!-- Running Header -->
+  <g id="page-header" data-pptx-role="header" data-pptx-bounds="60 40 1160 26" font-family="Consolas" font-size="12" fill="#8FA0B8">
+    <text x="60" y="58" letter-spacing="3">02 · RESEARCH OBJECTIVES &amp; PHILOSOPHY</text>
+    <text x="1220" y="58" text-anchor="end" letter-spacing="2">03 / 12</text>
+  </g>
+
+  <!-- Slide Title -->
+  <g id="p3-title" data-pptx-bounds="60 84 1160 80">
+    <text x="60" y="122" font-size="34" font-weight="bold" fill="#E6EDF7">
+      Mục Tiêu Nghiên Cứu &amp; Hướng Tiếp Cận HyperAgent
+    </text>
+    <text x="60" y="154" font-size="16" fill="#8FA0B8">
+      Chuyển dịch mô hình: Từ phân loại hộp đen sang AI Agent điều phối quy trình có cấu trúc và minh chứng
+    </text>
+  </g>
+
+  <!-- 2 Major Columns Section -->
+  <g id="p3-columns" data-pptx-bounds="60 185 1160 360">
+    <!-- Left Column: Core Research Objectives -->
+    <rect x="60" y="185" width="565" height="360" rx="8" fill="#111C30" stroke="#243350" stroke-width="1" />
+    <rect x="60" y="185" width="6" height="360" rx="3" fill="#38BDF8" />
+
+    <!-- Left Header -->
+    <rect x="85" y="205" width="220" height="26" rx="4" fill="#0F2A44" stroke="#38BDF8" stroke-width="1" />
+    <text x="97" y="222" font-family="Consolas" font-size="11" font-weight="bold" fill="#38BDF8" letter-spacing="1">4 MỤC TIÊU NGHIÊN CỨU CỐT LÕI</text>
+
+    <!-- Objective 1 -->
+    <rect x="85" y="245" width="30" height="24" rx="4" fill="#0F2A44" stroke="#38BDF8" stroke-width="1" />
+    <text x="93" y="261" font-family="Consolas" font-size="12" font-weight="bold" fill="#38BDF8">01</text>
+    <text x="125" y="260" font-size="14" font-weight="bold" fill="#E6EDF7">
+      Tự động hóa phân tích Hybrid Tĩnh - Động:
+      <tspan x="125" dy="19" font-size="12" font-weight="normal" fill="#C7D2E3">Hợp nhất các công cụ đầu ngành (IDA Pro, x64dbg) vào quy</tspan>
+      <tspan x="125" dy="17" font-size="12" font-weight="normal" fill="#C7D2E3">trình liền mạch cho tệp PE trên môi trường Windows.</tspan>
+    </text>
+
+    <!-- Objective 2 -->
+    <rect x="85" y="320" width="30" height="24" rx="4" fill="#0F2A44" stroke="#38BDF8" stroke-width="1" />
+    <text x="93" y="336" font-family="Consolas" font-size="12" font-weight="bold" fill="#38BDF8">02</text>
+    <text x="125" y="335" font-size="14" font-weight="bold" fill="#E6EDF7">
+      Định hình AI là Agent Điều phối (Orchestrator):
+      <tspan x="125" dy="19" font-size="12" font-weight="normal" fill="#C7D2E3">AI không trực tiếp gán nhãn độc hại mà đóng vai trò lập kế</tspan>
+      <tspan x="125" dy="17" font-size="12" font-weight="normal" fill="#C7D2E3">hoạch chọn công cụ và trích xuất artifact có cấu trúc.</tspan>
+    </text>
+
+    <!-- Objective 3 -->
+    <rect x="85" y="395" width="30" height="24" rx="4" fill="#0F2A44" stroke="#38BDF8" stroke-width="1" />
+    <text x="93" y="411" font-family="Consolas" font-size="12" font-weight="bold" fill="#38BDF8">03</text>
+    <text x="125" y="410" font-size="14" font-weight="bold" fill="#E6EDF7">
+      Ràng buộc phán quyết theo bằng chứng:
+      <tspan x="125" dy="19" font-size="12" font-weight="normal" fill="#C7D2E3">Mọi khẳng định trong báo cáo kỹ thuật đều phải có minh</tspan>
+      <tspan x="125" dy="17" font-size="12" font-weight="normal" fill="#C7D2E3">chứng trích xuất từ mã máy hoặc hành vi bộ nhớ.</tspan>
+    </text>
+
+    <!-- Objective 4 -->
+    <rect x="85" y="470" width="30" height="24" rx="4" fill="#0F2A44" stroke="#38BDF8" stroke-width="1" />
+    <text x="93" y="486" font-family="Consolas" font-size="12" font-weight="bold" fill="#38BDF8">04</text>
+    <text x="125" y="485" font-size="14" font-weight="bold" fill="#E6EDF7">
+      Bảo mật &amp; triển khai On-Premise:
+      <tspan x="125" dy="19" font-size="12" font-weight="normal" fill="#C7D2E3">Vận hành độc lập trên máy trạm thông thường, cách ly tệp</tspan>
+      <tspan x="125" dy="17" font-size="12" font-weight="normal" fill="#C7D2E3">trong máy ảo, bảo vệ tuyệt đối dữ liệu nội bộ.</tspan>
+    </text>
+
+    <!-- Right Column: Design Philosophy -->
+    <rect x="655" y="185" width="565" height="360" rx="8" fill="#111C30" stroke="#243350" stroke-width="1" />
+    <rect x="655" y="185" width="6" height="360" rx="3" fill="#34D399" />
+
+    <!-- Right Header -->
+    <rect x="680" y="205" width="230" height="26" rx="4" fill="#0D3326" stroke="#34D399" stroke-width="1" />
+    <text x="692" y="222" font-family="Consolas" font-size="11" font-weight="bold" fill="#34D399" letter-spacing="1">TRIẾT LÝ THIẾT KẾ HYPERAGENT</text>
+
+    <!-- Pillar 1 -->
+    <rect x="680" y="245" width="515" height="85" rx="6" fill="#16233B" stroke="#243350" stroke-width="1" />
+    <rect x="680" y="245" width="4" height="85" rx="2" fill="#34D399" />
+    <text x="700" y="268" font-size="14" font-weight="bold" fill="#E6EDF7">
+      Tách bạch quyền hạn (Separation of Concerns):
+    </text>
+    <text x="700" y="291" font-size="12" fill="#C7D2E3">
+      AI đảm nhiệm vai trò chiến thuật (lập luận, ra quyết định giai đoạn, đọc JSON);
+      <tspan x="700" dy="19">các công cụ chuyên sâu (IDA, x64dbg) chịu trách nhiệm thực thi kỹ thuật.</tspan>
+    </text>
+
+    <!-- Pillar 2 -->
+    <rect x="680" y="342" width="515" height="85" rx="6" fill="#16233B" stroke="#243350" stroke-width="1" />
+    <rect x="680" y="342" width="4" height="85" rx="2" fill="#34D399" />
+    <text x="700" y="365" font-size="14" font-weight="bold" fill="#E6EDF7">
+      Quản lý trạng thái &amp; Tính tái lập (Reproducibility):
+    </text>
+    <text x="700" y="388" font-size="12" fill="#C7D2E3">
+      Từng giai đoạn giao tiếp qua artifact JSON được kiểm định theo schema;
+      <tspan x="700" dy="19">file STATE.json lưu trữ checkpoint cho phép tái tục quy trình bất kỳ lúc nào.</tspan>
+    </text>
+
+    <!-- Pillar 3 -->
+    <rect x="680" y="440" width="515" height="85" rx="6" fill="#16233B" stroke="#243350" stroke-width="1" />
+    <rect x="680" y="440" width="4" height="85" rx="2" fill="#34D399" />
+    <text x="700" y="463" font-size="14" font-weight="bold" fill="#E6EDF7">
+      Cô lập an toàn &amp; Bảo vệ dữ liệu (VM Isolation):
+    </text>
+    <text x="700" y="486" font-size="12" fill="#C7D2E3">
+      Mẫu chỉ được chạy trong máy ảo cô lập; tự động hoàn nguyên về bản chụp sạch
+      <tspan x="700" dy="19">(clean snapshot revert) ngay sau khi kết thúc phân tích động.</tspan>
+    </text>
+  </g>
+
+  <!-- Bottom Blueprint Spine Banner -->
+  <g id="p3-footer" data-pptx-bounds="60 565 1160 85">
+    <rect x="60" y="565" width="1160" height="85" rx="8" fill="#0F2A44" stroke="#38BDF8" stroke-width="1.5" filter="url(#glowCyan)" />
+    <text x="90" y="595" font-family="Consolas" font-size="12" font-weight="bold" fill="#38BDF8" letter-spacing="2">ĐỊNH VỊ GIẢI PHÁP:</text>
+    <text x="90" y="622" font-size="15" font-weight="bold" fill="#E6EDF7">
+      HyperAgent không thay thế chuyên gia mà đóng vai trò trợ lý số đắc lực cho SOC/CSIRT,
+      <tspan x="90" dy="20" font-weight="normal" fill="#C7D2E3">tự động hóa 90% thao tác phân tích tốn sức và chuyển giao báo cáo điều tra có độ tin cậy khoa học cao.</tspan>
+    </text>
+  </g>
+</svg>

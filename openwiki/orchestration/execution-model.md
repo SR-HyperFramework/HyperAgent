@@ -3,6 +3,7 @@ type: reference
 title: Execution Model and Context Management
 description: Per-skill execution, environment variables, context monitoring, checkpointing, and artifact validation.
 tags: [orchestration, execution, context]
+generated: { by: "openwiki/0.7.2", at: "2026-11-01T10:49:42.750Z" }
 ---
 
 # Execution Model and Context Management
@@ -346,4 +347,3 @@ Orchestrator
 - [State Management](./state-management.md) — STATE.json and status transitions
 - [Error Recovery](./error-recovery.md) — Failure classification and recovery strategies
 - [Skills Overview](../skills/overview.md) — Skill structure and SKILL.md interface
-

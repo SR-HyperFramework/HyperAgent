@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" lang="vi-VN" data-pptx-page-role="content">
+  <defs>
+    <linearGradient id="blueGrad11" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1E40AF"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect id="slide11-bg" width="1280" height="720" fill="#F8FAFC" data-pptx-role="background"/>
+  <rect id="slide11-top-bar" x="0" y="0" width="1280" height="6" fill="url(#blueGrad11)" data-pptx-role="decoration"/>
+
+  <!-- Slide Header -->
+  <g id="slide11-header" data-pptx-bounds="80 40 1120 90">
+    <rect x="80" y="40" width="180" height="24" rx="4" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="1"/>
+    <text x="92" y="56" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#1D4ED8" letter-spacing="1">TỔNG KẾT &amp; TƯƠNG LAI</text>
+    
+    <text x="80" y="92" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="26" font-weight="800" fill="#0F172A">
+      Kết Luận Đề Tài &amp; Định Hướng Phát Triển
+    </text>
+    <text x="80" y="115" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#64748B">
+      Tổng kết những dấu ấn đạt được, thẳng thắn nhìn nhận hạn chế và lộ trình công bố khoa học trong tương lai
+    </text>
+  </g>
+
+  <!-- 2 Large Columns: Results Achieved (Left) vs Future Roadmap (Right) -->
+  <g id="slide11-content" data-pptx-bounds="80 145 1120 495">
+    <!-- Left Column: Key Achievements -->
+    <rect x="80" y="145" width="545" height="495" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+    <rect x="80" y="145" width="545" height="6" rx="3" fill="#059669"/>
+
+    <rect x="105" y="175" width="220" height="28" rx="14" fill="#ECFDF5" stroke="#A7F3D0" stroke-width="1"/>
+    <text x="120" y="193" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#047857">CÁC KẾT QUẢ ĐẠT ĐƯỢC</text>
+
+    <!-- Item 1 -->
+    <rect x="105" y="225" width="495" height="85" rx="8" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+    <circle cx="125" cy="250" r="4" fill="#059669"/>
+    <text x="140" y="254" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#0F172A">
+      1. Hiện thực hóa thành công công cụ HyperAgent:
+    </text>
+    <text x="140" y="276" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#475569">
+      Xây dựng hệ thống 9 giai đoạn tự động hóa kết nối IDA Pro &amp; x64dbg qua MCP,
+      <tspan x="140" dy="18">vận hành 100% On-Premise an toàn với máy ảo Windows cô lập.</tspan>
+    </text>
+
+    <!-- Item 2 -->
+    <rect x="105" y="325" width="495" height="85" rx="8" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+    <circle cx="125" cy="350" r="4" fill="#059669"/>
+    <text x="140" y="354" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#0F172A">
+      2. Giải quyết triệt để ảo giác &amp; phòng vệ Injection:
+    </text>
+    <text x="140" y="376" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#475569">
+      Đưa ra cơ chế phán quyết 3 trạng thái (Được phép, Có điều kiện, Bị cấm);
+      <tspan x="140" dy="18">xem dữ liệu mẫu là Untrusted Data, đảm bảo kết luận luôn có minh chứng.</tspan>
+    </text>
+
+    <!-- Item 3 -->
+    <rect x="105" y="425" width="495" height="85" rx="8" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+    <circle cx="125" cy="450" r="4" fill="#059669"/>
+    <text x="140" y="454" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#0F172A">
+      3. Thực nghiệm quy mô lớn 3.000 mẫu PE:
+    </text>
+    <text x="140" y="476" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#475569">
+      Đạt Precision 98,5%, Recall 86,2%, F1 91,9%; chứng minh định lượng sự đóng góp
+      <tspan x="140" dy="18">lớn hơn của động (-11,2%) và giá trị của tĩnh lần 2 sau giải nén (+5,7%).</tspan>
+    </text>
+
+    <!-- Item 4 -->
+    <rect x="105" y="525" width="495" height="85" rx="8" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+    <circle cx="125" cy="550" r="4" fill="#059669"/>
+    <text x="140" y="554" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#0F172A">
+      4. Sản phẩm mở, sẵn sàng ứng dụng:
+    </text>
+    <text x="140" y="576" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#475569">
+      Toàn bộ mã nguồn, cấu trúc Schema và dữ liệu mở hoàn toàn, đóng góp hữu ích
+      <tspan x="140" dy="18">cho đào tạo đại học và hỗ trợ thực tế cho các trung tâm SOC/CSIRT.</tspan>
+    </text>
+
+    <!-- Right Column: Limitations & Future Roadmap -->
+    <rect x="655" y="145" width="545" height="495" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+    <rect x="655" y="145" width="545" height="6" rx="3" fill="#2563EB"/>
+
+    <rect x="680" y="175" width="220" height="28" rx="14" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="1"/>
+    <text x="695" y="193" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#1D4ED8">HẠN CHẾ &amp; HƯỚNG PHÁT TRIỂN</text>
+
+    <!-- Future Point 1 -->
+    <rect x="680" y="225" width="495" height="115" rx="8" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+    <rect x="680" y="225" width="4" height="115" rx="2" fill="#D97706"/>
+    <text x="700" y="250" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#0F172A">
+      1. Tối ưu hóa thời gian xử lý (Execution Time):
+    </text>
+    <text x="700" y="272" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#B45309">
+      Hạn chế hiện tại: Thời gian trung vị 89,4 phút/mẫu còn tương đối cao.
+    </text>
+    <text x="700" y="294" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#475569">
+      • Hướng giải quyết: Song song hóa các phép trích xuất tĩnh, tối ưu hóa quá trình
+      <tspan x="700" dy="18">dò tìm điểm OEP trong x64dbg để rút ngắn thời gian xử lý xuống dưới 30 phút.</tspan>
+    </text>
+
+    <!-- Future Point 2 -->
+    <rect x="680" y="355" width="495" height="115" rx="8" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+    <rect x="680" y="355" width="4" height="115" rx="2" fill="#2563EB"/>
+    <text x="700" y="380" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#0F172A">
+      2. Mở rộng đa nền tảng &amp; đa định dạng tệp:
+    </text>
+    <text x="700" y="402" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#1D4ED8">
+      Hạn chế hiện tại: Mới chỉ hỗ trợ tệp PE trên môi trường Windows.
+    </text>
+    <text x="700" y="424" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#475569">
+      • Hướng phát triển: Tích hợp phân tích định dạng ELF (Linux/IoT)
+      <tspan x="700" dy="18">và mã độc trên nền tảng di động Android (APK/DEX).</tspan>
+    </text>
+
+    <!-- Future Point 3 -->
+    <rect x="680" y="485" width="495" height="125" rx="8" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+    <rect x="680" y="485" width="4" height="125" rx="2" fill="#7C3AED"/>
+    <text x="700" y="510" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#0F172A">
+      3. Hoàn thiện công bố khoa học (Scientific Publication):
+    </text>
+    <text x="700" y="532" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#6D28D9">
+      Kế hoạch: Chuẩn bị bài báo từ dữ liệu 3.000 mẫu thực nghiệm.
+    </text>
+    <text x="700" y="554" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#475569">
+      • Mục tiêu: Hoàn thiện bản thảo về Agentic Malware Analysis
+      <tspan x="700" dy="18">để gửi đăng tại các hội thảo và tạp chí uy tín về ATTT.</tspan>
+    </text>
+  </g>
+</svg>

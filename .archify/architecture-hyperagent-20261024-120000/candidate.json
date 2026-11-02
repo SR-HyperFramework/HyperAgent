@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "HyperAgent: staged malware-analysis pipeline",
+    "output": ".archify/architecture-hyperagent-20261024-120000/hyperagent-architecture.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/SR-HyperFramework/HyperAgent.git",
+      "provider": "github",
+      "revision": "db8959f2df6f42a6539088aa9e3308269399a76f"
+    }
+  },
+  "components": [
+    { "id": "analyst", "type": "external", "label": "Analyst", "sublabel": "sample + browser", "pos": [40, 190], "size": [120, 60],
+      "sources": [{ "path": "hyperagent/cli.py", "line": 98, "end_line": 120 }] },
+    { "id": "cli", "type": "backend", "label": "CLI / REST API", "sublabel": "analyze, batch", "pos": [260, 190], "size": [120, 60],
+      "sources": [{ "path": "hyperagent/cli.py", "line": 98, "end_line": 156 }, { "path": "hyperagent/api/server.py", "line": 52, "end_line": 70 }] },
+    { "id": "launcher", "type": "backend", "label": "Pipeline launcher", "sublabel": "9 stages, resumable", "pos": [480, 190], "size": [120, 60],
+      "sources": [{ "path": "hyperagent/engine/launcher.py", "line": 92, "end_line": 102 }, { "path": "hyperagent/engine/launcher.py", "line": 537, "end_line": 564 }] },
+    { "id": "guard", "type": "security", "label": "Injection guard", "sublabel": "+ anonymizer", "pos": [700, 40], "size": [120, 60], "tag": "untrusted input",
+      "sources": [{ "path": "hyperagent/engine/injection_guard.py", "line": 26, "end_line": 60 }, { "path": "hyperagent/tools/anonymizer.py", "line": 125 }] },
+    { "id": "loop", "type": "backend", "label": "AgentLoop", "sublabel": "one per stage", "pos": [700, 190], "size": [120, 60],
+      "sources": [{ "path": "hyperagent/engine/agent_loop.py", "line": 48, "end_line": 91 }, { "path": "hyperagent/engine/agent_loop.py", "line": 392, "end_line": 447 }] },
+    { "id": "provider", "type": "backend", "label": "LLM provider", "sublabel": "Anthropic / OpenAI SDK", "pos": [920, 190], "size": [120, 60],
+      "sources": [{ "path": "hyperagent/providers/anthropic_provider.py", "line": 43, "end_line": 83 }, { "path": "hyperagent/providers/openai_provider.py", "line": 1 }] },
+    { "id": "llm", "type": "external", "label": "Model API", "sublabel": "cloud LLM", "pos": [1140, 190], "size": [120, 60],
+      "sources": [{ "path": "hyperagent/providers/anthropic_provider.py", "line": 202, "end_line": 250 }] },
+    { "id": "webui", "type": "frontend", "label": "Web UI", "sublabel": "Flask viewer", "pos": [260, 340], "size": [120, 60],
+      "sources": [{ "path": "webui/app.py", "line": 121, "end_line": 135 }, { "path": "hyperagent/dashboard.py", "line": 1, "end_line": 12 }] },
+    { "id": "reports", "type": "database", "label": "reports/<sha256>/", "sublabel": "STATE.json + JSON", "pos": [480, 340], "size": [120, 60],
+      "sources": [{ "path": "hyperagent/pipeline_state.py", "line": 224, "end_line": 260 }, { "path": "hyperagent/engine/launcher.py", "line": 113, "end_line": 117 }] },
+    { "id": "registry", "type": "security", "label": "Tool registry", "sublabel": "STAGE_TOOLS allow-list", "pos": [700, 340], "size": [120, 60], "tag": "per-stage policy",
+      "sources": [{ "path": "hyperagent/tools/registry.py", "line": 47, "end_line": 66 }, { "path": "hyperagent/tools/registry.py", "line": 72, "end_line": 82 }] },
+    { "id": "localtools", "type": "backend", "label": "Local tools", "sublabel": "files, scripts, VT", "pos": [920, 340], "size": [120, 60],
+      "sources": [{ "path": "hyperagent/tools/analysis_tools.py", "line": 92, "end_line": 133 }, { "path": "hyperagent/tools/filesystem_tools.py", "line": 1 }] },
+    { "id": "vt", "type": "external", "label": "VirusTotal", "sublabel": "intel API", "pos": [1140, 340], "size": [120, 60],
+      "sources": [{ "path": "hyperagent/tools/analysis_tools.py", "line": 92, "end_line": 133 }] },
+    { "id": "ida", "type": "backend", "label": "idalib-mcp", "sublabel": "IDA static analysis", "pos": [480, 490], "size": [120, 60],
+      "sources": [{ "path": "hyperagent/engine/mcp_servers.py", "line": 24, "end_line": 75 }, { "path": "hyperagent/tools/ida_tools.py", "line": 45, "end_line": 77 }] },
+    { "id": "x64dbg", "type": "backend", "label": "x64dbg-mcp", "sublabel": "unpack + debug", "pos": [700, 490], "size": [120, 60],
+      "sources": [{ "path": "hyperagent/tools/x64dbg_tools.py", "line": 18, "end_line": 45 }, { "path": "hyperagent/engine/mcp_servers.py", "line": 1, "end_line": 5 }] },
+    { "id": "vm", "type": "cloud", "label": "Guest VM", "sublabel": "sample runs here", "pos": [920, 490], "size": [120, 60],
+      "sources": [{ "path": "hyperagent/tools/vmware_tools.py", "line": 20, "end_line": 40 }, { "path": "hyperagent/tools/vmware_tools.py", "line": 57, "end_line": 66 }] }
+  ],
+  "boundaries": [
+    { "kind": "security-group", "label": "Guest VM (isolated execution)", "wraps": ["x64dbg", "vm"] }
+  ],
+  "connections": [
+    { "id": "analyst-to-cli", "from": "analyst", "to": "cli", "label": "analyze", "variant": "emphasis" },
+    { "id": "cli-to-launcher", "from": "cli", "to": "launcher", "label": "run pipeline", "variant": "emphasis" },
+    { "id": "launcher-to-loop", "from": "launcher", "to": "loop", "label": "per stage", "variant": "emphasis" },
+    { "id": "loop-to-provider", "from": "loop", "to": "provider", "label": "complete()", "variant": "emphasis" },
+    { "id": "provider-to-llm", "from": "provider", "to": "llm", "label": "HTTPS", "variant": "emphasis" },
+    { "id": "guard-to-loop", "from": "guard", "to": "loop", "label": "guard prompt", "variant": "security" },
+    { "id": "launcher-to-reports", "from": "launcher", "to": "reports", "label": "STATE.json" },
+    { "id": "webui-reads-reports", "from": "webui", "to": "reports", "label": "reads" },
+    { "id": "loop-to-registry", "from": "loop", "to": "registry", "label": "tool calls", "variant": "security" },
+    { "id": "registry-to-local", "from": "registry", "to": "localtools", "label": "scripts" },
+    { "id": "local-to-vt", "from": "localtools", "to": "vt", "label": "fetch report", "variant": "dashed" },
+    { "id": "registry-to-ida", "from": "registry", "to": "ida", "label": "MCP" },
+    { "id": "registry-to-x64dbg", "from": "registry", "to": "x64dbg", "label": "MCP" },
+    { "id": "registry-to-vm", "from": "registry", "to": "vm", "label": "vmrun" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Run", "items": ["Stages 01-prepare-env through 09-summary run in order; 06-intel is opt-in (--profile intel)", "Each stage is one AgentLoop with its skill from skill/", "Completed stages are skipped on resume; context is compacted or checkpointed near the limit"] },
+    { "dot": "rose", "title": "Control", "items": ["A stage may only call tools its STAGE_TOOLS entry allows", "Sample-derived text passes the injection guard and anonymizer before reaching the model", "After 05-dynamic the launcher reverts the VM to its clean snapshot"] },
+    { "dot": "emerald", "title": "Observe", "items": ["--mdebug shows a live console and serves the Web UI on loopback", "Web UI reads STATE.json and stage artifacts from the report folder"] }
+  ]
+}

@@ -3,6 +3,7 @@ type: reference
 title: Pipeline Launcher (claude_spawn.py)
 description: Main orchestrator and stage sequencer for HyperAgent analysis pipeline.
 tags: [orchestration, launcher, entrypoint]
+generated: { by: "openwiki/0.7.2", at: "2026-11-01T10:49:42.750Z" }
 ---
 
 # Pipeline Launcher (claude_spawn.py)
@@ -344,4 +345,3 @@ Progress files are stored in `_state/{STAGE_ID}.progress.md` under analysis dire
 - [Execution Model](./execution-model.md) — Per-skill invocation details
 - [Architecture Overview](../architecture/overview.md) — System design
 - [Pipeline Details](../architecture/pipeline.md) — Stage-by-stage breakdown
-

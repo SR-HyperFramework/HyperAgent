@@ -3,6 +3,7 @@ type: reference
 title: Static Analysis Pipeline (Stages 02 & 04)
 description: File identification, routing, coarse agent analysis, and payload extraction across static passes.
 tags: [skills, stages, static-analysis]
+generated: { by: "openwiki/0.7.2", at: "2026-11-01T10:49:42.750Z" }
 ---
 
 # Static Analysis Pipeline (Stages 02, 03, 04)
@@ -280,4 +281,3 @@ agents:
 - [Routing & Dispatch](../../agents/routing-and-dispatch.md) — DIE and agent selection
 - [Stage Dependencies](../../architecture/stage-dependencies.md) — Cross-stage data flow
 - [Dynamic Analysis (Stage 05)](./05-dynamic-analysis.md) — Next stage after pass 2
-

@@ -1,0 +1,149 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" lang="vi-VN" data-pptx-page-role="content">
+  <defs>
+    <linearGradient id="blueGrad4" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1E40AF"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect id="slide4-bg" width="1280" height="720" fill="#F8FAFC" data-pptx-role="background"/>
+  <rect id="slide4-top-bar" x="0" y="0" width="1280" height="6" fill="url(#blueGrad4)" data-pptx-role="decoration"/>
+
+  <!-- Slide Header -->
+  <g id="slide4-header" data-pptx-bounds="80 40 1120 90">
+    <rect x="80" y="40" width="170" height="24" rx="4" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="1"/>
+    <text x="92" y="56" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#1D4ED8" letter-spacing="1">TÍNH MỚI &amp; SÁNG TẠO</text>
+    
+    <text x="80" y="92" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="26" font-weight="800" fill="#0F172A">
+      Ba Điểm Mới Cốt Lõi Của Đề Tài HyperAgent
+    </text>
+    <text x="80" y="115" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#64748B">
+      Những đóng góp khoa học và kỹ thuật khác biệt so với các công trình nghiên cứu hiện nay
+    </text>
+  </g>
+
+  <!-- 3 Novelty Cards Grid -->
+  <g id="slide4-cards" data-pptx-bounds="80 145 1120 495">
+    <!-- Card 1: Process-level Fusion -->
+    <rect x="80" y="145" width="350" height="495" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+    <rect x="80" y="145" width="350" height="6" rx="3" fill="#2563EB"/>
+
+    <!-- Pillar 1 Header -->
+    <rect x="105" y="175" width="85" height="26" rx="13" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="1"/>
+    <text x="123" y="192" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#1D4ED8">ĐIỂM MỚI 1</text>
+    
+    <text x="105" y="235" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#0F172A">
+      Hợp Nhất Tĩnh - Động
+      <tspan x="105" dy="26">Ở Mức Quy Trình</tspan>
+    </text>
+    <text x="105" y="285" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#2563EB">
+      (PROCESS-LEVEL FUSION)
+    </text>
+
+    <!-- Contrast vs Prior Work -->
+    <rect x="105" y="305" width="300" height="60" rx="6" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+    <text x="117" y="325" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#64748B">Nghiên cứu hiện tại:</text>
+    <text x="117" y="345" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#475569">
+      Chỉ ghép đặc trưng hoặc bỏ phiếu đầu ra của mô hình phân loại.
+    </text>
+
+    <!-- Novelty Contribution -->
+    <circle cx="115" cy="395" r="4" fill="#2563EB"/>
+    <text x="130" y="399" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#1E293B">
+      Chu trình 9 giai đoạn thích ứng:
+      <tspan x="130" dy="20" font-weight="400" fill="#475569">Quy trình thông minh theo vòng lặp:</tspan>
+      <tspan x="130" dy="18" font-weight="700" fill="#2563EB">Tĩnh 1 → Giải nén → Tĩnh 2 → Động.</tspan>
+      <tspan x="130" dy="20" font-weight="400" fill="#475569">Kết quả của giai đoạn trước quyết định</tspan>
+      <tspan x="130" dy="18" font-weight="400" fill="#475569">trực tiếp mục tiêu và hành vi giai đoạn sau.</tspan>
+    </text>
+
+    <circle cx="115" cy="505" r="4" fill="#2563EB"/>
+    <text x="130" y="509" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#1E293B">
+      Tái phân tích sau giải nén:
+      <tspan x="130" dy="20" font-weight="400" fill="#475569">Lượt tĩnh thứ 2 trên payload đã bung nén</tspan>
+      <tspan x="130" dy="18" font-weight="400" fill="#475569">giúp bóc trần toàn bộ API và chuỗi bị giấu.</tspan>
+    </text>
+
+    <!-- Card 2: Evidence-bound & Anti-Hallucination -->
+    <rect x="465" y="145" width="350" height="495" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+    <rect x="465" y="145" width="350" height="6" rx="3" fill="#0D9488"/>
+
+    <!-- Pillar 2 Header -->
+    <rect x="490" y="175" width="85" height="26" rx="13" fill="#CCFBF1" stroke="#99F6E4" stroke-width="1"/>
+    <text x="508" y="192" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#0F766E">ĐIỂM MỚI 2</text>
+
+    <text x="490" y="235" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#0F172A">
+      Ràng Buộc Kết Luận
+      <tspan x="490" dy="26">Theo Bằng Chứng</tspan>
+    </text>
+    <text x="490" y="285" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#0D9488">
+      (EVIDENCE-BOUND VERDICT)
+    </text>
+
+    <!-- Contrast vs Prior Work -->
+    <rect x="490" y="305" width="300" height="60" rx="6" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+    <text x="502" y="325" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#64748B">Nghiên cứu hiện tại:</text>
+    <text x="502" y="345" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#475569">
+      LLM tự do sinh nhận định dễ gặp ảo giác hoặc bị gài bẫy prompt injection.
+    </text>
+
+    <!-- Novelty Contribution -->
+    <circle cx="500" cy="395" r="4" fill="#0D9488"/>
+    <text x="515" y="399" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#1E293B">
+      Bộ lọc phân loại 3 trạng thái:
+      <tspan x="515" dy="20" font-weight="400" fill="#475569">Giai đoạn đối chiếu phân loại mọi khẳng định</tspan>
+      <tspan x="515" dy="18" font-weight="600" fill="#0D9488">thành: Được phép, Kèm điều kiện hoặc</tspan>
+      <tspan x="515" dy="18" font-weight="600" fill="#0D9488">Bị cấm trước khi được ghi vào báo cáo.</tspan>
+    </text>
+
+    <circle cx="500" cy="505" r="4" fill="#0D9488"/>
+    <text x="515" y="509" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#1E293B">
+      Phòng vệ tiêm nhiễm lệnh:
+      <tspan x="515" dy="20" font-weight="400" fill="#475569">Dữ liệu trích từ mẫu chỉ được xem là dữ</tspan>
+      <tspan x="515" dy="18" font-weight="400" fill="#475569">liệu thô (Untrusted Data), không thể biến</tspan>
+      <tspan x="515" dy="18" font-weight="400" fill="#475569">thành chỉ thị điều khiển mô hình LLM.</tspan>
+    </text>
+
+    <!-- Card 3: Ablation Study Framework -->
+    <rect x="850" y="145" width="350" height="495" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+    <rect x="850" y="145" width="350" height="6" rx="3" fill="#6366F1"/>
+
+    <!-- Pillar 3 Header -->
+    <rect x="875" y="175" width="85" height="26" rx="13" fill="#EEF2FF" stroke="#C7D2FE" stroke-width="1"/>
+    <text x="893" y="192" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#4338CA">ĐIỂM MỚI 3</text>
+
+    <text x="875" y="235" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#0F172A">
+      Khung Đánh Giá Loại Trừ
+      <tspan x="875" dy="26">Có Đối Chứng</tspan>
+    </text>
+    <text x="875" y="285" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#6366F1">
+      (ABLATION EVALUATION)
+    </text>
+
+    <!-- Contrast vs Prior Work -->
+    <rect x="875" y="305" width="300" height="60" rx="6" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+    <text x="887" y="325" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#64748B">Nghiên cứu hiện tại:</text>
+    <text x="887" y="340" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#475569">
+      Hiếm khi đo lường đóng góp độc lập của
+      <tspan x="887" dy="16">từng nguồn bằng chứng trên hệ thống Agent.</tspan>
+    </text>
+
+    <!-- Novelty Contribution -->
+    <circle cx="885" cy="395" r="4" fill="#6366F1"/>
+    <text x="900" y="399" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#1E293B">
+      Thực nghiệm 3.000 mẫu quy chuẩn:
+      <tspan x="900" dy="20" font-weight="400" fill="#475569">Kiểm định đối chứng chặt chẽ giữa 3 cấu</tspan>
+      <tspan x="900" dy="18" font-weight="600" fill="#4338CA">hình: FULL (đầy đủ), A1 (bỏ tĩnh) và</tspan>
+      <tspan x="900" dy="18" font-weight="600" fill="#4338CA">A2 (bỏ động) trên tập DikeDataset.</tspan>
+    </text>
+
+    <circle cx="885" cy="505" r="4" fill="#6366F1"/>
+    <text x="900" y="509" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#1E293B">
+      Chứng minh định lượng:
+      <tspan x="900" dy="20" font-weight="400" fill="#475569">Xác định chính xác trọng số đóng góp</tspan>
+      <tspan x="900" dy="18" font-weight="400" fill="#475569">của từng nguồn bằng chứng và hiệu quả</tspan>
+      <tspan x="900" dy="18" font-weight="400" fill="#475569">thực tế của pha tĩnh lần 2 sau giải nén.</tspan>
+    </text>
+  </g>
+</svg>

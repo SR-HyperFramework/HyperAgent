@@ -3,6 +3,7 @@ type: reference
 title: Error Recovery and Failure Handling
 description: Failure states, error classification, MAX_STAGE_ATTEMPTS safety cap, and manual recovery procedures.
 tags: [orchestration, error-recovery, reliability]
+generated: { by: "openwiki/0.7.2", at: "2026-11-01T10:49:42.750Z" }
 ---
 
 # Error Recovery and Failure Handling
@@ -377,4 +378,3 @@ Error logs are written to `pipeline_log.txt`:
 - [Launcher](./launcher.md) — Orchestrator that handles recovery
 - [Execution Model](./execution-model.md) — Stage invocation and context management
 - [State Management](./state-management.md) — STATE.json structure and mutations
-

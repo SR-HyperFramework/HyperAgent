@@ -3,6 +3,7 @@ type: reference
 title: Finding Model and Discovery Lifecycle
 description: Finding structure, categories, severity levels, evidence linking, and storage.
 tags: [data, findings, model]
+generated: { by: "openwiki/0.7.2", at: "2026-11-01T10:49:42.750Z" }
 ---
 
 # Finding Model and Discovery Lifecycle
@@ -378,4 +379,3 @@ class FindingStore:
 - [Response Contract](./response-contract.md) — Finding envelope in public response
 - [Architecture Overview](../architecture/overview.md) — System design
 - [Stage Dependencies](../architecture/stage-dependencies.md) — How findings flow across stages
-

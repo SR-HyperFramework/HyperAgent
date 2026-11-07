@@ -236,7 +236,6 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 /reports/_tool
-/experiments
 
 /_tmp_report
 /docs
@@ -256,3 +255,4 @@ __marimo__/
 /reports/**/*.dat
 # Neutral sample copies made by blind runs (--blind).
 /reports/**/_input/
+/experiments/results/full_3000

@@ -15,6 +15,11 @@ from .base import ToolDefinition, ToolResult
 from .path_scope import PathScope, PathScopeError
 
 
+def _utf8_child_env() -> dict[str, str]:
+    """The current environment, with Python children forced to UTF-8 stdio."""
+    return {**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
+
+
 def _run_bounded(
     cmd_parts: list[str], cwd: str | None = None, timeout: int = 60
 ) -> ToolResult:
@@ -24,14 +29,17 @@ def _run_bounded(
             cmd_parts,
             capture_output=True,
             text=True,
-            # Without an explicit encoding, text mode decodes with the system
-            # locale — cp1252 on a Windows host — while the helper scripts all
-            # write UTF-8. Every non-ASCII byte then reaches the model as
-            # mojibake, and the strings this pipeline reads out of samples are
-            # exactly where non-ASCII shows up. errors="replace" keeps a
-            # malformed byte from killing an otherwise good tool result.
+            # Both ends must agree on UTF-8. Without an explicit encoding, text
+            # mode decodes with the system locale (cp1252 on a Windows host),
+            # and a Python child whose stdout is a pipe *writes* in that same
+            # locale unless told otherwise. Every non-ASCII character then
+            # reaches the model as mojibake or U+FFFD, and the strings this
+            # pipeline reads out of samples are exactly where non-ASCII shows
+            # up. errors="replace" keeps a malformed byte from killing an
+            # otherwise good tool result.
             encoding="utf-8",
             errors="replace",
+            env=_utf8_child_env(),
             timeout=timeout,
             cwd=cwd,
             shell=False,

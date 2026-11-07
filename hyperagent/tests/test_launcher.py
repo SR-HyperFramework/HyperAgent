@@ -1205,3 +1205,79 @@ def test_build_stage_prompt_carries_the_ablation_note(tmp_path):
 
     assert "05-dynamic" in prompt
     assert "Run profile: A2_no_dynamic" in prompt
+
+
+def _blind_run(monkeypatch, sample: Path, config, stage_hash: str) -> dict:
+    """Run 01-prepare-env once in blind mode and capture scope + prompt."""
+    _stage_skill_tree(config.skills_root)
+    config.runtime.blind_sample = True
+    report_dir = config.reports_root / stage_hash
+    captured: dict = {}
+
+    class _Registry:
+        def get_tools_for_stage(self, _sid):
+            return []
+
+    def fake_build_full_registry(_cfg, scope):
+        captured["scope"] = scope
+        return _Registry(), []
+
+    class _Loop:
+        def __init__(self, *args, **kwargs):
+            self.last_messages = []
+
+        def run(self, **kwargs):
+            captured["prompt"] = kwargs["initial_prompt"]
+            out = report_dir / "01-prepare-env.json"
+            out.write_text("{}", encoding="utf-8")
+            pipeline_state.complete(report_dir, "01-prepare-env", str(out))
+            return "ok"
+
+    monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: stage_hash)
+    monkeypatch.setattr("hyperagent.engine.launcher.ensure_idalib_mcp", lambda _cfg: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.stop_idalib_mcp", lambda _proc: None)
+    monkeypatch.setattr("hyperagent.engine.launcher.build_full_registry", fake_build_full_registry)
+    monkeypatch.setattr("hyperagent.engine.launcher.create_provider", lambda *a, **k: _DummyProvider())
+    monkeypatch.setattr("hyperagent.engine.launcher.AgentLoop", _Loop)
+    monkeypatch.setattr("hyperagent.engine.launcher.run_registry.link_run", lambda *a, **k: None)
+
+    asyncio.run(run_pipeline_with_config(sample, config, stage_id="01-prepare-env"))
+    captured["report_dir"] = report_dir
+    return captured
+
+
+def test_blind_run_hides_original_sample_path(monkeypatch, tmp_path: Path, config):
+    labelled_dir = tmp_path / "dataset" / "malware"
+    labelled_dir.mkdir(parents=True)
+    sample = labelled_dir / "evil_dropper.EXE"
+    sample.write_bytes(b"MZ blind")
+
+    captured = _blind_run(monkeypatch, sample, config, "b" * 64)
+    report_dir = captured["report_dir"]
+    staged = report_dir / "_input" / "sample.exe"
+
+    assert staged.read_bytes() == b"MZ blind"
+    assert "malware" not in captured["prompt"]
+    assert "evil_dropper" not in captured["prompt"]
+    assert f"Analyze sample: {staged.resolve()}" in captured["prompt"]
+    assert labelled_dir.resolve() not in captured["scope"].read_roots
+    assert pipeline_state.load_state(report_dir)["input_path"] == str(staged.resolve())
+
+
+def test_blind_run_refuses_label_revealing_report_dir(monkeypatch, tmp_path: Path, config):
+    sample = tmp_path / "sample.exe"
+    sample.write_bytes(b"MZ")
+    config.reports_root = tmp_path / "benign" / "reports"
+    with pytest.raises(ValueError, match="label-revealing"):
+        _blind_run(monkeypatch, sample, config, "c" * 64)
+
+
+def test_blind_run_defaults_to_neutral_reports_root(sample_file: Path, config, monkeypatch):
+    from hyperagent.engine import launcher
+
+    monkeypatch.setattr("hyperagent.engine.launcher._sha256_of", lambda _p: "d" * 64)
+    config.reports_root = None
+    config.runtime.blind_sample = True
+    assert launcher._report_dir_for(sample_file, config) == launcher.BLIND_REPORTS_ROOT / ("d" * 64)
+    config.runtime.blind_sample = False
+    assert launcher._report_dir_for(sample_file, config) == sample_file.parent / "reports" / ("d" * 64)

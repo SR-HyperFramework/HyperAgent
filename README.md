@@ -51,7 +51,8 @@ HyperAgent/
 ├─ hyperagent/              # the v4 SDK package (pip install -e .)
 │  ├─ cli.py                # `hyperagent analyze` / `hyperagent batch`
 │  ├─ config.py             # env-var + YAML config loading
-│  ├─ pipeline_state.py     # per-run STATE.json read/write
+│  ├─ pipeline_state.py     # stage table + STATE.json read/write (single source;
+│  │                        # skill/_hyperagent-common/scripts/pipeline_state.py is its CLI)
 │  ├─ console.py            # run console: event log, line renderer, live-feed hooks
 │  ├─ tui.py                # full-screen --mdebug console with the run sidebar
 │  ├─ tui_input.py          # keyboard/mouse-wheel scrolling for the full-screen console
@@ -65,7 +66,7 @@ HyperAgent/
 │  │  ├─ launcher.py        # STAGES list + run_pipeline_with_config()
 │  │  ├─ checkpoint.py      # context-limit checkpoint/resume
 │  │  ├─ injection_guard.py # prompt-injection defenses
-│  │  └─ subagent.py        # spawns scoped sub-conversations
+│  │  └─ subagent.py        # scoped sub-conversation helper (not yet wired into any stage)
 │  ├─ providers/            # Anthropic/OpenAI SDK wrappers
 │  ├─ tools/                # everything a stage can call: filesystem, IDA,
 │  │                        # x64dbg, VMware, VirusTotal, anonymizer, rule
@@ -77,7 +78,6 @@ HyperAgent/
 ├─ experiments/             # batch_eval (corpus precision/recall/F1), ablation runner
 ├─ webui/                   # read-only Flask viewer for finished reports and live runs
 ├─ skill/                   # checked-in v4 stage skills + shared helper assets
-│  └─ backup/               # archived v3 CLI-subprocess pipeline (reference only)
 ├─ plans/                   # phase-by-phase implementation notes for this rewrite
 └─ openwiki/                # generated deep-dive docs (optional reading)
 ```
@@ -147,10 +147,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\package_for_transfer.ps1
 ```
 
 This builds `HyperAgent-transfer.zip` next to the repo. Copy it to the target
-machine, extract it, and follow [`SETUP_NEW_MACHINE.md`](SETUP_NEW_MACHINE.md)
-— it has a ready-to-paste prompt for the agent on that machine (runs
-`bootstrap.ps1`, reports what's missing) plus a manual-install checklist for
-IDA Pro/x64dbg/VMware and a list of secrets/env vars to bring over yourself.
+machine, extract it, and run `bootstrap.ps1` there (see the Install section
+above). IDA Pro, x64dbg MCP and VMware still have to be installed by hand, and
+secrets (`ANTHROPIC_API_KEY`, `VT_API_KEY`, VM credentials) are not in the zip.
 
 ## 5. Configuration
 
@@ -176,6 +175,7 @@ Commonly used environment variables:
 | `HYPERAGENT_PIPELINE_PROFILE` | Runtime profile: `full` (default), `intel`, `fast`, `static-only`, or `dynamic-only` |
 | `HYPERAGENT_SKIP_DYNAMIC` | Set truthy to skip the VM-backed `05-dynamic` stage |
 | `HYPERAGENT_SKIP_INTEL` | Set truthy to skip `06-intel` even under the `intel` profile; no effect elsewhere, since no other profile selects it |
+| `HYPERAGENT_BLIND_SAMPLE` | Set truthy for a blind run (same as `--blind`): analyze a neutrally named copy so the sample's path/name cannot reveal its label |
 | `HYPERAGENT_REUSE_COMPLETED_STAGES` | Reuse completed valid stage artifacts from `reports/<sha256>/`; defaults to true |
 | `HYPERAGENT_START_IDA_MCP` | Local idalib MCP startup policy: `auto` (default), `always`, or `never` |
 | `HYPERAGENT_FAST_MAX_STAGE_ATTEMPTS` | Attempt cap for the targeted `fast` / `static-only` / `dynamic-only` profiles; defaults to 2 |
@@ -250,13 +250,11 @@ As a result, `08-report` now has a deliberately narrow tool surface: it can
 write the final Markdown artifact and invoke the compact-context builder, but it
 does not read raw upstream stage JSON files directly by default.
 
-The current focused verification for this report-context change is:
+The focused tests for this report-context behavior are:
 
 ```bash
 python -m pytest hyperagent/tests/test_tools.py hyperagent/tests/test_launcher.py -q
 ```
-
-At the time of this update, that focused suite passes: `65 passed`.
 
 If you are iterating specifically on report-stage context behavior, a good
 single-stage command is:
@@ -310,6 +308,9 @@ hyperagent analyze C:\path\to\sample.exe --no-cache
 
 # Control local idalib-mcp startup for this run.
 hyperagent analyze C:\path\to\sample.exe --ida-mcp never
+
+# Blind run for evaluation: hide the original path and file name from the model.
+hyperagent analyze H:\Dataset\malware\<sha256> --blind
 ```
 
 `full` is the default and runs every stage that reasons from the sample itself. External enrichment is opt-in: `06-intel` sends sample hashes to a third party and needs `VT_API_KEY` plus network reachability, so it runs only under the `intel` profile. The targeted profiles reduce turnaround time while developing or triaging by running a subset of the nine stages:
@@ -325,6 +326,15 @@ hyperagent analyze C:\path\to\sample.exe --ida-mcp never
 All targeted profiles limit retries with `HYPERAGENT_FAST_MAX_STAGE_ATTEMPTS` and still validate any reused stage artifact before skipping work. With `--ida-mcp auto` (the default), HyperAgent starts local idalib MCP only when the selected stages need IDA tools.
 
 `static-only` runs a single static pass: it drops `03-unpack`, and `04-static-pass2` with it, because static pass 2 exists to analyze a recovered artifact and `skill/hyperagent-static/SKILL.md` requires it to emit a blocked report — never a silent fallback to pass 1 — when `03-unpack.json` is absent. Use `--profile fast` when you do want unpacking and the second static pass but still no dynamic or intel work.
+
+`--blind` copies the sample to `<report_dir>/_input/sample<ext>` and uses only
+that copy in prompts, tool scopes, `STATE.json` and the guest VM, so a dataset
+layout such as `.../malware/<sha256>` cannot leak the ground-truth label. Its
+reports go to `reports_root` if set, otherwise to `~/.hyperagent/blind-reports/`
+(the default `<sample_dir>/reports` would put the label folder back into every
+prompt), and the run refuses a report directory whose path contains a label
+word such as `malware` or `benign`. Use it for every run whose accuracy numbers
+should count as blind; it does not hide hashes, so keep `06-intel` off too.
 
 `dynamic-only` keeps the reporting chain, so it still emits `07-deepdive.json`, `08-report.md`, and `09-summary.json` — with static, unpack, and intel coverage recorded as limitations rather than fabricated. For a bare runtime run without those artifacts, use `--stage 05-dynamic` instead. Stages a profile does not select stay `pending` in `STATE.json`, so `validate_pipeline.py --require-all` is not the right success check for a targeted run; validate the artifacts that exist instead. A later default `full` run reuses the completed artifacts and fills in the pending stages, so pass `--profile dynamic-only` again to stay scoped (and `--no-cache` to force a fresh dynamic run).
 
@@ -390,9 +400,7 @@ dashboard lists those runs next to its own reports root, whichever folder they
 are in. Runs made before this index existed can be linked once:
 
 ```powershell
-hyperagent link-reports H:\Dataset\files\m\reports experiments\results\llm_compare
-eports experiments
-esults\llm_compare
+hyperagent link-reports H:\Dataset\files\malware\reports experiments\results\llm_compare
 ```
 
 It walks the given folders for `<sha256>` directories holding `STATE.json`,
@@ -442,7 +450,9 @@ Then open <http://127.0.0.1:5000>.
 python -m pytest hyperagent/tests/ -q
 ```
 
-Baseline as of the runtime-profile update: 247 passed, 3 skipped. Each file under
+Baseline as of the blind-run update: 375 passed, 3 skipped.
+`test_batch_eval.py` and `test_label_eval.py` import the `experiments/`
+package, which is gitignored, so they fail to collect on a fresh clone. Each file under
 `hyperagent/tests/` maps 1:1 to a module — e.g. `test_launcher.py` tests
 `engine/launcher.py`, `test_anonymizer.py` tests `tools/anonymizer.py`. Add
 new tests next to the module they cover.
@@ -451,6 +461,13 @@ new tests next to the module they cover.
 
 Tracked in detail in `plans/00-index.md`; the short version:
 
+- `hyperagent batch` is declared but not implemented, and `POST /analyze/batch`
+  needs the gitignored `experiments/` package.
+- `skill/hyperagent-dynamic/SKILL.md` asks the model to delegate trace reading
+  to a subagent, but no stage exposes a subagent tool yet, so the
+  `isolated_subagents` ablation flag (A3) currently changes nothing.
+- Recovered sample binaries under `reports/` are gitignored; older ones are
+  still present in git history.
 - No local LLM support by design — cloud API only (Anthropic primary, OpenAI
   stub). Don't add Ollama/vLLM/local-model code.
 - The fixture corpus at `hyperagent/tests/fixtures/corpus/` is placeholder

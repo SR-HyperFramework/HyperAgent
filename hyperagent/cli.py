@@ -36,6 +36,14 @@ def _build_parser() -> argparse.ArgumentParser:
     analyze.add_argument("--skip-intel", action="store_true", help="Skip external intelligence enrichment")
     analyze.add_argument("--no-cache", action="store_true", help="Do not reuse completed stage artifacts")
     analyze.add_argument(
+        "--blind",
+        action="store_true",
+        help=(
+            "Analyze a neutrally named copy of the sample so its original path/name cannot "
+            "reveal a ground-truth label (for evaluation runs)"
+        ),
+    )
+    analyze.add_argument(
         "--ida-mcp",
         choices=["auto", "always", "never"],
         help="Control local idalib-mcp startup for this run",
@@ -113,6 +121,8 @@ def _cmd_analyze(args: argparse.Namespace) -> int:
         config.runtime.skip_intel = True
     if args.no_cache:
         config.runtime.reuse_completed_stages = False
+    if args.blind:
+        config.runtime.blind_sample = True
     if args.ida_mcp:
         config.runtime.start_ida_mcp = args.ida_mcp
 

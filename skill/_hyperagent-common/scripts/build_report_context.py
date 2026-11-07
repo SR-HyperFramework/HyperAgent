@@ -16,14 +16,17 @@ import sys
 from pathlib import Path
 from typing import Any
 
-STAGE_SPECS = (
-    ("01-prepare-env", "01-prepare-env.json", "hyperagent-prepare-env/schema.json", True),
-    ("02-static-pass1", "02-static-pass1.json", "hyperagent-static/schema.json", True),
-    ("03-unpack", "03-unpack.json", "hyperagent-unpack/schema.json", False),
-    ("04-static-pass2", "04-static-pass2.json", "hyperagent-static/schema.json", False),
-    ("05-dynamic", "05-dynamic.json", "hyperagent-dynamic/schema.json", True),
-    ("06-intel", "06-intel.json", "hyperagent-intel/schema.json", False),
-    ("07-deepdive", "07-deepdive.json", "hyperagent-deepdive/schema.json", True),
+from pipeline_state import STAGE_IDS, STAGE_TABLE, stage_schema_rel  # sibling script
+
+# Upstream stages the report must have; the others are summarized when present.
+REQUIRED_STAGE_IDS = frozenset({"01-prepare-env", "02-static-pass1", "05-dynamic", "07-deepdive"})
+
+# (stage_id, artifact filename, schema path relative to skills root, required)
+# for every JSON stage upstream of 08-report.
+STAGE_SPECS = tuple(
+    (stage_id, STAGE_TABLE[stage_id]["output"], stage_schema_rel(stage_id),
+     stage_id in REQUIRED_STAGE_IDS)
+    for stage_id in STAGE_IDS[: STAGE_IDS.index("08-report")]
 )
 
 

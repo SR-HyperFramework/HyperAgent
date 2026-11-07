@@ -155,6 +155,11 @@ class RuntimeConfig:
     fast_max_stage_attempts: int = 2
     """Attempt cap for the targeted profiles (``fast``, ``static-only``,
     ``dynamic-only``), which trade evidence coverage for turnaround time."""
+    blind_sample: bool = False
+    """Analyze a neutrally named copy (``<report_dir>/_input/sample<ext>``)
+    instead of the original path, so a dataset layout such as
+    ``.../malware/<sha256>`` cannot reveal the label to the model. Needed for
+    any evaluation run whose accuracy numbers should count as blind."""
 
 
 @dataclass
@@ -303,6 +308,10 @@ def load_config(config_path: Path | None = None) -> HyperAgentConfig:
         fast_max_stage_attempts=_env_int(
             "HYPERAGENT_FAST_MAX_STAGE_ATTEMPTS",
             runtime_data.get("fast_max_stage_attempts", 2),
+        ),
+        blind_sample=_env_bool(
+            "HYPERAGENT_BLIND_SAMPLE",
+            runtime_data.get("blind_sample", False),
         ),
     )
 

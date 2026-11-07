@@ -116,7 +116,7 @@ a private channel. Do not attach it to a public issue/PR or push it anywhere
 public.
 $(if ($HasUserConfig) { "config.yaml has machine-specific paths (H:\... VM path, skills_root under C:\Users\ADMIN\...) - update them if the target machine's drive letters/username differ." })
 
-NOT included - see SETUP_NEW_MACHINE.md for how to handle each:
+NOT included - see README.md (Install section) for how to handle each:
   - venv/                         (rebuild with bootstrap.ps1)
   - .git/                         (use git clone/push if you need history)
   - .claude/, .planning/, reports/ session/local state
@@ -132,7 +132,7 @@ NOT included - see SETUP_NEW_MACHINE.md for how to handle each:
 
     $SizeMB = [math]::Round((Get-Item $OutputPath).Length / 1MB, 1)
     Write-Host "`nDone: $OutputPath ($SizeMB MB)" -ForegroundColor Green
-    Write-Host "Next: copy this zip to the target machine, then follow SETUP_NEW_MACHINE.md" -ForegroundColor Green
+    Write-Host "Next: copy this zip to the target machine, then follow README.md (Install section)" -ForegroundColor Green
 }
 finally {
     Pop-Location

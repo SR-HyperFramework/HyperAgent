@@ -57,6 +57,8 @@ class RuleVerifier:
                 [self.jq_bin, jq_rule, str(report_path)],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=self.timeout,
                 shell=False,
             )

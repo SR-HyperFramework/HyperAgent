@@ -110,6 +110,62 @@ def test_resolve_recorded_path_absolute(report_dir: Path, tmp_path: Path) -> Non
     assert resolved == str(abs_path)
 
 
+def test_resolve_recorded_path_collapses_repo_relative_report_path(report_dir: Path) -> None:
+    # Skills describe artifacts as reports/<sha256>/<file>; joined onto the
+    # report dir that used to record report_dir/reports/<sha256>/<file>.
+    relative = f"reports/{VALID_SHA256}/07-deepdive.json"
+    assert pipeline_state.resolve_recorded_path(report_dir, relative) == str(
+        report_dir / "07-deepdive.json"
+    )
+    doubled = report_dir / "reports" / VALID_SHA256 / "08-report.md"
+    assert pipeline_state.resolve_recorded_path(report_dir, str(doubled)) == str(
+        report_dir / "08-report.md"
+    )
+
+
+def test_load_state_repairs_doubled_output_paths(report_dir: Path) -> None:
+    pipeline_state.ensure_state(report_dir, VALID_SHA256, "sample.exe")
+    state = json.loads(pipeline_state.state_path_for(report_dir).read_text(encoding="utf-8"))
+    state["stages"]["07-deepdive"]["status"] = "completed"
+    state["stages"]["07-deepdive"]["output_path"] = str(
+        report_dir / "reports" / VALID_SHA256 / "07-deepdive.json"
+    )
+    pipeline_state.state_path_for(report_dir).write_text(json.dumps(state), encoding="utf-8")
+
+    loaded = pipeline_state.load_state(report_dir)
+    assert loaded["stages"]["07-deepdive"]["output_path"] == str(report_dir / "07-deepdive.json")
+
+
+def test_complete_falls_back_to_canonical_artifact(report_dir: Path, tmp_path: Path) -> None:
+    pipeline_state.ensure_state(report_dir, VALID_SHA256, "sample.exe")
+    (report_dir / "07-deepdive.json").write_text("{}", encoding="utf-8")
+    wrong = tmp_path / "elsewhere" / "07-deepdive.json"
+    pipeline_state.complete(report_dir, "07-deepdive", str(wrong))
+    state = pipeline_state.load_state(report_dir)
+    assert state["stages"]["07-deepdive"]["output_path"] == str(report_dir / "07-deepdive.json")
+
+
+def test_fail_demotes_completed_stage(report_dir: Path) -> None:
+    pipeline_state.ensure_state(report_dir, VALID_SHA256, "sample.exe")
+    pipeline_state.complete(report_dir, "01-prepare-env", str(report_dir / "01-prepare-env.json"))
+    pipeline_state.fail(report_dir, "01-prepare-env", "artifact failed validation")
+    state = pipeline_state.load_state(report_dir)
+    _assert_schema_valid(state)
+    assert state["stages"]["01-prepare-env"]["status"] == pipeline_state.STATUS_PENDING
+    assert state["recommend_next_stage"]["action"] == pipeline_state.RECOMMEND_ACTION_RETRY_STAGE
+
+
+def test_stale_recommendation_is_reinferred(report_dir: Path) -> None:
+    pipeline_state.ensure_state(report_dir, VALID_SHA256, "sample.exe")
+    state = json.loads(pipeline_state.state_path_for(report_dir).read_text(encoding="utf-8"))
+    state["stages"]["01-prepare-env"]["status"] = "completed"
+    state["stages"]["01-prepare-env"]["output_path"] = str(report_dir / "01-prepare-env.json")
+    # Still says "run 01 next" although 01 is completed.
+    pipeline_state.state_path_for(report_dir).write_text(json.dumps(state), encoding="utf-8")
+    loaded = pipeline_state.load_state(report_dir)
+    assert loaded["recommend_next_stage"]["stage_id"] == "02-static-pass1"
+
+
 def test_normalizes_legacy_v4_state_shape(report_dir: Path) -> None:
     report_dir.mkdir(parents=True)
     legacy = {

@@ -12,7 +12,7 @@ FIXTURES = Path(__file__).parent / "fixtures" / "benign_reports"
 
 
 def test_verify_jq_rule_passes_when_no_fixture_matches(monkeypatch):
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         assert cmd[0] == "jq"
         return subprocess.CompletedProcess(cmd, 0, stdout="false\n", stderr="")
 
@@ -26,7 +26,7 @@ def test_verify_jq_rule_passes_when_no_fixture_matches(monkeypatch):
 
 
 def test_verify_jq_rule_collects_matching_filenames(monkeypatch):
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         return subprocess.CompletedProcess(cmd, 0, stdout='"abc"\n', stderr="")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -74,7 +74,7 @@ def test_verify_wrapper_delegates_to_jq_verifier(monkeypatch):
 
 
 def test_verify_jq_rule_raises_when_jq_is_missing(monkeypatch):
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         raise FileNotFoundError("jq")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -85,7 +85,7 @@ def test_verify_jq_rule_raises_when_jq_is_missing(monkeypatch):
 
 
 def test_verify_jq_rule_raises_on_jq_failure(monkeypatch):
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         return subprocess.CompletedProcess(cmd, 3, stdout="", stderr="syntax error")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -96,7 +96,7 @@ def test_verify_jq_rule_raises_on_jq_failure(monkeypatch):
 
 
 def test_verify_jq_rule_raises_on_timeout(monkeypatch):
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         raise subprocess.TimeoutExpired(cmd=cmd, timeout=timeout)
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -109,7 +109,7 @@ def test_verify_jq_rule_raises_on_timeout(monkeypatch):
 def test_verify_jq_rule_treats_null_and_empty_as_non_matches(monkeypatch):
     outputs = iter(["null\n", "\n"])
 
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         return subprocess.CompletedProcess(cmd, 0, stdout=next(outputs), stderr="")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -124,7 +124,7 @@ def test_verify_jq_rule_treats_null_and_empty_as_non_matches(monkeypatch):
 def test_verify_jq_rule_uses_custom_jq_binary(monkeypatch):
     seen = []
 
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         seen.append(cmd[0])
         return subprocess.CompletedProcess(cmd, 0, stdout="false\n", stderr="")
 
@@ -139,7 +139,7 @@ def test_verify_jq_rule_uses_custom_jq_binary(monkeypatch):
 def test_verify_jq_rule_respects_fixture_sort_order(monkeypatch):
     seen_paths = []
 
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         seen_paths.append(cmd[2])
         return subprocess.CompletedProcess(cmd, 0, stdout='"abc"\n', stderr="")
 
@@ -166,7 +166,7 @@ def test_generate_repair_prompt_lists_each_false_positive_on_its_own_line():
 
 
 def test_verify_jq_rule_returns_no_false_positives_for_empty_fixture_dir(tmp_path, monkeypatch):
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         raise AssertionError("subprocess.run should not be called for an empty fixture dir")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -183,7 +183,7 @@ def test_verify_jq_rule_only_scans_json_files(tmp_path, monkeypatch):
     (tmp_path / "ignore.txt").write_text("ignored", encoding="utf-8")
     seen = []
 
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         seen.append(cmd[2])
         return subprocess.CompletedProcess(cmd, 0, stdout="false\n", stderr="")
 
@@ -196,7 +196,7 @@ def test_verify_jq_rule_only_scans_json_files(tmp_path, monkeypatch):
 
 
 def test_verify_jq_rule_treats_false_literal_as_non_match(monkeypatch):
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         return subprocess.CompletedProcess(cmd, 0, stdout="false", stderr="")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -209,7 +209,7 @@ def test_verify_jq_rule_treats_false_literal_as_non_match(monkeypatch):
 
 
 def test_verify_jq_rule_treats_truthy_output_as_match(monkeypatch):
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         return subprocess.CompletedProcess(cmd, 0, stdout="1\n", stderr="")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -247,7 +247,7 @@ def test_generate_repair_prompt_mentions_benign_reports():
 
 
 def test_verify_jq_rule_returns_verification_result_shape(monkeypatch):
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         return subprocess.CompletedProcess(cmd, 0, stdout="false\n", stderr="")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -278,7 +278,7 @@ def test_verify_delegates_exact_rule_text(monkeypatch):
 def test_verify_jq_rule_uses_report_path_strings(monkeypatch):
     paths = []
 
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         paths.append(cmd[2])
         return subprocess.CompletedProcess(cmd, 0, stdout="false\n", stderr="")
 
@@ -293,7 +293,7 @@ def test_verify_jq_rule_uses_report_path_strings(monkeypatch):
 def test_verify_jq_rule_keeps_all_false_positive_paths(monkeypatch):
     outputs = iter(['"abc"\n', '"def"\n'])
 
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         return subprocess.CompletedProcess(cmd, 0, stdout=next(outputs), stderr="")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -310,7 +310,7 @@ def test_verify_jq_rule_keeps_all_false_positive_paths(monkeypatch):
 def test_verify_jq_rule_returns_passed_false_when_any_match(monkeypatch):
     outputs = iter(["false\n", '"abc"\n'])
 
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         return subprocess.CompletedProcess(cmd, 0, stdout=next(outputs), stderr="")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -325,7 +325,7 @@ def test_verify_jq_rule_returns_passed_false_when_any_match(monkeypatch):
 def test_verify_jq_rule_returns_passed_true_when_no_match(monkeypatch):
     outputs = iter(["null\n", "false\n"])
 
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         return subprocess.CompletedProcess(cmd, 0, stdout=next(outputs), stderr="")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -348,7 +348,7 @@ def test_generate_repair_prompt_handles_empty_false_positive_list():
 def test_verify_jq_rule_uses_configured_timeout(monkeypatch):
     seen = []
 
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         seen.append(timeout)
         return subprocess.CompletedProcess(cmd, 0, stdout="false\n", stderr="")
 
@@ -361,7 +361,7 @@ def test_verify_jq_rule_uses_configured_timeout(monkeypatch):
 
 
 def test_verify_jq_rule_does_not_treat_whitespace_only_output_as_match(monkeypatch):
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         return subprocess.CompletedProcess(cmd, 0, stdout="  \n", stderr="")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -374,7 +374,7 @@ def test_verify_jq_rule_does_not_treat_whitespace_only_output_as_match(monkeypat
 
 
 def test_verify_jq_rule_ignores_nonzero_with_stdout_by_raising(monkeypatch):
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         return subprocess.CompletedProcess(cmd, 4, stdout="partial", stderr="bad filter")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -387,7 +387,7 @@ def test_verify_jq_rule_ignores_nonzero_with_stdout_by_raising(monkeypatch):
 def test_verify_jq_rule_handles_single_match_among_multiple(monkeypatch):
     outputs = iter(["false\n", '"abc"\n'])
 
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         return subprocess.CompletedProcess(cmd, 0, stdout=next(outputs), stderr="")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -406,7 +406,7 @@ def test_generate_repair_prompt_contains_original_guidance_phrase():
 
 
 def test_verify_jq_rule_reports_sorted_false_positive_paths(monkeypatch):
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         return subprocess.CompletedProcess(cmd, 0, stdout='"abc"\n', stderr="")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -418,7 +418,7 @@ def test_verify_jq_rule_reports_sorted_false_positive_paths(monkeypatch):
 
 
 def test_verify_jq_rule_raises_with_report_path_in_message(monkeypatch):
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="broken")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -431,7 +431,7 @@ def test_verify_jq_rule_raises_with_report_path_in_message(monkeypatch):
 
 
 def test_verify_jq_rule_raises_with_timeout_path_in_message(monkeypatch):
-    def fake_run(cmd, capture_output, text, timeout, shell):
+    def fake_run(cmd, capture_output, text, timeout, shell, encoding=None, errors=None):
         raise subprocess.TimeoutExpired(cmd=cmd, timeout=timeout)
 
     monkeypatch.setattr(subprocess, "run", fake_run)

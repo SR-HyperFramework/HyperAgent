@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import shutil
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -89,17 +90,24 @@ class Stage:
     reads_sample_content: bool
 
 
-STAGES: tuple[Stage, ...] = (
-    Stage("01-prepare-env", "hyperagent-prepare-env", reads_sample_content=False),
-    Stage("02-static-pass1", "hyperagent-static", reads_sample_content=True),
-    Stage("03-unpack", "hyperagent-unpack", reads_sample_content=True),
-    Stage("04-static-pass2", "hyperagent-static", reads_sample_content=True),
-    Stage("05-dynamic", "hyperagent-dynamic", reads_sample_content=True),
-    Stage("06-intel", "hyperagent-intel", reads_sample_content=True),
-    Stage("07-deepdive", "hyperagent-deepdive", reads_sample_content=True),
-    Stage("08-report", "hyperagent-report", reads_sample_content=False),
-    Stage("09-summary", "hyperagent-summary", reads_sample_content=False),
+# Derived from the canonical table in pipeline_state so the launcher, STATE.json
+# and the skill-side validators share one stage list.
+STAGES: tuple[Stage, ...] = tuple(
+    Stage(stage_id, meta["skill"], reads_sample_content=bool(meta["reads_sample"]))
+    for stage_id, meta in pipeline_state.STAGE_TABLE.items()
 )
+
+#: Path segments that name a ground-truth class in common dataset layouts
+#: (``.../malware/<sha256>``, ``.../benign/<sha256>``). A blind run refuses a
+#: report directory containing one, since the model sees that path.
+LABEL_HINT_SEGMENTS = frozenset({
+    "malware", "malicious", "benign", "goodware", "cleanware", "clean", "virus", "viruses",
+})
+
+#: Where blind runs write reports when ``reports_root`` is not configured. The
+#: default ``<sample_parent>/reports`` would put the dataset folder name (and
+#: with it the label) back into every prompt.
+BLIND_REPORTS_ROOT = Path.home() / ".hyperagent" / "blind-reports"
 
 
 def _sha256_of(path: Path) -> str:
@@ -110,9 +118,39 @@ def _sha256_of(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _report_dir_for(sample_path: Path, config: HyperAgentConfig) -> Path:
-    root = config.reports_root or (sample_path.parent / "reports")
+def _report_dir_for(
+    sample_path: Path, config: HyperAgentConfig, *, blind: bool | None = None
+) -> Path:
+    if blind is None:
+        blind = bool(_runtime_value(config, "blind_sample", False))
+    default_root = BLIND_REPORTS_ROOT if blind else sample_path.parent / "reports"
+    root = config.reports_root or default_root
     return Path(root) / _sha256_of(sample_path)
+
+
+def _label_hint_segments(path: Path) -> list[str]:
+    return [part for part in path.parts if part.lower() in LABEL_HINT_SEGMENTS]
+
+
+def _stage_blind_sample(sample_path: Path, report_dir: Path, sample_sha256: str) -> Path:
+    """Copy the sample to ``<report_dir>/_input/sample<ext>`` and return that path.
+
+    Every prompt, tool scope, STATE.json ``input_path`` and guest copy then
+    refers to the neutral copy, so neither the original file name nor the
+    folders above it can leak a ground-truth label. The extension is kept
+    because it carries no label and the guest may need it to launch the file.
+    """
+    hints = _label_hint_segments(report_dir)
+    if hints:
+        raise ValueError(
+            f"Blind run refused: report directory {report_dir} contains label-revealing "
+            f"path segment(s) {hints}. Set reports_root to a neutral folder."
+        )
+    staged = report_dir / "_input" / f"sample{sample_path.suffix.lower()}"
+    staged.parent.mkdir(parents=True, exist_ok=True)
+    if not staged.exists() or _sha256_of(staged) != sample_sha256:
+        shutil.copyfile(sample_path, staged)
+    return staged
 
 
 def _default_output_path(report_dir: Path, stage_id: str) -> Path | None:
@@ -555,12 +593,25 @@ async def run_pipeline_with_config(
         skip_intel=bool(_runtime_value(config, "skip_intel", False)),
     )
     sample_sha256 = _sha256_of(sample_path)
-    report_dir = _report_dir_for(sample_path, config)
+    blind = bool(_runtime_value(config, "blind_sample", False))
+    report_dir = _report_dir_for(sample_path, config, blind=blind)
+    original_sample_path = sample_path
+    if blind:
+        sample_path = _stage_blind_sample(sample_path, report_dir, sample_sha256)
+        logger.info("Blind run: analyzing neutral copy %s", sample_path)
     scope = compute_run_scope(sample_path, report_dir, config.skills_root)
     pipeline_state.ensure_state(report_dir, sample_sha256, str(sample_path))
+    if blind:
+        # ensure_state keeps an existing input_path; a report dir first used by
+        # a non-blind run would otherwise still show the original path.
+        state = pipeline_state.load_state(report_dir)
+        if state["input_path"] != str(sample_path):
+            state["input_path"] = str(sample_path)
+            pipeline_state.save_state(report_dir, state)
     # Reports land next to each sample unless reports_root is set; the run
-    # index is how the dashboard finds this run wherever it was written.
-    run_registry.link_run(sample_sha256, report_dir, sample_path=str(sample_path))
+    # index is how the dashboard finds this run wherever it was written. It
+    # lives outside every model-readable root, so it keeps the original path.
+    run_registry.link_run(sample_sha256, report_dir, sample_path=str(original_sample_path))
     state_path = pipeline_state.state_path_for(report_dir)
 
     metrics = MetricsCollector(

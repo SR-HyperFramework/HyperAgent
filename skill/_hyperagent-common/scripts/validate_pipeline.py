@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Validate every JSON stage currently present for one analysis directory."""
 from __future__ import annotations
+
 import argparse
 import json
 import os
@@ -8,32 +9,34 @@ import subprocess
 import sys
 from pathlib import Path
 
+from pipeline_state import (  # sibling script; re-exports hyperagent.pipeline_state
+    STAGE_IDS,
+    STAGE_SKILLS,
+    STAGE_TABLE,
+    VALID_RECOMMEND_ACTIONS,
+    VALID_STATUSES,
+    resolve_recorded_path,
+    stage_schema_rel,
+)
+
+# (output filename, schema path relative to the skills root) for JSON stages.
 STAGES = [
-    ("01-prepare-env.json", "hyperagent-prepare-env/schema.json"),
-    ("02-static-pass1.json", "hyperagent-static/schema.json"),
-    ("03-unpack.json", "hyperagent-unpack/schema.json"),
-    ("04-static-pass2.json", "hyperagent-static/schema.json"),
-    ("05-dynamic.json", "hyperagent-dynamic/schema.json"),
-    ("06-intel.json", "hyperagent-intel/schema.json"),
-    ("07-deepdive.json", "hyperagent-deepdive/schema.json"),
-    ("09-summary.json", "hyperagent-summary/schema.json"),
+    (STAGE_TABLE[stage_id]["output"], stage_schema_rel(stage_id))
+    for stage_id in STAGE_IDS
+    if stage_schema_rel(stage_id)
 ]
 
 STATE_SCHEMA_REL = "_hyperagent-common/schemas/state.schema.json"
-VALID_STATUSES = ("pending", "running", "completed")
-RECOMMEND_ACTIONS = ("resume_current", "run_next", "retry_stage", "pipeline_complete")
-STAGE_SKILLS = {
-    "01-prepare-env": "hyperagent-prepare-env",
-    "02-static-pass1": "hyperagent-static",
-    "03-unpack": "hyperagent-unpack",
-    "04-static-pass2": "hyperagent-static",
-    "05-dynamic": "hyperagent-dynamic",
-    "06-intel": "hyperagent-intel",
-    "07-deepdive": "hyperagent-deepdive",
-    "08-report": "hyperagent-report",
-    "09-summary": "hyperagent-summary",
+RECOMMEND_ACTIONS = VALID_RECOMMEND_ACTIONS
+COMPLETED_STAGE_IDS = STAGE_IDS
+# Child validators print UTF-8; decode their output the same way on any locale.
+_RUN_TEXT = {
+    "text": True,
+    "capture_output": True,
+    "encoding": "utf-8",
+    "errors": "replace",
+    "env": {**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"},
 }
-COMPLETED_STAGE_IDS = tuple(STAGE_SKILLS.keys())
 
 
 def skills_root() -> Path:
@@ -46,10 +49,7 @@ def skills_root() -> Path:
 def _resolve_recorded_path(analysis_dir: Path, recorded: str | None) -> Path | None:
     if not recorded:
         return None
-    path = Path(recorded).expanduser()
-    if not path.is_absolute():
-        path = analysis_dir / path
-    return path
+    return Path(resolve_recorded_path(analysis_dir.resolve(), recorded))
 
 
 
@@ -144,8 +144,7 @@ def validate_state(analysis_dir: Path, root: Path, validator: Path) -> tuple[lis
     schema = root / STATE_SCHEMA_REL
     proc = subprocess.run(
         [sys.executable, str(validator), str(schema), str(state_path)],
-        text=True,
-        capture_output=True,
+        **_RUN_TEXT,
     )
     if proc.returncode:
         failures.append(f"INVALID {state_path}: {proc.stderr.strip() or proc.stdout.strip()}")
@@ -196,8 +195,7 @@ def validate_state(analysis_dir: Path, root: Path, validator: Path) -> tuple[lis
                 continue
             proc = subprocess.run(
                 [sys.executable, str(validator), str(root / schema_rel), str(p)],
-                text=True,
-                capture_output=True,
+                **_RUN_TEXT,
             )
             if proc.returncode:
                 failures.append(
@@ -225,7 +223,7 @@ def main() -> int:
                 failures.append(f"MISSING {output}")
             continue
         schema = root / schema_rel
-        proc = subprocess.run([sys.executable, str(validator), str(schema), str(output)], text=True, capture_output=True)
+        proc = subprocess.run([sys.executable, str(validator), str(schema), str(output)], **_RUN_TEXT)
         if proc.returncode:
             failures.append(f"INVALID {output}: {proc.stderr.strip() or proc.stdout.strip()}")
         else:

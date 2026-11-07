@@ -241,3 +241,18 @@ __marimo__/
 /_tmp_report
 /docs
 /pycdc/
+
+# Recovered sample binaries (unpacked payloads, decrypted shellcode, dumps) are
+# live malware. Keep them on the analysis host only; never commit them. The
+# JSON/Markdown stage artifacts that describe them stay tracked.
+/reports/**/*.exe
+/reports/**/*.dll
+/reports/**/*.sys
+/reports/**/*.scr
+/reports/**/*.bin
+/reports/**/*.raw
+/reports/**/*.dmp
+/reports/**/*.mem
+/reports/**/*.dat
+# Neutral sample copies made by blind runs (--blind).
+/reports/**/_input/

@@ -8,7 +8,7 @@
     `in_llm_ablation_subset` in experiments/results/sample_selection.json)
     that `python -m experiments.run_study llm-compare` already runs against.
     The collaborator is expected to already have HyperAgent installed
-    (see SETUP_NEW_MACHINE.md) -- this script does NOT package the tool,
+    (see README.md (Install section)) -- this script does NOT package the tool,
     the VM, or any sample binaries. It only:
 
       1. Runs experiments/export_llm_compare_manifest.py to write a small
